@@ -34,7 +34,7 @@ public:
                         uint8_t max_bins = 64);
   void print_pulses(uint8_t *pulses, uint32_t num_pulses);
 
-  int8_t led_pin = LED_BUILTIN;
+  int8_t led_pin = LED_BUILTIN; ///< Debug LED output for tracing
 
 private:
   void wait_for_index_pulse_low(void);
