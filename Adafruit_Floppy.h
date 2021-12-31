@@ -7,8 +7,8 @@
 #define MAX_TRACKS 80
 #define STEP_OUT HIGH
 #define STEP_IN LOW
-#define MAX_FLUX_PULSE_PER_TRACK (500000 / 5) // 500khz / 5 hz per track rotation
-
+#define MAX_FLUX_PULSE_PER_TRACK                                               \
+  (500000 / 5) // 500khz / 5 hz per track rotation
 
 /**************************************************************************/
 /*!
@@ -30,7 +30,8 @@ public:
   void step(bool dir, uint8_t times);
 
   uint32_t capture_track(uint8_t *pulses, uint32_t max_pulses);
-  void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins = 64);
+  void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
+                        uint8_t max_bins = 64);
   void print_pulses(uint8_t *pulses, uint32_t num_pulses);
 
   int8_t led_pin = LED_BUILTIN;
@@ -40,13 +41,13 @@ private:
 
   // theres a lot of GPIO!
   int8_t _densitypin, _indexpin, _selectpin, _motorpin, _directionpin, _steppin,
-    _wrdatapin, _wrgatepin, _track0pin, _protectpin, _rddatapin, _sidepin, _readypin;
+      _wrdatapin, _wrgatepin, _track0pin, _protectpin, _rddatapin, _sidepin,
+      _readypin;
 
   int8_t _track = -1;
 
   BusIO_PortReg *indexPort;
   BusIO_PortMask indexMask;
-
 };
 
 #endif
