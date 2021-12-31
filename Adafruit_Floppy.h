@@ -26,7 +26,7 @@ public:
   void spin_up(void);
   void spin_down(void);
   bool goto_track(uint8_t track);
-  uint8_t track(void);
+  int8_t track(void);
   void step(bool dir, uint8_t times);
 
   uint32_t capture_track(uint8_t *pulses, uint32_t max_pulses);
