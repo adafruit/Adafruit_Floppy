@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['goto_5ftrack',['goto_track',['../class_adafruit___floppy.html#a7b3bc89a334cb15158c79b20a2264ba7',1,'Adafruit_Floppy']]]
+  ['debug_5fserial',['debug_serial',['../class_adafruit___floppy.html#a4ef0961d7e6c57d7766312ad8dac2835',1,'Adafruit_Floppy']]]
 ];

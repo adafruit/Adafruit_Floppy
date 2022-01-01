@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['led_5fpin',['led_pin',['../class_adafruit___floppy.html#a0e6de66f3190366f020bca52dc46f5d4',1,'Adafruit_Floppy']]]
+  ['debug_5fserial',['debug_serial',['../class_adafruit___floppy.html#a4ef0961d7e6c57d7766312ad8dac2835',1,'Adafruit_Floppy']]]
 ];

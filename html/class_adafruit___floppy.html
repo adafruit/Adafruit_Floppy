@@ -88,9 +88,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:aa834c961dc31de44751f7178b33efaaf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#aa834c961dc31de44751f7178b33efaaf">select</a> (bool selected)</td></tr>
 <tr class="memdesc:aa834c961dc31de44751f7178b33efaaf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether to select this drive.  <a href="#aa834c961dc31de44751f7178b33efaaf">More...</a><br /></td></tr>
 <tr class="separator:aa834c961dc31de44751f7178b33efaaf"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae5a147f5dc0366ff7eb08e40f4547dcd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ae5a147f5dc0366ff7eb08e40f4547dcd">spin_motor</a> (bool motor_on)</td></tr>
-<tr class="memdesc:ae5a147f5dc0366ff7eb08e40f4547dcd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Turn on or off the floppy motor.  <a href="#ae5a147f5dc0366ff7eb08e40f4547dcd">More...</a><br /></td></tr>
-<tr class="separator:ae5a147f5dc0366ff7eb08e40f4547dcd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab3bb1389a8c7e0257f49652d4ca6d0d6"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ab3bb1389a8c7e0257f49652d4ca6d0d6">spin_motor</a> (bool motor_on)</td></tr>
+<tr class="memdesc:ab3bb1389a8c7e0257f49652d4ca6d0d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Turn on or off the floppy motor, if on we wait till we get an index pulse!  <a href="#ab3bb1389a8c7e0257f49652d4ca6d0d6">More...</a><br /></td></tr>
+<tr class="separator:ab3bb1389a8c7e0257f49652d4ca6d0d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b3bc89a334cb15158c79b20a2264ba7"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a7b3bc89a334cb15158c79b20a2264ba7">goto_track</a> (uint8_t <a class="el" href="class_adafruit___floppy.html#a01d32d5a68ed4198ea3613cb45317d90">track</a>)</td></tr>
 <tr class="memdesc:a7b3bc89a334cb15158c79b20a2264ba7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Seek to the desired track, requires the motor to be spun up!  <a href="#a7b3bc89a334cb15158c79b20a2264ba7">More...</a><br /></td></tr>
 <tr class="separator:a7b3bc89a334cb15158c79b20a2264ba7"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -142,6 +142,10 @@ uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ae042ab862f4141df7e4299d460478a92">bus_type</a> = BUSTYPE_IBMPC</td></tr>
 <tr class="memdesc:ae042ab862f4141df7e4299d460478a92"><td class="mdescLeft">&#160;</td><td class="mdescRight">what kind of floppy drive we're using <br /></td></tr>
 <tr class="separator:ae042ab862f4141df7e4299d460478a92"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4ef0961d7e6c57d7766312ad8dac2835"><td class="memItemLeft" align="right" valign="top"><a id="a4ef0961d7e6c57d7766312ad8dac2835"></a>
+Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a4ef0961d7e6c57d7766312ad8dac2835">debug_serial</a> = NULL</td></tr>
+<tr class="memdesc:a4ef0961d7e6c57d7766312ad8dac2835"><td class="mdescLeft">&#160;</td><td class="mdescRight">optional debug stream for serial output <br /></td></tr>
+<tr class="separator:a4ef0961d7e6c57d7766312ad8dac2835"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>A helper class for chattin with floppy drives. </p>
@@ -287,14 +291,14 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
 
 </div>
 </div>
-<a id="ae5a147f5dc0366ff7eb08e40f4547dcd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae5a147f5dc0366ff7eb08e40f4547dcd">&#9670;&nbsp;</a></span>spin_motor()</h2>
+<a id="ab3bb1389a8c7e0257f49652d4ca6d0d6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab3bb1389a8c7e0257f49652d4ca6d0d6">&#9670;&nbsp;</a></span>spin_motor()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void Adafruit_Floppy::spin_motor </td>
+          <td class="memname">bool Adafruit_Floppy::spin_motor </td>
           <td>(</td>
           <td class="paramtype">bool&#160;</td>
           <td class="paramname"><em>motor_on</em></td><td>)</td>
@@ -303,13 +307,14 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
       </table>
 </div><div class="memdoc">
 
-<p>Turn on or off the floppy motor. </p>
+<p>Turn on or off the floppy motor, if on we wait till we get an index pulse! </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">motor_on</td><td>True to turn on motor, False to turn it off </td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>False if turning motor on and no index pulse found, true otherwise </dd></dl>
 
 </div>
 </div>

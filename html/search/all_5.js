@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['motor_5fdelay_5fms',['motor_delay_ms',['../class_adafruit___floppy.html#af3e1ed416c4e12511b9c27b3e1d06778',1,'Adafruit_Floppy']]]
+  ['led_5fpin',['led_pin',['../class_adafruit___floppy.html#a0e6de66f3190366f020bca52dc46f5d4',1,'Adafruit_Floppy']]]
 ];
