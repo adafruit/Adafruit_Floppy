@@ -29,7 +29,7 @@ public:
   void soft_reset(void);
 
   void select(bool selected);
-  void spin_motor(bool motor_on);
+  bool spin_motor(bool motor_on);
   bool goto_track(uint8_t track);
   void side(uint8_t head);
   int8_t track(void);
@@ -49,6 +49,8 @@ public:
   uint16_t watchdog_delay_ms =
       1000; ///< quiescent time until drives reset (msecs)
   uint8_t bus_type = BUSTYPE_IBMPC; ///< what kind of floppy drive we're using
+
+  Stream *debug_serial = NULL; ///< optional debug stream for serial output
 
 private:
   void wait_for_index_pulse_low(void);

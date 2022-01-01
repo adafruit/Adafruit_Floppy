@@ -37,10 +37,14 @@ void setup() {
   while (!Serial) delay(100);
 
   Serial.println("its time for a nice floppy transfer!");
+  floppy.debug_serial = &Serial;
   floppy.begin();
 
   floppy.select(true);
-  floppy.spin_motor(true);
+  if (! floppy.spin_motor(true)) {
+    Serial.println("Failed to spin up motor & find index pulse");
+    while (1) yield();
+  }
 
   Serial.print("Seeking track...");
   if (! floppy.goto_track(1)) {
