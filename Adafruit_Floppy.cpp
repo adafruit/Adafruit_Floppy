@@ -169,7 +169,9 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
   if ((_track < 0) || track_num == 0) {
     if (debug_serial)
       debug_serial->println("Going to track 0");
-    uint8_t max_steps = MAX_TRACKS;
+
+    // step back a lil more than expected just in case we really seeked out
+    uint8_t max_steps = MAX_TRACKS + 10;
     while (max_steps--) {
       if (!digitalRead(_track0pin)) {
         _track = 0;
