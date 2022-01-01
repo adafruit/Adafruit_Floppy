@@ -1,6 +1,6 @@
 #include <Adafruit_Floppy.h>
 
-// Only tested on SAMD51 chipsets. TURN ON 180MHZ OVERCLOCK AND FASTEST OPTIMIZE!
+// Only tested on SAMD51 chipsets. TURN ON TINYUSB STACK, 180MHZ OVERCLOCK AND FASTEST OPTIMIZE!
 
 #define DENSITY_PIN  5     // IDC 2
 // IDC 4 no connect
@@ -26,9 +26,6 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
 
-// WARNING! there are 100K max flux pulses per track!
-uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
-
 uint32_t time_stamp = 0;
 
 uint8_t cmd_buffer[32], reply_buffer[128];
@@ -45,22 +42,34 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_GETINFO    0
 #define GW_CMD_GETINFO_FIRMWARE 0
 #define GW_CMD_GETINFO_BANDWIDTH 1
+#define GW_CMD_SEEK       2
+#define GW_CMD_HEAD       3
+#define GW_CMD_SETPARAMS  4
 #define GW_CMD_GETPARAMS  5
 #define GW_CMD_GETPARAMS_DELAYS 0
+#define GW_CMD_MOTOR      6
+#define GW_CMD_READFLUX   7
+#define GW_CMD_GETFLUXSTATUS  9
 #define GW_CMD_SELECT    12
 #define GW_CMD_DESELECT  13
+#define GW_CMD_SETBUSTYPE 14
+#define GW_CMD_SETBUSTYPE_IBM 1
+#define GW_CMD_SETBUSTYPE_SHUGART 2
+#define GW_CMD_SETPIN    15
 #define GW_CMD_RESET     16
 #define GW_CMD_SOURCEBYTES 18
 #define GW_CMD_SINKBYTES 19
 
 #define GW_ACK_OK (byte)0
 #define GW_ACK_BADCMD (byte)1
+#define GW_ACK_NOTRACK0 (byte)3
 
 void setup() {
   Serial.begin(115200);
   Serial1.begin(115200); 
   //while (!Serial) delay(100);
   Serial1.println("GrizzlyWizzly");
+  floppy.begin();
 }
 
 uint8_t get_cmd(uint8_t *buff, uint8_t maxbuff) {
@@ -83,6 +92,10 @@ uint8_t get_cmd(uint8_t *buff, uint8_t maxbuff) {
 uint32_t bandwidth_timer;
 float bytes_per_sec;
 uint32_t transfered_bytes;
+uint32_t captured_pulses;
+// WARNING! there are 100K max flux pulses per track!
+uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
+
 
 void loop() {
   uint8_t cmd_len = get_cmd(cmd_buffer, sizeof(cmd_buffer));
@@ -96,6 +109,7 @@ void loop() {
   Serial1.printf("Got command 0x%02x\n\r", cmd);
   
   if (cmd == GW_CMD_GETINFO) {
+    Serial1.println("Get info");
     uint8_t sub_cmd = cmd_buffer[2];
     if (sub_cmd == GW_CMD_GETINFO_FIRMWARE) {
       reply_buffer[i++] = GW_ACK_OK;
@@ -104,9 +118,9 @@ void loop() {
       reply_buffer[i++] = 1; // is main firm
       reply_buffer[i++] = GW_MAXCMD;
       reply_buffer[i++] = GW_SAMPLEFREQ & 0xFF;
-      reply_buffer[i++] = GW_SAMPLEFREQ >> 8;
-      reply_buffer[i++] = GW_SAMPLEFREQ >> 16;
-      reply_buffer[i++] = GW_SAMPLEFREQ >> 24;
+      reply_buffer[i++] = (GW_SAMPLEFREQ >> 8) & 0xFF;
+      reply_buffer[i++] = (GW_SAMPLEFREQ >> 16) & 0xFF;
+      reply_buffer[i++] = (GW_SAMPLEFREQ >> 24) & 0xFF;
       reply_buffer[i++] = GW_HW_MODEL;
       reply_buffer[i++] = GW_HW_SUBMODEL;
       reply_buffer[i++] = GW_USB_SPEED;
@@ -143,6 +157,7 @@ void loop() {
   }
 
   else if (cmd == GW_CMD_GETPARAMS) {
+    Serial1.println("Get params");
     uint8_t sub_cmd = cmd_buffer[2];
     if (sub_cmd == GW_CMD_GETPARAMS_DELAYS) {
       reply_buffer[i++] = GW_ACK_OK;
@@ -161,11 +176,112 @@ void loop() {
   }
 
   else if (cmd == GW_CMD_RESET) {
+    Serial1.println("Soft reset");
+    floppy.soft_reset();
+    reply_buffer[i++] = GW_ACK_OK;
+    Serial.write(reply_buffer, 2);
+  }
+  
+  else if (cmd == GW_CMD_SETBUSTYPE) {
+    uint8_t bustype = cmd_buffer[2];
+    Serial1.printf("Set bus type %d\n\r", bustype);
+    // TODO: whats the diff???
+    if (bustype == GW_CMD_SETBUSTYPE_IBM) {
+      reply_buffer[i++] = GW_ACK_OK;
+    }
+    else if (bustype == GW_CMD_SETBUSTYPE_SHUGART) {
+      floppy.bus_type = BUSTYPE_SHUGART;
+      reply_buffer[i++] = GW_ACK_OK;
+    } else {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+    }
+    Serial.write(reply_buffer, 2);
+  }
+  
+  else if (cmd == GW_CMD_SEEK) {
+    uint8_t track = cmd_buffer[2];
+    Serial1.printf("Seek track %d\n\r", track);
+    bool r = floppy.goto_track(track);
+    if (r) {
+      reply_buffer[i++] = GW_ACK_OK;
+    } else {
+      reply_buffer[i++] = GW_ACK_NOTRACK0;
+    }
+    Serial.write(reply_buffer, 2);
+  }
+  
+  else if (cmd == GW_CMD_HEAD) {
+    uint8_t head = cmd_buffer[2];
+    Serial1.printf("Seek head %d\n\r", head);
+    floppy.side(head);
+    reply_buffer[i++] = GW_ACK_OK;
+    Serial.write(reply_buffer, 2);
+  }
+  
+  else if (cmd == GW_CMD_MOTOR) {
+    uint8_t sub_cmd = !cmd_buffer[2];
+    Serial1.printf("Turn motor %s\n\r", sub_cmd ? "on" : "off");
+    floppy.spin_motor(sub_cmd);
+    reply_buffer[i++] = GW_ACK_OK;
+    Serial.write(reply_buffer, 2);
+  }
+  
+  else if (cmd == GW_CMD_SELECT) {
+    uint8_t sub_cmd = !cmd_buffer[2];
+    Serial1.printf("Select drive %s\n\r", sub_cmd ? "on" : "off");
+    floppy.select(sub_cmd);
+    reply_buffer[i++] = GW_ACK_OK;
+    Serial.write(reply_buffer, 2);
+  }
+
+  else if (cmd == GW_CMD_DESELECT) {
+    Serial1.printf("Deselect drive\n\r");
+    floppy.select(false);
+    reply_buffer[i++] = GW_ACK_OK;
+    Serial.write(reply_buffer, 2);
+  }
+  
+  else if (cmd == GW_CMD_READFLUX) {
+    uint32_t flux_ticks;
+    uint16_t revs;
+    flux_ticks |= cmd_buffer[5];
+    flux_ticks <<= 8;
+    flux_ticks |= cmd_buffer[4];
+    flux_ticks <<= 8;
+    flux_ticks |= cmd_buffer[3];
+    flux_ticks <<= 8;
+    flux_ticks |= cmd_buffer[2];
+    revs |= cmd_buffer[7];
+    revs <<= 8;
+    revs |= cmd_buffer[6]; 
+    revs -= 1;
+    
+    Serial1.printf("Reading flux0rs: %u ticks and %d revs\n\r", flux_ticks, revs);
+    reply_buffer[i++] = GW_ACK_OK;
+    Serial.write(reply_buffer, 2);
+    while (revs--) {
+      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions));
+      Serial1.printf("Rev #%d captured %u pulses\n\r", revs, captured_pulses);
+      uint8_t *flux_ptr = flux_transitions;
+      while (captured_pulses) {
+        uint32_t to_send = min(captured_pulses, 256);
+        Serial.write(flux_ptr, to_send);
+        //Serial1.println(to_send);
+        flux_ptr += to_send;
+        captured_pulses -= to_send;
+      }
+      Serial.write((byte)0);
+    }
+  }
+
+  else if (cmd == GW_CMD_GETFLUXSTATUS) {
+    Serial1.println("Soft reset");
     floppy.soft_reset();
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
 
+  
   else if (cmd == GW_CMD_SINKBYTES) {
      uint32_t numbytes = 0;
      uint32_t seed = 0;
@@ -246,7 +362,7 @@ void loop() {
      while (numbytes != 0) {
        uint32_t to_write = min(numbytes, sizeof(reply_buffer));
        // we dont write 'just anything'!
-       for (int i=0; i<to_write; i++) {
+       for (uint32_t i=0; i<to_write; i++) {
         reply_buffer[i] = randnum;
         if (randnum & 0x01) {
           randnum = (randnum >> 1) ^ 0x80000062;

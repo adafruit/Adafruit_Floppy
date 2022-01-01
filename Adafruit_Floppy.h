@@ -10,6 +10,9 @@
 #define MAX_FLUX_PULSE_PER_TRACK                                               \
   (500000 / 5) // 500khz / 5 hz per track rotation
 
+#define BUSTYPE_IBMPC 1
+#define BUSTYPE_SHUGART 2
+
 /**************************************************************************/
 /*!
     @brief A helper class for chattin with floppy drives
@@ -23,9 +26,12 @@ public:
                   int8_t protectpin, int8_t rddatapin, int8_t sidepin,
                   int8_t readypin);
   void begin(void);
-  void spin_up(void);
-  void spin_down(void);
+  void soft_reset(void);
+
+  void select(bool selected);
+  void spin_motor(bool motor_on);
   bool goto_track(uint8_t track);
+  void side(uint8_t head);
   int8_t track(void);
   void step(bool dir, uint8_t times);
 
@@ -35,6 +41,13 @@ public:
   void print_pulses(uint8_t *pulses, uint32_t num_pulses);
 
   int8_t led_pin = LED_BUILTIN; ///< Debug LED output for tracing
+
+    uint16_t select_delay_us = 1000;  ///< delay after drive select (usecs)
+    uint16_t step_delay_us = 3000;  ///< delay between head steps (usecs)
+    uint16_t settle_delay_ms = 10;  ///< settle delay after seek (msecs)
+    uint16_t motor_delay_ms = 1000; ///< delay after motor on (msecs)
+    uint16_t watchdog_delay_ms = 1000; ///< quiescent time until drives reset (msecs)
+      uint8_t bus_type = BUSTYPE_IBMPC;
 
 private:
   void wait_for_index_pulse_low(void);

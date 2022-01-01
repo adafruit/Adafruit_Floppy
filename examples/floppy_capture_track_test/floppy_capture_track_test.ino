@@ -39,8 +39,8 @@ void setup() {
   Serial.println("its time for a nice floppy transfer!");
   floppy.begin();
 
-  floppy.spin_up();
-  delay(1000);
+  floppy.select(true);
+  floppy.spin_motor(true);
 
   Serial.print("Seeking track...");
   if (! floppy.goto_track(1)) {

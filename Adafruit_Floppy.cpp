@@ -51,6 +51,15 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
 */
 /**************************************************************************/
 void Adafruit_Floppy::begin(void) {
+  soft_reset();
+}
+
+/**************************************************************************/
+/*!
+    @brief  Set back the object and pins to initial state
+*/
+/**************************************************************************/
+void Adafruit_Floppy::soft_reset(void) {
   // deselect drive
   pinMode(_selectpin, OUTPUT);
   digitalWrite(_selectpin, HIGH);
@@ -79,32 +88,36 @@ void Adafruit_Floppy::begin(void) {
 
   indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
   indexMask = digitalPinToBitMask(_indexpin);
+
+  select_delay_us = 1000;
+  step_delay_us = 3000;
+  settle_delay_ms = 10;
+  motor_delay_ms = 1000;
+  watchdog_delay_ms = 1000;
+  bus_type = BUSTYPE_IBMPC;
 }
 
-/**************************************************************************/
-/*!
-    @brief  Select and spin up the floppy motor
-*/
-/**************************************************************************/
-void Adafruit_Floppy::spin_up(void) {
-  digitalWrite(_selectpin, HIGH);
-  delay(10);
-  // Main motor turn on
-  digitalWrite(_motorpin, LOW);
+void Adafruit_Floppy::select(bool selected) {
+  digitalWrite(_selectpin, !selected);  // Selected logic level 0!
   // Select drive
-  digitalWrite(_selectpin, LOW);
+  delayMicroseconds(select_delay_us);
 }
+
+void Adafruit_Floppy::side(uint8_t head) {
+  digitalWrite(_sidepin, !head);  // Head 0 is logic level 1, head 1 is logic 0!
+}
+
 
 /**************************************************************************/
 /*!
-    @brief  Spin down the motor and de-select the drive
+    @brief  Turn on or off the floppy motor
+    @param motor_on True to turn on motor, False to turn it off
 */
 /**************************************************************************/
-void Adafruit_Floppy::spin_down(void) {
-  // Main motor turn off
-  digitalWrite(_motorpin, HIGH);
-  // De-select drive
-  digitalWrite(_selectpin, HIGH);
+void Adafruit_Floppy::spin_motor(bool motor_on) {
+  digitalWrite(_motorpin, !motor_on);  // Motor on is logic level 0!
+  if (motor_on)   // Main motor turn on
+    delay(motor_delay_ms);
 }
 
 /**************************************************************************/
@@ -149,9 +162,9 @@ void Adafruit_Floppy::step(bool dir, uint8_t times) {
 
   while (times--) {
     digitalWrite(_steppin, HIGH);
-    delay(3); // 3ms min per step
+    delay(step_delay_us); 
     digitalWrite(_steppin, LOW);
-    delay(3);                     // 3ms min per step
+    delay(step_delay_us);
     digitalWrite(_steppin, HIGH); // end high
   }
 }
