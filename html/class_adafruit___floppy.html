@@ -81,17 +81,22 @@ Public Member Functions</h2></td></tr>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a451d7df18028d6cda809a27381cc6251">begin</a> (void)</td></tr>
 <tr class="memdesc:a451d7df18028d6cda809a27381cc6251"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes the GPIO pins but do not start the motor or anything. <br /></td></tr>
 <tr class="separator:a451d7df18028d6cda809a27381cc6251"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a279e209c09c162ef79f961023af30020"><td class="memItemLeft" align="right" valign="top"><a id="a279e209c09c162ef79f961023af30020"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a279e209c09c162ef79f961023af30020">spin_up</a> (void)</td></tr>
-<tr class="memdesc:a279e209c09c162ef79f961023af30020"><td class="mdescLeft">&#160;</td><td class="mdescRight">Select and spin up the floppy motor. <br /></td></tr>
-<tr class="separator:a279e209c09c162ef79f961023af30020"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af48887e72f20eb08a0c9f366d499ba1d"><td class="memItemLeft" align="right" valign="top"><a id="af48887e72f20eb08a0c9f366d499ba1d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#af48887e72f20eb08a0c9f366d499ba1d">spin_down</a> (void)</td></tr>
-<tr class="memdesc:af48887e72f20eb08a0c9f366d499ba1d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Spin down the motor and de-select the drive. <br /></td></tr>
-<tr class="separator:af48887e72f20eb08a0c9f366d499ba1d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a88f3757c13bcdd4762251f5cbb11429a"><td class="memItemLeft" align="right" valign="top"><a id="a88f3757c13bcdd4762251f5cbb11429a"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a88f3757c13bcdd4762251f5cbb11429a">soft_reset</a> (void)</td></tr>
+<tr class="memdesc:a88f3757c13bcdd4762251f5cbb11429a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set back the object and pins to initial state. <br /></td></tr>
+<tr class="separator:a88f3757c13bcdd4762251f5cbb11429a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa834c961dc31de44751f7178b33efaaf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#aa834c961dc31de44751f7178b33efaaf">select</a> (bool selected)</td></tr>
+<tr class="memdesc:aa834c961dc31de44751f7178b33efaaf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether to select this drive.  <a href="#aa834c961dc31de44751f7178b33efaaf">More...</a><br /></td></tr>
+<tr class="separator:aa834c961dc31de44751f7178b33efaaf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae5a147f5dc0366ff7eb08e40f4547dcd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ae5a147f5dc0366ff7eb08e40f4547dcd">spin_motor</a> (bool motor_on)</td></tr>
+<tr class="memdesc:ae5a147f5dc0366ff7eb08e40f4547dcd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Turn on or off the floppy motor.  <a href="#ae5a147f5dc0366ff7eb08e40f4547dcd">More...</a><br /></td></tr>
+<tr class="separator:ae5a147f5dc0366ff7eb08e40f4547dcd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b3bc89a334cb15158c79b20a2264ba7"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a7b3bc89a334cb15158c79b20a2264ba7">goto_track</a> (uint8_t <a class="el" href="class_adafruit___floppy.html#a01d32d5a68ed4198ea3613cb45317d90">track</a>)</td></tr>
 <tr class="memdesc:a7b3bc89a334cb15158c79b20a2264ba7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Seek to the desired track, requires the motor to be spun up!  <a href="#a7b3bc89a334cb15158c79b20a2264ba7">More...</a><br /></td></tr>
 <tr class="separator:a7b3bc89a334cb15158c79b20a2264ba7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a80b3ad9b8f1f00de062ce6e2fb9f1a55"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a80b3ad9b8f1f00de062ce6e2fb9f1a55">side</a> (uint8_t head)</td></tr>
+<tr class="memdesc:a80b3ad9b8f1f00de062ce6e2fb9f1a55"><td class="mdescLeft">&#160;</td><td class="mdescRight">Which head/side to read from.  <a href="#a80b3ad9b8f1f00de062ce6e2fb9f1a55">More...</a><br /></td></tr>
+<tr class="separator:a80b3ad9b8f1f00de062ce6e2fb9f1a55"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a01d32d5a68ed4198ea3613cb45317d90"><td class="memItemLeft" align="right" valign="top">int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a01d32d5a68ed4198ea3613cb45317d90">track</a> (void)</td></tr>
 <tr class="memdesc:a01d32d5a68ed4198ea3613cb45317d90"><td class="mdescLeft">&#160;</td><td class="mdescRight">The current track location, based on internal caching.  <a href="#a01d32d5a68ed4198ea3613cb45317d90">More...</a><br /></td></tr>
 <tr class="separator:a01d32d5a68ed4198ea3613cb45317d90"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -114,6 +119,29 @@ Public Attributes</h2></td></tr>
 int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a0e6de66f3190366f020bca52dc46f5d4">led_pin</a> = LED_BUILTIN</td></tr>
 <tr class="memdesc:a0e6de66f3190366f020bca52dc46f5d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Debug LED output for tracing. <br /></td></tr>
 <tr class="separator:a0e6de66f3190366f020bca52dc46f5d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a69d794ce69e2f90b8c51f9127302b03d"><td class="memItemLeft" align="right" valign="top"><a id="a69d794ce69e2f90b8c51f9127302b03d"></a>
+uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a69d794ce69e2f90b8c51f9127302b03d">select_delay_us</a> = 1000</td></tr>
+<tr class="memdesc:a69d794ce69e2f90b8c51f9127302b03d"><td class="mdescLeft">&#160;</td><td class="mdescRight">delay after drive select (usecs) <br /></td></tr>
+<tr class="separator:a69d794ce69e2f90b8c51f9127302b03d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a19e0838836537c6aeb1fdb97304f0f47"><td class="memItemLeft" align="right" valign="top"><a id="a19e0838836537c6aeb1fdb97304f0f47"></a>
+uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a19e0838836537c6aeb1fdb97304f0f47">step_delay_us</a> = 3000</td></tr>
+<tr class="memdesc:a19e0838836537c6aeb1fdb97304f0f47"><td class="mdescLeft">&#160;</td><td class="mdescRight">delay between head steps (usecs) <br /></td></tr>
+<tr class="separator:a19e0838836537c6aeb1fdb97304f0f47"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afb6578b1158e87b5a5d98d624e7b453c"><td class="memItemLeft" align="right" valign="top"><a id="afb6578b1158e87b5a5d98d624e7b453c"></a>
+uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#afb6578b1158e87b5a5d98d624e7b453c">settle_delay_ms</a> = 10</td></tr>
+<tr class="memdesc:afb6578b1158e87b5a5d98d624e7b453c"><td class="mdescLeft">&#160;</td><td class="mdescRight">settle delay after seek (msecs) <br /></td></tr>
+<tr class="separator:afb6578b1158e87b5a5d98d624e7b453c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af3e1ed416c4e12511b9c27b3e1d06778"><td class="memItemLeft" align="right" valign="top"><a id="af3e1ed416c4e12511b9c27b3e1d06778"></a>
+uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#af3e1ed416c4e12511b9c27b3e1d06778">motor_delay_ms</a> = 1000</td></tr>
+<tr class="memdesc:af3e1ed416c4e12511b9c27b3e1d06778"><td class="mdescLeft">&#160;</td><td class="mdescRight">delay after motor on (msecs) <br /></td></tr>
+<tr class="separator:af3e1ed416c4e12511b9c27b3e1d06778"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abb6248d3cd18e23d3b87d90ad75f18a8"><td class="memItemLeft" align="right" valign="top">uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#abb6248d3cd18e23d3b87d90ad75f18a8">watchdog_delay_ms</a></td></tr>
+<tr class="memdesc:abb6248d3cd18e23d3b87d90ad75f18a8"><td class="mdescLeft">&#160;</td><td class="mdescRight">quiescent time until drives reset (msecs)  <a href="#abb6248d3cd18e23d3b87d90ad75f18a8">More...</a><br /></td></tr>
+<tr class="separator:abb6248d3cd18e23d3b87d90ad75f18a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae042ab862f4141df7e4299d460478a92"><td class="memItemLeft" align="right" valign="top"><a id="ae042ab862f4141df7e4299d460478a92"></a>
+uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ae042ab862f4141df7e4299d460478a92">bus_type</a> = BUSTYPE_IBMPC</td></tr>
+<tr class="memdesc:ae042ab862f4141df7e4299d460478a92"><td class="mdescLeft">&#160;</td><td class="mdescRight">what kind of floppy drive we're using <br /></td></tr>
+<tr class="separator:ae042ab862f4141df7e4299d460478a92"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>A helper class for chattin with floppy drives. </p>
@@ -233,6 +261,58 @@ int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cl
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
+<a id="aa834c961dc31de44751f7178b33efaaf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa834c961dc31de44751f7178b33efaaf">&#9670;&nbsp;</a></span>select()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Adafruit_Floppy::select </td>
+          <td>(</td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>selected</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Whether to select this drive. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">selected</td><td>True to select/enable </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ae5a147f5dc0366ff7eb08e40f4547dcd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae5a147f5dc0366ff7eb08e40f4547dcd">&#9670;&nbsp;</a></span>spin_motor()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Adafruit_Floppy::spin_motor </td>
+          <td>(</td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>motor_on</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Turn on or off the floppy motor. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">motor_on</td><td>True to turn on motor, False to turn it off </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a7b3bc89a334cb15158c79b20a2264ba7"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7b3bc89a334cb15158c79b20a2264ba7">&#9670;&nbsp;</a></span>goto_track()</h2>
 
@@ -257,6 +337,32 @@ int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cl
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True If we were able to get to the track location </dd></dl>
+
+</div>
+</div>
+<a id="a80b3ad9b8f1f00de062ce6e2fb9f1a55"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a80b3ad9b8f1f00de062ce6e2fb9f1a55">&#9670;&nbsp;</a></span>side()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Adafruit_Floppy::side </td>
+          <td>(</td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>head</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Which head/side to read from. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">head</td><td>Head 0 or 1 </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -434,6 +540,23 @@ int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cl
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Data Documentation</h2>
+<a id="abb6248d3cd18e23d3b87d90ad75f18a8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abb6248d3cd18e23d3b87d90ad75f18a8">&#9670;&nbsp;</a></span>watchdog_delay_ms</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint16_t Adafruit_Floppy::watchdog_delay_ms</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<b>Initial value:</b><div class="fragment"><div class="line">=</div><div class="line">      1000</div></div><!-- fragment -->
+<p>quiescent time until drives reset (msecs) </p>
 
 </div>
 </div>
