@@ -50,9 +50,7 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
     @brief  Initializes the GPIO pins but do not start the motor or anything
 */
 /**************************************************************************/
-void Adafruit_Floppy::begin(void) {
-  soft_reset();
-}
+void Adafruit_Floppy::begin(void) { soft_reset(); }
 
 /**************************************************************************/
 /*!
@@ -97,16 +95,27 @@ void Adafruit_Floppy::soft_reset(void) {
   bus_type = BUSTYPE_IBMPC;
 }
 
+/**************************************************************************/
+/*!
+    @brief Whether to select this drive
+    @param selected True to select/enable
+*/
+/**************************************************************************/
 void Adafruit_Floppy::select(bool selected) {
-  digitalWrite(_selectpin, !selected);  // Selected logic level 0!
+  digitalWrite(_selectpin, !selected); // Selected logic level 0!
   // Select drive
   delayMicroseconds(select_delay_us);
 }
 
+/**************************************************************************/
+/*!
+    @brief Which head/side to read from
+    @param head Head 0 or 1
+*/
+/**************************************************************************/
 void Adafruit_Floppy::side(uint8_t head) {
-  digitalWrite(_sidepin, !head);  // Head 0 is logic level 1, head 1 is logic 0!
+  digitalWrite(_sidepin, !head); // Head 0 is logic level 1, head 1 is logic 0!
 }
-
 
 /**************************************************************************/
 /*!
@@ -115,8 +124,8 @@ void Adafruit_Floppy::side(uint8_t head) {
 */
 /**************************************************************************/
 void Adafruit_Floppy::spin_motor(bool motor_on) {
-  digitalWrite(_motorpin, !motor_on);  // Motor on is logic level 0!
-  if (motor_on)   // Main motor turn on
+  digitalWrite(_motorpin, !motor_on); // Motor on is logic level 0!
+  if (motor_on)                       // Main motor turn on
     delay(motor_delay_ms);
 }
 
@@ -162,7 +171,7 @@ void Adafruit_Floppy::step(bool dir, uint8_t times) {
 
   while (times--) {
     digitalWrite(_steppin, HIGH);
-    delay(step_delay_us); 
+    delay(step_delay_us);
     digitalWrite(_steppin, LOW);
     delay(step_delay_us);
     digitalWrite(_steppin, HIGH); // end high

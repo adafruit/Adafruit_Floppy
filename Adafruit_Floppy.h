@@ -42,12 +42,13 @@ public:
 
   int8_t led_pin = LED_BUILTIN; ///< Debug LED output for tracing
 
-    uint16_t select_delay_us = 1000;  ///< delay after drive select (usecs)
-    uint16_t step_delay_us = 3000;  ///< delay between head steps (usecs)
-    uint16_t settle_delay_ms = 10;  ///< settle delay after seek (msecs)
-    uint16_t motor_delay_ms = 1000; ///< delay after motor on (msecs)
-    uint16_t watchdog_delay_ms = 1000; ///< quiescent time until drives reset (msecs)
-      uint8_t bus_type = BUSTYPE_IBMPC;
+  uint16_t select_delay_us = 1000; ///< delay after drive select (usecs)
+  uint16_t step_delay_us = 3000;   ///< delay between head steps (usecs)
+  uint16_t settle_delay_ms = 10;   ///< settle delay after seek (msecs)
+  uint16_t motor_delay_ms = 1000;  ///< delay after motor on (msecs)
+  uint16_t watchdog_delay_ms =
+      1000; ///< quiescent time until drives reset (msecs)
+  uint8_t bus_type = BUSTYPE_IBMPC; ///< what kind of floppy drive we're using
 
 private:
   void wait_for_index_pulse_low(void);
