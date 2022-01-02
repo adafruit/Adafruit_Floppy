@@ -87,9 +87,9 @@ void Adafruit_Floppy::soft_reset(void) {
   indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
   indexMask = digitalPinToBitMask(_indexpin);
 
-  select_delay_us = 1000;
-  step_delay_us = 3000;
-  settle_delay_ms = 10;
+  select_delay_us = 10;
+  step_delay_us = 10000;
+  settle_delay_ms = 15;
   motor_delay_ms = 1000;
   watchdog_delay_ms = 1000;
   bus_type = BUSTYPE_IBMPC;
@@ -171,16 +171,13 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
       debug_serial->println("Going to track 0");
 
     // step back a lil more than expected just in case we really seeked out
-    uint8_t max_steps = MAX_TRACKS + 10;
+    uint8_t max_steps = 250;
     while (max_steps--) {
       if (!digitalRead(_track0pin)) {
         _track = 0;
         break;
       }
       step(STEP_OUT, 1);
-      if (debug_serial)
-        debug_serial->println("Step out");
-      yield();
     }
 
     if (digitalRead(_track0pin)) {
@@ -190,13 +187,14 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
       return false; // we 'timed' out, were not able to locate track 0
     }
   }
+  delay(settle_delay_ms);
 
   // ok its a non-track 0 step, first, we cant go past 79 ok?
   track_num = min(track_num, MAX_TRACKS - 1);
   if (debug_serial)
     debug_serial->printf("Going to track %d\n\r", track_num);
 
-  if (_track == track_num) { // we are there anyways
+  if (_track == track_num) { // we are there already
     return true;
   }
 
@@ -211,6 +209,7 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
       debug_serial->printf("Step out %d times\n\r", steps);
     step(STEP_OUT, steps);
   }
+  delay(settle_delay_ms);
   _track = track_num;
 
   return true;
@@ -273,11 +272,14 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
 
   // ok we have a h-to-l transition so...
   bool last_index_state = read_index();
+  uint8_t index_transitions = 0;
   while (true) {
     bool index_state = read_index();
-    // ahh another H to L transition, we're done with this track!
-    if (last_index_state && !index_state) {
-      break;
+    // ahh a L to H transition
+    if (!last_index_state && index_state) {
+      index_transitions++;
+      if (index_transitions == 2) // and its the second one, so we're done with this track!
+        break;
     }
     last_index_state = index_state;
 
