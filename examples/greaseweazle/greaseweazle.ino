@@ -1,25 +1,44 @@
 #include <Adafruit_Floppy.h>
 
-// Only tested on SAMD51 chipsets. TURN ON TINYUSB STACK, 180MHZ OVERCLOCK AND FASTEST OPTIMIZE!
-
-#define DENSITY_PIN  5     // IDC 2
-// IDC 4 no connect
-// IDC 6 no connect
-#define INDEX_PIN    6     // IDC 8
-// IDC 10 no connect
-#define SELECT_PIN   A5    // IDC 12
-// IDC 14 no connect
-#define MOTOR_PIN    9     // IDC 16
-#define DIR_PIN     10     // IDC 18
-#define STEP_PIN    11     // IDC 20
-#define READY_PIN   A0     // IDC 22
-#define SIDE_PIN    A1     // IDC 
-#define READ_PIN    12
-#define PROT_PIN    A3
-#define TRK0_PIN    A4
-
-#define WRDATA_PIN -1
-#define WRGATE_PIN -1
+#if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
+  #define DENSITY_PIN  5     // IDC 2
+  #define INDEX_PIN    6     // IDC 8
+  #define SELECT_PIN   A5    // IDC 12
+  #define MOTOR_PIN    9     // IDC 16
+  #define DIR_PIN     10     // IDC 18
+  #define STEP_PIN    11     // IDC 20
+  #define WRDATA_PIN  -1     // IDC 22 (not used during read)
+  #define WRGATE_PIN  -1     // IDC 24 (not used during read)
+  #define TRK0_PIN    A4     // IDC 26
+  #define PROT_PIN    A3     // IDC 28
+  #define READ_PIN    12     // IDC 30
+  #define SIDE_PIN    A1     // IDC 32
+  #define READY_PIN   A0     // IDC 34
+#if F_CPU != 180000000L
+  #warning "please set CPU speed to 180MHz overclock"
+#endif
+  #define GW_SAMPLEFREQ  20000000UL // 20mhz for samd51
+#elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
+  #define DENSITY_PIN  7     // IDC 2
+  #define INDEX_PIN    8     // IDC 8
+  #define SELECT_PIN  25     // IDC 12
+  #define MOTOR_PIN    9     // IDC 16
+  #define DIR_PIN     10     // IDC 18
+  #define STEP_PIN    11     // IDC 20
+  #define WRDATA_PIN  -1     // IDC 22 (not used during read)
+  #define WRGATE_PIN  -1     // IDC 24 (not used during read)
+  #define TRK0_PIN    24     // IDC 26
+  #define PROT_PIN    A3     // IDC 28
+  #define READ_PIN    12     // IDC 30
+  #define SIDE_PIN    A1     // IDC 32
+  #define READY_PIN   A0     // IDC 34
+#if F_CPU != 200000000L
+  #warning "please set CPU speed to 200MHz overclock"
+#endif
+  #define GW_SAMPLEFREQ  26000000UL // 26mhz for rp2040
+#else
+#error "Please set up pin definitions!"
+#endif
 
 Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        MOTOR_PIN, DIR_PIN, STEP_PIN,
@@ -34,9 +53,8 @@ uint8_t cmd_buff_idx = 0;
 #define GW_FIRMVER_MAJOR 1
 #define GW_FIRMVER_MINOR 0
 #define GW_MAXCMD      21
-#define GW_SAMPLEFREQ  20000000UL // 20mhz for samd51
 #define GW_HW_MODEL    8  // Adafruity
-#define GW_HW_SUBMODEL 0  // Feather Samd51
+#define GW_HW_SUBMODEL 0  // Adafruit Floppy Generic
 #define GW_USB_SPEED   0  // Full Speed
 
 #define GW_CMD_GETINFO    0
@@ -61,14 +79,18 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_SINKBYTES 19
 
 #define GW_ACK_OK (byte)0
-#define GW_ACK_BADCMD (byte)1
-#define GW_ACK_NOTRACK0 (byte)3
+#define GW_ACK_BADCMD 1
+#define GW_ACK_NOINDEX 2
+#define GW_ACK_NOTRACK0 3
+#define GW_ACK_NOUNIT 7
 
 void setup() {
   Serial.begin(115200);
   Serial1.begin(115200); 
   //while (!Serial) delay(100);
   Serial1.println("GrizzlyWizzly");
+
+  floppy.debug_serial = &Serial1;
   floppy.begin();
 }
 
@@ -219,18 +241,26 @@ void loop() {
   }
   
   else if (cmd == GW_CMD_MOTOR) {
-    uint8_t sub_cmd = !cmd_buffer[2];
-    Serial1.printf("Turn motor %s\n\r", sub_cmd ? "on" : "off");
-    floppy.spin_motor(sub_cmd);
-    reply_buffer[i++] = GW_ACK_OK;
+    uint8_t unit = cmd_buffer[2];
+    uint8_t state = cmd_buffer[3];
+    Serial1.printf("Turn motor %d %s\n\r", unit, state ? "on" : "off");
+    if (! floppy.spin_motor(state)) {
+      reply_buffer[i++] = GW_ACK_NOINDEX;
+    } else {
+      reply_buffer[i++] = GW_ACK_OK;
+    }
     Serial.write(reply_buffer, 2);
   }
   
   else if (cmd == GW_CMD_SELECT) {
-    uint8_t sub_cmd = !cmd_buffer[2];
-    Serial1.printf("Select drive %s\n\r", sub_cmd ? "on" : "off");
-    floppy.select(sub_cmd);
-    reply_buffer[i++] = GW_ACK_OK;
+    uint8_t sub_cmd = cmd_buffer[2];
+    Serial1.printf("Select drive %d\n\r", sub_cmd);
+    if (sub_cmd == 0) {
+      floppy.select(true);
+      reply_buffer[i++] = GW_ACK_OK;
+    } else {
+      reply_buffer[i++] = GW_ACK_NOUNIT;
+    }
     Serial.write(reply_buffer, 2);
   }
 
@@ -244,39 +274,54 @@ void loop() {
   else if (cmd == GW_CMD_READFLUX) {
     uint32_t flux_ticks;
     uint16_t revs;
-    flux_ticks |= cmd_buffer[5];
+    flux_ticks = cmd_buffer[5];
     flux_ticks <<= 8;
     flux_ticks |= cmd_buffer[4];
     flux_ticks <<= 8;
     flux_ticks |= cmd_buffer[3];
     flux_ticks <<= 8;
     flux_ticks |= cmd_buffer[2];
-    revs |= cmd_buffer[7];
+    revs = cmd_buffer[7];
     revs <<= 8;
     revs |= cmd_buffer[6]; 
     revs -= 1;
     
-    Serial1.printf("Reading flux0rs: %u ticks and %d revs\n\r", flux_ticks, revs);
+    Serial1.printf("Reading flux0rs on track %d: %u ticks and %d revs\n\r", floppy.track(), flux_ticks, revs);
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
     while (revs--) {
       captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions));
       Serial1.printf("Rev #%d captured %u pulses\n\r", revs, captured_pulses);
+      //floppy.print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
+      // trim down extra long pulses 
+      for (uint32_t f=0; f<captured_pulses; f++) {
+        if (flux_transitions[f] > 250) {
+          flux_transitions[f] = 250;
+        }
+      }
+      // Send the index opcode, which is right at the start of this data xfer
+      reply_buffer[0] = 0xFF;
+      reply_buffer[1] = 1; // index opcode
+      reply_buffer[2] = 0x1;
+      reply_buffer[3] = 0x1;
+      reply_buffer[4] = 0x1;
+      reply_buffer[5] = 0x1; // 0 are special, so we send 1 to == 0
+      Serial.write(reply_buffer, 6);
+
       uint8_t *flux_ptr = flux_transitions;
       while (captured_pulses) {
-        uint32_t to_send = min(captured_pulses, 256);
+        uint32_t to_send = min(captured_pulses, (uint32_t)256);
         Serial.write(flux_ptr, to_send);
         //Serial1.println(to_send);
         flux_ptr += to_send;
         captured_pulses -= to_send;
       }
-      Serial.write((byte)0);
     }
+    Serial.write((byte)0);
   }
 
   else if (cmd == GW_CMD_GETFLUXSTATUS) {
-    Serial1.println("Soft reset");
-    floppy.soft_reset();
+    Serial1.println("get flux status");
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
@@ -309,14 +354,14 @@ void loop() {
      bytes_per_sec = numbytes;
      
      while (numbytes != 0) {
-       int avail = Serial.available();
+       uint32_t avail = Serial.available();
        if (avail == 0) {
          //Serial1.print("-");
          yield();
          continue;
        }
        //Serial1.printf("%lu avail, ", avail);
-       int to_read = min(numbytes, min(sizeof(reply_buffer), avail));
+       uint32_t to_read = min(numbytes, min((uint32_t)sizeof(reply_buffer), avail));
        //Serial1.printf("%lu to read, ", to_read);
        numbytes -= Serial.readBytes((char *)reply_buffer, to_read);
        //Serial1.printf("%lu remain\n\r", numbytes);
