@@ -1,7 +1,18 @@
 #include "Adafruit_Floppy.h"
 
+// We need to read and write some pins at optimized speeds - use raw registers
+// or native SDK API!
+#ifdef BUSIO_USE_FAST_PINIO
 #define read_index() (*indexPort & indexMask)
 #define read_data() (*dataPort & dataMask)
+#define set_debug_led() (*ledPort |= ledMask)
+#define clr_debug_led() (*ledPort &= ~ledMask)
+#elif defined(ARDUINO_ARCH_RP2040)
+#define read_index() gpio_get(_indexpin)
+#define read_data() gpio_get(_rddatapin)
+#define set_debug_led() gpio_put(led_pin, 1)
+#define clr_debug_led() gpio_put(led_pin, 0)
+#endif
 
 /**************************************************************************/
 /*!
@@ -84,8 +95,10 @@ void Adafruit_Floppy::soft_reset(void) {
   pinMode(_readypin, INPUT_PULLUP);
   pinMode(_rddatapin, INPUT_PULLUP);
 
+#ifdef BUSIO_USE_FAST_PINIO
   indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
   indexMask = digitalPinToBitMask(_indexpin);
+#endif
 
   select_delay_us = 10;
   step_delay_us = 10000;
@@ -93,6 +106,11 @@ void Adafruit_Floppy::soft_reset(void) {
   motor_delay_ms = 1000;
   watchdog_delay_ms = 1000;
   bus_type = BUSTYPE_IBMPC;
+
+  if (led_pin >= 0) {
+    pinMode(led_pin, OUTPUT);
+    digitalWrite(led_pin, LOW);
+  }
 }
 
 /**************************************************************************/
@@ -258,12 +276,14 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   uint8_t *pulses_ptr = pulses;
   uint8_t *pulses_end = pulses + max_pulses;
 
+#ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *dataPort, *ledPort;
   BusIO_PortMask dataMask, ledMask;
   dataPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_rddatapin));
   dataMask = digitalPinToBitMask(_rddatapin);
   ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
   ledMask = digitalPinToBitMask(led_pin);
+#endif
 
   memset(pulses, 0, max_pulses); // zero zem out
 
@@ -306,12 +326,12 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
     while (!read_data()) {
       pulse_count++;
     }
-    *ledPort |= ledMask;
+    set_debug_led();
 
     // while pulse is high, keep counting up
     while (read_data())
       pulse_count++;
-    *ledPort &= ~ledMask;
+    clr_debug_led();
 
     pulses_ptr[0] = min(255, pulse_count);
     pulses_ptr++;

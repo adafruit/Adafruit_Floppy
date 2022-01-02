@@ -63,8 +63,10 @@ private:
 
   int8_t _track = -1;
 
+#ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *indexPort;
   BusIO_PortMask indexMask;
+#endif
 };
 
 #endif

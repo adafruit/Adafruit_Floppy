@@ -2,31 +2,44 @@
 
 // Only tested on SAMD51 chipsets. TURN ON 180MHZ OVERCLOCK AND FASTEST OPTIMIZE!
 
-#define DENSITY_PIN  5     // IDC 2
-// IDC 4 no connect
-// IDC 6 no connect
-#define INDEX_PIN    6     // IDC 8
-// IDC 10 no connect
-#define SELECT_PIN   A5    // IDC 12
-// IDC 14 no connect
-#define MOTOR_PIN    9     // IDC 16
-#define DIR_PIN     10     // IDC 18
-#define STEP_PIN    11     // IDC 20
-#define READY_PIN   A0     // IDC 22
-#define SIDE_PIN    A1     // IDC 
-#define READ_PIN    12
-#define PROT_PIN    A3
-#define TRK0_PIN    A4
-
-#define WRDATA_PIN -1
-#define WRGATE_PIN -1
+#if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
+  #define DENSITY_PIN  5     // IDC 2
+  #define INDEX_PIN    6     // IDC 8
+  #define SELECT_PIN   A5    // IDC 12
+  #define MOTOR_PIN    9     // IDC 16
+  #define DIR_PIN     10     // IDC 18
+  #define STEP_PIN    11     // IDC 20
+  #define WRDATA_PIN  -1     // IDC 22 (not used during read)
+  #define WRGATE_PIN  -1     // IDC 24 (not used during read)
+  #define TRK0_PIN    A4     // IDC 26
+  #define PROT_PIN    A3     // IDC 28
+  #define READ_PIN    12     // IDC 30
+  #define SIDE_PIN    A1     // IDC 32
+  #define READY_PIN   A0     // IDC 34
+#elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
+  #define DENSITY_PIN  7     // IDC 2
+  #define INDEX_PIN    8     // IDC 8
+  #define SELECT_PIN  25     // IDC 12
+  #define MOTOR_PIN    9     // IDC 16
+  #define DIR_PIN     10     // IDC 18
+  #define STEP_PIN    11     // IDC 20
+  #define WRDATA_PIN  -1     // IDC 22 (not used during read)
+  #define WRGATE_PIN  -1     // IDC 24 (not used during read)
+  #define TRK0_PIN    24     // IDC 26
+  #define PROT_PIN    A3     // IDC 28
+  #define READ_PIN    12     // IDC 30
+  #define SIDE_PIN    A1     // IDC 32
+  #define READY_PIN   A0     // IDC 34
+#else
+#error "Please set up pin definitions!"
+#endif
 
 Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        MOTOR_PIN, DIR_PIN, STEP_PIN,
                        WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
 
-// WARNING! there are 100K max flux pulses per track!
+// WARNING! there are 150K max flux pulses per track!
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
 
 uint32_t time_stamp = 0;
@@ -47,7 +60,7 @@ void setup() {
   }
 
   Serial.print("Seeking track...");
-  if (! floppy.goto_track(1)) {
+  if (! floppy.goto_track(0)) {
     Serial.println("Failed to seek to track");
     while (1) yield();
   }
@@ -62,7 +75,7 @@ void loop() {
   Serial.println(" flux transitions");
 
   //floppy.print_pulses(flux_transitions, captured_flux);
-  floppy.print_pulse_bins(flux_transitions, captured_flux);
+  floppy.print_pulse_bins(flux_transitions, captured_flux, 255);
   
   if ((millis() - time_stamp) > 1000) {
     Serial.print("Ready? ");
@@ -73,4 +86,5 @@ void loop() {
     Serial.println(digitalRead(TRK0_PIN) ? "No" : "Yes");
     time_stamp = millis();
   }
+  yield();
 }
