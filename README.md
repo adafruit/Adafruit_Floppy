@@ -1,5 +1,6 @@
 # Adafruit Floppy [![Build Status](https://github.com/adafruit/Adafruit_Floppy/workflows/Arduino%20Library%20CI/badge.svg)](https://github.com/adafruit/Adafruit_Floppy/actions)
 
+![Adafruit Floppy](./images/rabbit.png)
 
 This is a helper library to abstract away interfacing with floppy disk drives in a cross-platform and open source library.
 
