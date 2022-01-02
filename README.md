@@ -18,6 +18,8 @@ Adafruit Floppy is a project to make a flexible, full-stack, open source hardwar
 
 Any hardware, firmware, or software we write is going to be fully open source under permissive licenses such as MIT, BSD or Unlicense. we will probably sell accessories, assembled PCBs, cables, etc in the Adafruit shop to help get hardware into folks hands but the designs will always be re-createable by others without any licensing agreements, NDAs, or discussion.
 
+https://user-images.githubusercontent.com/1685947/147865571-c9ea1d68-6603-436d-9980-bc5ade148db8.mp4
+
 https://user-images.githubusercontent.com/1685947/147864181-c5885b15-1809-4e54-8680-4cfba3f54faa.mp4
 
 Latest video Jan 1, 2022 - 9pm EDT
