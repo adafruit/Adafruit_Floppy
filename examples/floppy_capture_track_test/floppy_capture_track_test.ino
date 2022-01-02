@@ -15,6 +15,9 @@
   #define READ_PIN    12     // IDC 30
   #define SIDE_PIN    A1     // IDC 32
   #define READY_PIN   A0     // IDC 34
+#if F_CPU != 180000000L
+  #warning "please set CPU speed to 180MHz overclock"
+#endif
 #elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
   #define DENSITY_PIN  7     // IDC 2
   #define INDEX_PIN    8     // IDC 8
@@ -29,6 +32,26 @@
   #define READ_PIN    12     // IDC 30
   #define SIDE_PIN    A1     // IDC 32
   #define READY_PIN   A0     // IDC 34
+#if F_CPU != 200000000L
+  #warning "please set CPU speed to 200MHz overclock"
+#endif
+#elif defined (ARDUINO_RASPBERRY_PI_PICO)
+  #define DENSITY_PIN  2     // IDC 2
+  #define INDEX_PIN    3     // IDC 8
+  #define SELECT_PIN   4     // IDC 12
+  #define MOTOR_PIN    5     // IDC 16
+  #define DIR_PIN      6     // IDC 18
+  #define STEP_PIN     7     // IDC 20
+  #define WRDATA_PIN   8     // IDC 22 (not used during read)
+  #define WRGATE_PIN   9     // IDC 24 (not used during read)
+  #define TRK0_PIN    10     // IDC 26
+  #define PROT_PIN    11     // IDC 28
+  #define READ_PIN    12     // IDC 30
+  #define SIDE_PIN    13     // IDC 32
+  #define READY_PIN   14     // IDC 34
+#if F_CPU != 200000000L
+  #warning "please set CPU speed to 200MHz overclock"
+#endif
 #else
 #error "Please set up pin definitions!"
 #endif
