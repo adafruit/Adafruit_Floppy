@@ -6,6 +6,10 @@ This is a helper library to abstract away interfacing with floppy disk drives in
 
 Adafruit Floppy is a project to make a flexible, full-stack, open source hardware/software device for reading, archiving, accessing and duplicating floppy disk media. It joins a family of open source hardware and software such as greaseweazle and fluxengine, and will attempt to increase the availability and accessibility of floppy disk controllers by: **porting the greaseweazle / fluxengine firmware to Arduino** so that it is less tied to specific hardware, **adding firmware support for the RP2040** chip / low cost pico, **adding hardware support for reading apple ii disks** including index sensing,  **adding woz/a2r support to greaseweazle / fluxengine**, and investigating **analog flux data acquisition** methods for repair of damaged disks. all of this with permissively licensed hardware and software so folks can re-create without licensing agreements, NDAs, or discussion.
 
+https://user-images.githubusercontent.com/1685947/147864181-c5885b15-1809-4e54-8680-4cfba3f54faa.mp4
+
+Latest video Jan 1, 2022 - 9pm EDT
+
 Currently we are focusing on high-RAM (> 128KB SRAM) and high speed (> 100MHz) processors, so that we can buffer a full track of flux transitions at once, and not require the use of special peripherals such as timers. (Of course, those are welcome later!)
 
 Tested working on:
