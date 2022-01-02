@@ -270,9 +270,25 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   noInterrupts();
   wait_for_index_pulse_low();
 
+  // wait for one clean flux pulse so we dont get cut off.
+  // don't worry about losing this pulse, we'll get it on our
+  // overlap run!
+
   // ok we have a h-to-l transition so...
   bool last_index_state = read_index();
   uint8_t index_transitions = 0;
+
+  // if data line is low, wait till it rises
+  if (!read_data()) {
+    while (!read_data())
+      ;
+  }
+  // if data line is high, wait till it drops down
+  if (read_data()) {
+    while (read_data())
+      ;
+  }
+
   while (true) {
     bool index_state = read_index();
     // ahh a L to H transition
