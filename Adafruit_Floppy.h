@@ -8,7 +8,8 @@
 #define STEP_OUT HIGH
 #define STEP_IN LOW
 #define MAX_FLUX_PULSE_PER_TRACK                                               \
-  (uint32_t)(500000UL / 5 * 1.5) // 500khz / 5 hz per track rotation, 1.5 rotations
+  (uint32_t)(500000UL / 5 *                                                    \
+             1.5) // 500khz / 5 hz per track rotation, 1.5 rotations
 
 #define BUSTYPE_IBMPC 1
 #define BUSTYPE_SHUGART 2
@@ -42,10 +43,10 @@ public:
 
   int8_t led_pin = LED_BUILTIN; ///< Debug LED output for tracing
 
-  uint16_t select_delay_us = 10; ///< delay after drive select (usecs)
-  uint16_t step_delay_us = 10000;   ///< delay between head steps (usecs)
-  uint16_t settle_delay_ms = 15;   ///< settle delay after seek (msecs)
-  uint16_t motor_delay_ms = 1000;  ///< delay after motor on (msecs)
+  uint16_t select_delay_us = 10;  ///< delay after drive select (usecs)
+  uint16_t step_delay_us = 10000; ///< delay between head steps (usecs)
+  uint16_t settle_delay_ms = 15;  ///< settle delay after seek (msecs)
+  uint16_t motor_delay_ms = 1000; ///< delay after motor on (msecs)
   uint16_t watchdog_delay_ms =
       1000; ///< quiescent time until drives reset (msecs)
   uint8_t bus_type = BUSTYPE_IBMPC; ///< what kind of floppy drive we're using

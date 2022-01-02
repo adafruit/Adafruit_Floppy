@@ -278,7 +278,8 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
     // ahh a L to H transition
     if (!last_index_state && index_state) {
       index_transitions++;
-      if (index_transitions == 2) // and its the second one, so we're done with this track!
+      if (index_transitions ==
+          2) // and its the second one, so we're done with this track!
         break;
     }
     last_index_state = index_state;
