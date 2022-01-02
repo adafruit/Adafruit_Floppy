@@ -1,7 +1,6 @@
 #include <Adafruit_Floppy.h>
 
-// Only tested on SAMD51 chipsets. TURN ON 180MHZ OVERCLOCK AND FASTEST OPTIMIZE!
-
+// If using SAMD51, turn on TINYUSB USB stack
 #if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
   #define DENSITY_PIN  5     // IDC 2
   #define INDEX_PIN    6     // IDC 8
