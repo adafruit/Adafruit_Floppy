@@ -280,6 +280,7 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
+__attribute__((optimize("O3")))
 uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   uint16_t pulse_count;
   uint8_t *pulses_ptr = pulses;
