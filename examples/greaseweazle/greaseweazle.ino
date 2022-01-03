@@ -95,6 +95,7 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_RESET     16
 #define GW_CMD_SOURCEBYTES 18
 #define GW_CMD_SINKBYTES 19
+#define GW_CMD_GETPIN 20
 
 #define GW_ACK_OK (byte)0
 #define GW_ACK_BADCMD 1
@@ -443,9 +444,22 @@ void loop() {
      Serial1.print(" ms, ");
      Serial1.print(bytes_per_sec);
      Serial1.println(" bytes per sec");
-  }
+  } else if (cmd == GW_CMD_GETPIN) {
+     uint32_t pin = cmd_buffer[2];
+     reply_buffer[i++] = GW_ACK_OK;
+     Serial1.printf("getpin %d\n\r", pin);
+
+     switch(pin) {
+      case 26:
+        reply_buffer[i++] = digitalRead(TRK0_PIN);
+      break;
+
+      default:
+        reply_buffer[i++] = 0;
+      }
+      Serial.write(reply_buffer, i);
   /********** unknown ! ********/
-   else {
+  } else {
     reply_buffer[i++] = GW_ACK_BADCMD;
     Serial.write(reply_buffer, 2);
   }
