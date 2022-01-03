@@ -31,6 +31,15 @@ Tested working on:
    * RP2040 chipset hardware - Please use philhower core, overclock to 200MHz, and select -O3 optimization for best performance
 Longer version!
 
+## Frequently Asked/Accused Questions
+
+There's a LOT of preconceptions about floppy disks and how / why we have this library. Here are some answers@
+
+* **How are you connecting a 3.3V logic microcontroller to a 5V Floppy Drive directly WITHOUT a level shifter, won't this destroy the board?**
+Floppy drives are powered by 5V, and they use open drain outputs. That means that if the microcontroller pulls the index pin (for example) high to 3.3V, the logic level will be 3V. Is this out of spec? Maybe! But it does seem to work. Of course its always polite to use a level shifter, so if you can please add it to your hardware design. We do recommend a stronger external pullup on the READDATA line, 4.7K or so seems fine, other lines are fine with an internal pullup.
+* **Did you know there are USB Floppy Drives for $10 on Amazon?** Yes, we are aware. These are recycled laptop floppy drives with a controller chip that presents a mass storage interface to the sectors on disk. They are great for basic access to 1.44MB IBM PC MFM-formatted diskettes. They will *not* work for GCR formatted diskettes (we know because we tried) and may not work with non-FAT formatted diskettes (we don't have any but the controller chip is very specialized and may freak out). USB floppy drive controllers will not get you flux-level readings, and can't cope with damaged diskettes to read sector data that does not pass CRC to perform data recovery. They are also, of course, no good with 5.25" floppy diskettes.
+* **Why do you need a flux level reading of disks???** Flux level readings are essential for data recovery, restoration, archiving of damaged or copy-protected floppies. You can read more about floppy disk preservation efforts here: https://wiki.archiveteam.org/index.php/Rescuing_Floppy_Disks
+
 Adafruit invests time and resources providing this open source code, please support Adafruit and open-source hardware by purchasing products from [Adafruit](https://adafruit.com)!
 
 MIT license, all text above must be included in any redistribution.
