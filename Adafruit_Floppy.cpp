@@ -282,7 +282,7 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
 /**************************************************************************/
 __attribute__((optimize("O3")))
 uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
-  uint16_t pulse_count;
+  unsigned pulse_count;
   uint8_t *pulses_ptr = pulses;
   uint8_t *pulses_end = pulses + max_pulses;
 
