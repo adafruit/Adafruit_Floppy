@@ -17,7 +17,7 @@
 #if F_CPU != 180000000L
   #warning "please set CPU speed to 180MHz overclock"
 #endif
-  #define GW_SAMPLEFREQ  20000000UL // 20mhz for samd51
+  #define GW_SAMPLEFREQ  (F_CPU * 11/90) // samd51 is sample rate of 22MHz at 180MHz OC
 #elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
   #define DENSITY_PIN  7     // IDC 2
   #define INDEX_PIN    8     // IDC 8
