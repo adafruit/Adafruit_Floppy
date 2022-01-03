@@ -331,7 +331,11 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses)
     last_index_state = index_state;
 
     // muahaha, now we can read track data!
-    pulse_count = 0;
+    // Don't start counting at zero because we lost some time checking for
+    // index. Empirically, at 180MHz and -O3 on M4, this gives the most 'even'
+    // timings, moving the bins from 41/63/83 to 44/66/89
+    pulse_count = 3;
+
     // while pulse is in the low pulse, count up
     while (!read_data()) {
       pulse_count++;
