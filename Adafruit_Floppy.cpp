@@ -1,5 +1,7 @@
 #include "Adafruit_Floppy.h"
 
+#define DEBUG_FLOPPY (0)
+
 // We need to read and write some pins at optimized speeds - use raw registers
 // or native SDK API!
 #ifdef BUSIO_USE_FAST_PINIO
@@ -12,6 +14,13 @@
 #define read_data() gpio_get(_rddatapin)
 #define set_debug_led() gpio_put(led_pin, 1)
 #define clr_debug_led() gpio_put(led_pin, 0)
+#endif
+
+#if !DEBUG_FLOPPY
+#undef set_debug_led
+#undef clr_debug_led
+#define set_debug_led() ((void)0)
+#define clr_debug_led() ((void)0)
 #endif
 
 /**************************************************************************/
