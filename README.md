@@ -33,7 +33,7 @@ Longer version!
 
 ## Frequently Asked/Accused Questions
 
-There's a LOT of preconceptions about floppy disks and how / why we have this library. Here are some answers@
+There's a LOT of preconceptions about floppy disks and how / why we have this library. Here are some answers!
 
 * **How are you connecting a 3.3V logic microcontroller to a 5V Floppy Drive directly WITHOUT a level shifter, won't this destroy the board?**
 Floppy drives are powered by 5V, and they use open drain outputs. That means that if the microcontroller pulls the index pin (for example) high to 3.3V, the logic level will be 3V. Is this out of spec? Maybe! But it does seem to work. Of course its always polite to use a level shifter, so if you can please add it to your hardware design. We do recommend a stronger external pullup on the READDATA line, 4.7K or so seems fine, other lines are fine with an internal pullup.
