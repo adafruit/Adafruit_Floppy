@@ -36,7 +36,8 @@ public:
   int8_t track(void);
   void step(bool dir, uint8_t times);
 
-  uint32_t capture_track(uint8_t *pulses, uint32_t max_pulses);
+  uint32_t capture_track(uint8_t *pulses, uint32_t max_pulses)
+      __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                         uint8_t max_bins = 64);
   void print_pulses(uint8_t *pulses, uint32_t num_pulses);

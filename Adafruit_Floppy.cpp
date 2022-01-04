@@ -1,5 +1,7 @@
 #include "Adafruit_Floppy.h"
 
+#define DEBUG_FLOPPY (0)
+
 // We need to read and write some pins at optimized speeds - use raw registers
 // or native SDK API!
 #ifdef BUSIO_USE_FAST_PINIO
@@ -12,6 +14,13 @@
 #define read_data() gpio_get(_rddatapin)
 #define set_debug_led() gpio_put(led_pin, 1)
 #define clr_debug_led() gpio_put(led_pin, 0)
+#endif
+
+#if !DEBUG_FLOPPY
+#undef set_debug_led
+#undef clr_debug_led
+#define set_debug_led() ((void)0)
+#define clr_debug_led() ((void)0)
 #endif
 
 /**************************************************************************/
@@ -272,7 +281,7 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
 */
 /**************************************************************************/
 uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
-  uint16_t pulse_count;
+  unsigned pulse_count;
   uint8_t *pulses_ptr = pulses;
   uint8_t *pulses_end = pulses + max_pulses;
 
@@ -321,7 +330,11 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
     last_index_state = index_state;
 
     // muahaha, now we can read track data!
-    pulse_count = 0;
+    // Don't start counting at zero because we lost some time checking for
+    // index. Empirically, at 180MHz and -O3 on M4, this gives the most 'even'
+    // timings, moving the bins from 41/63/83 to 44/66/89
+    pulse_count = 3;
+
     // while pulse is in the low pulse, count up
     while (!read_data()) {
       pulse_count++;
