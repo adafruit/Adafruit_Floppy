@@ -1,37 +1,37 @@
 #include <Adafruit_Floppy.h>
 
 #if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
-  #define DENSITY_PIN  5     // IDC 2
-  #define INDEX_PIN    6     // IDC 8
-  #define SELECT_PIN   A5    // IDC 12
-  #define MOTOR_PIN    9     // IDC 16
-  #define DIR_PIN     10     // IDC 18
-  #define STEP_PIN    11     // IDC 20
-  #define WRDATA_PIN  -1     // IDC 22 (not used during read)
-  #define WRGATE_PIN  -1     // IDC 24 (not used during read)
-  #define TRK0_PIN    A4     // IDC 26
-  #define PROT_PIN    A3     // IDC 28
-  #define READ_PIN    12     // IDC 30
-  #define SIDE_PIN    A1     // IDC 32
-  #define READY_PIN   A0     // IDC 34
+  #define DENSITY_PIN  A0    // IDC 2
+  #define INDEX_PIN    A1    // IDC 8
+  #define SELECT_PIN   A2    // IDC 12
+  #define MOTOR_PIN    A3    // IDC 16
+  #define DIR_PIN      A4    // IDC 18
+  #define STEP_PIN     A5    // IDC 20
+  #define WRDATA_PIN   13    // IDC 22
+  #define WRGATE_PIN   12    // IDC 24
+  #define TRK0_PIN     11    // IDC 26
+  #define PROT_PIN     10    // IDC 28
+  #define READ_PIN      9    // IDC 30
+  #define SIDE_PIN      6    // IDC 32
+  #define READY_PIN     5    // IDC 34
 #if F_CPU != 180000000L
   #warning "please set CPU speed to 180MHz overclock"
 #endif
   #define GW_SAMPLEFREQ  (F_CPU * 11/90) // samd51 is sample rate of 22MHz at 180MHz OC
 #elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
-  #define DENSITY_PIN  7     // IDC 2
-  #define INDEX_PIN    8     // IDC 8
-  #define SELECT_PIN  25     // IDC 12
-  #define MOTOR_PIN    9     // IDC 16
-  #define DIR_PIN     10     // IDC 18
-  #define STEP_PIN    11     // IDC 20
-  #define WRDATA_PIN  -1     // IDC 22 (not used during read)
-  #define WRGATE_PIN  -1     // IDC 24 (not used during read)
-  #define TRK0_PIN    24     // IDC 26
-  #define PROT_PIN    A3     // IDC 28
-  #define READ_PIN    12     // IDC 30
-  #define SIDE_PIN    A1     // IDC 32
-  #define READY_PIN   A0     // IDC 34
+  #define DENSITY_PIN  A0    // IDC 2
+  #define INDEX_PIN    A1    // IDC 8
+  #define SELECT_PIN   A2    // IDC 12
+  #define MOTOR_PIN    A3    // IDC 16
+  #define DIR_PIN      24    // IDC 18
+  #define STEP_PIN     25    // IDC 20
+  #define WRDATA_PIN   13    // IDC 22
+  #define WRGATE_PIN   12    // IDC 24
+  #define TRK0_PIN     11    // IDC 26
+  #define PROT_PIN     10    // IDC 28
+  #define READ_PIN      9    // IDC 30
+  #define SIDE_PIN      8    // IDC 32
+  #define READY_PIN     7    // IDC 34
 #if F_CPU != 200000000L
   #warning "please set CPU speed to 200MHz overclock"
 #endif
