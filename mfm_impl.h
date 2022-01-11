@@ -16,13 +16,15 @@ typedef enum { odd=0, even=1 } mfm_state_t;
 enum { IDAM = 0xfe, DAM = 0xfb };
 
 enum { blocksize = 512, overhead = 3, metadata_size = 7 };
-static mfm_io_symbol_t mfm_io_read_symbol(mfm_io_t *io);
+__attribute__((always_inline))
+static inline mfm_io_symbol_t mfm_io_read_symbol(mfm_io_t *io);
 static void mfm_io_reset_sync_count(mfm_io_t *io);
+__attribute__((always_inline))
 static int mfm_io_get_sync_count(mfm_io_t *io);
 
 // Automatically generated CRC function
 // polynomial: 0x11021
-uint16_t
+static uint16_t
 crc16(uint8_t *data, int len, uint16_t crc)
 {
     static const uint16_t table[256] = {
@@ -71,11 +73,14 @@ crc16(uint8_t *data, int len, uint16_t crc)
 
 enum { triple_mark_magic = 0x09926499, triple_mark_mask = 0x0fffffff };
 
-static bool wait_triple_sync_mark(mfm_io_t *io) {
+__attribute__((always_inline))
+inline static bool wait_triple_sync_mark(mfm_io_t *io) {
+DEBUG(1);
     uint32_t state = 0;
     while (mfm_io_get_sync_count(io) < 2 && state != triple_mark_magic) {
         state = ((state << 2) | mfm_io_read_symbol(io)) & triple_mark_mask;
     }
+DEBUG(0);
     return state == triple_mark_magic;
 }
 
@@ -86,7 +91,8 @@ static int crc16_preloaded(unsigned char *buf, size_t n) {
 }
 
 // Copy 'n' bytes of data into 'buf'
-static void receive(mfm_io_t *io, unsigned char *buf, size_t n) {
+__attribute__((always_inline))
+inline static void receive(mfm_io_t *io, unsigned char *buf, size_t n) {
     // `tmp` holds up to 9 bits of data, in bits 6..15.
     unsigned tmp=0, weight=0x8000;
 
@@ -145,7 +151,8 @@ static void receive(mfm_io_t *io, unsigned char *buf, size_t n) {
 
 
 // Perform all the steps of receiving the next IDAM, DAM (or DDAM, but we don't use them)
-static bool wait_triple_sync_mark_receive_crc(mfm_io_t *io, void *buf, size_t n) {
+__attribute__((always_inline))
+inline static bool wait_triple_sync_mark_receive_crc(mfm_io_t *io, void *buf, size_t n) {
     if (!wait_triple_sync_mark(io)) { return false; }
     receive(io, buf, n);
     unsigned crc = crc16_preloaded(buf, n);
@@ -154,16 +161,16 @@ static bool wait_triple_sync_mark_receive_crc(mfm_io_t *io, void *buf, size_t n)
 
 // Read a whole track, setting validity[] for each sector actually read, up to n_sectors
 // indexing of validity & data is 0-based, even though IDAMs store sectors as 1-based
-static bool read_track(mfm_io_t *io, int n_sectors, void *data, uint8_t *validity) {
+static int read_track(mfm_io_t io, int n_sectors, void *data, uint8_t *validity) {
     memset(validity, 0, n_sectors);
 
-    unsigned n_valid = 0;
+    int n_valid = 0;
 
-    mfm_io_reset_sync_count(io);
+    mfm_io_reset_sync_count(&io);
 
     unsigned char buf[512 + 3];
-    while(mfm_io_get_sync_count(io) < 2 && n_valid < n_sectors) {
-        if (!wait_triple_sync_mark_receive_crc(io, buf, metadata_size)) {
+    while(mfm_io_get_sync_count(&io) < 2 && n_valid < n_sectors) {
+        if (!wait_triple_sync_mark_receive_crc(&io, buf, metadata_size)) {
             continue;
         }
         if (buf[0] != IDAM) { continue; }
@@ -173,7 +180,7 @@ static bool read_track(mfm_io_t *io, int n_sectors, void *data, uint8_t *validit
 
         if (validity[r]) { continue; }
 
-        if (!wait_triple_sync_mark_receive_crc(io, buf, sizeof(buf))) {
+        if (!wait_triple_sync_mark_receive_crc(&io, buf, sizeof(buf))) {
             continue;
         }
         if (buf[0] != DAM) { continue; }
@@ -182,5 +189,5 @@ static bool read_track(mfm_io_t *io, int n_sectors, void *data, uint8_t *validit
         validity[r] = 1;
         n_valid ++;
     }
-    return (n_sectors == n_valid);
+    return n_valid;
 }

@@ -8,3 +8,7 @@ mfm: main.c mfm_impl.h
 .PHONY: test
 test: mfm
 	./mfm < flux.txt
+
+.PHONY: clean
+clean:
+	rm -f mfm

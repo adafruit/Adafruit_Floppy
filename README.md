@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2022 Jeff Epler for Adafruit Industries
+
+SPDX-License-Identifier: MIT
+-->
+
 # libmfm - decode flux data according to the MFM standard
 
 ## Using in a microcontroller
@@ -19,4 +25,5 @@ called 2T, 3T, and 4T. It also tracks the number of index pulses, if necessary.
 Client code simply prepares an `mfm_io_t` structure and calls `read_track` with it.
 
 ## "Testing"
-On a host computer, you can test the MFM decoding logic with `make test`.
+On a host computer, you can test the MFM decoding logic with `make test`. It will display a single sector,
+a boot sector created by linux `mkfs.fat` for a 1.44MB floppy disk.

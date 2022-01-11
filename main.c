@@ -41,8 +41,8 @@ int main() {
         printf("validity[% 2d] = %d\n", i, validity[i]);
         if(validity[i]) { 
             hexdump(data + i * blocksize, blocksize);
+            printf("\n");
         }
-        printf("\n");
     }
 }
 
