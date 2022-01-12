@@ -75,12 +75,10 @@ enum { triple_mark_magic = 0x09926499, triple_mark_mask = 0x0fffffff };
 
 __attribute__((always_inline))
 inline static bool wait_triple_sync_mark(mfm_io_t *io) {
-DEBUG(1);
     uint32_t state = 0;
     while (mfm_io_get_sync_count(io) < 2 && state != triple_mark_magic) {
         state = ((state << 2) | mfm_io_read_symbol(io)) & triple_mark_mask;
     }
-DEBUG(0);
     return state == triple_mark_magic;
 }
 
