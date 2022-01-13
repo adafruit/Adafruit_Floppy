@@ -394,7 +394,7 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
       pulse_count++;
     clr_debug_led();
 
-    pulses_ptr[0] = min(255, pulse_count);
+    pulses_ptr[0] = min(255u, pulse_count);
     pulses_ptr++;
     if (pulses_ptr == pulses_end) {
       break;

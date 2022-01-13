@@ -99,15 +99,15 @@ void loop() {
   Serial.println(" sectors");
 
   Serial.print("Validity: ");
-  for(int i=0; i<N_SECTORS; i++) {
+  for(size_t i=0; i<N_SECTORS; i++) {
     Serial.print(validity[i] ? "V" : "?");
   }
   Serial.print("\n");
 
   if(validity[0]) {
-      for(int i=0; i<512; i+=32) {
+      for(size_t i=0; i<512; i+=32) {
         Serial.printf("%04x", i);
-        for(int j=0; j<32; j++) {
+        for(size_t j=0; j<32; j++) {
            Serial.printf(" %02x", track_data[i+j]);
         }
         Serial.print("\n");
