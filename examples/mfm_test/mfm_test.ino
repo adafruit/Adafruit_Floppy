@@ -30,8 +30,8 @@
   #define TRK0_PIN     11    // IDC 26
   #define PROT_PIN     10    // IDC 28
   #define READ_PIN      9    // IDC 30
-  #define SIDE_PIN      6    // IDC 32
-  #define READY_PIN     5    // IDC 34
+  #define SIDE_PIN      8    // IDC 32
+  #define READY_PIN     7    // IDC 34
 #if F_CPU != 200000000L
   #warning "please set CPU speed to 200MHz overclock"
 #endif
@@ -61,17 +61,19 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
 
-// WARNING! there are 150K max flux pulses per track!
-uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
+constexpr size_t N_SECTORS = 18;
+uint8_t track_data[512*N_SECTORS];
 
 uint32_t time_stamp = 0;
 
-
 void setup() {
+pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);      
   while (!Serial) delay(100);
 
+  delay(500); // wait for serial to open
   Serial.println("its time for a nice floppy transfer!");
+
   floppy.debug_serial = &Serial;
   floppy.begin();
 
@@ -80,33 +82,59 @@ void setup() {
     Serial.println("Failed to spin up motor & find index pulse");
     while (1) yield();
   }
+}
 
-  Serial.print("Seeking track...");
-  if (! floppy.goto_track(0)) {
+uint8_t track = 0;
+bool head = 0;
+void loop() {
+  Serial.printf("Seeking track %d head %d\n", track, head);
+  if (! floppy.goto_track(track)) {
     Serial.println("Failed to seek to track");
     while (1) yield();
   }
+  floppy.side(head);
   Serial.println("done!");
-}
 
-void loop() {
-  uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions));
+  if (!head) {  // we were on side 0
+    head = 1;   // go to side 1
+  } else {      // we were on side 1?
+    track = (track + 1) % 80; // next track!
+    head = 0;   // and side 0
+  }
+
+  uint8_t validity[N_SECTORS];
+  uint32_t captured_sectors = floppy.read_track_mfm(track_data, N_SECTORS, validity);
  
   Serial.print("Captured ");
-  Serial.print(captured_flux);
-  Serial.println(" flux transitions");
+  Serial.print(captured_sectors);
+  Serial.println(" sectors");
 
-  //floppy.print_pulses(flux_transitions, captured_flux);
-  floppy.print_pulse_bins(flux_transitions, captured_flux, 255);
-  
-  if ((millis() - time_stamp) > 1000) {
-    Serial.print("Ready? ");
-    Serial.println(digitalRead(READY_PIN) ? "No" : "Yes");
-    Serial.print("Write Protected? "); 
-    Serial.println(digitalRead(PROT_PIN) ? "No" : "Yes");
-    Serial.print("Track 0? ");
-    Serial.println(digitalRead(TRK0_PIN) ? "No" : "Yes");
-    time_stamp = millis();
+  Serial.print("Validity: ");
+  for(size_t i=0; i<N_SECTORS; i++) {
+    Serial.print(validity[i] ? "V" : "?");
   }
-  yield();
+  Serial.print("\n");
+  for(size_t sector=0; sector<N_SECTORS; sector++) {
+    if (!validity[sector]) {
+      continue; // skip it, not valid
+    }
+    for(size_t i=0; i<512; i+=16) {
+      size_t addr = sector * 512 + i;
+      Serial.printf("%08x", addr);
+      for(size_t j=0; j<16; j++) {
+         Serial.printf(" %02x", track_data[addr+j]);
+      }
+      Serial.print(" | ");
+      for(size_t j=0; j<16; j++) {
+        uint8_t d = track_data[addr+j];
+        if (! isprint(d)) {
+          d = ' ';
+        }
+        Serial.write(d);
+      }
+      Serial.print("\n");
+    }
+  }
+  
+  delay(1000);
 }
