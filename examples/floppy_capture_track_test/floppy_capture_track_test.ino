@@ -30,8 +30,8 @@
   #define TRK0_PIN     11    // IDC 26
   #define PROT_PIN     10    // IDC 28
   #define READ_PIN      9    // IDC 30
-  #define SIDE_PIN      8    // IDC 32
-  #define READY_PIN     7    // IDC 34
+  #define SIDE_PIN      6    // IDC 32
+  #define READY_PIN     5    // IDC 34
 #if F_CPU != 200000000L
   #warning "please set CPU speed to 200MHz overclock"
 #endif

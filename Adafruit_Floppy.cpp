@@ -9,12 +9,17 @@
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
-#define FLOPPYIO_SAMPLERATE (F_CPU * 11 / 90) // empirical on SAM D51 @ 120MHz
+#define FLOPPYIO_SAMPLERATE (F_CPU * 11u / 90u) // empirical on SAM D51 @ 120MHz
 #elif defined(ARDUINO_ARCH_RP2040)
 #define read_index() gpio_get(_indexpin)
 #define read_data() gpio_get(_rddatapin)
 #define set_debug_led() gpio_put(led_pin, 1)
 #define clr_debug_led() gpio_put(led_pin, 0)
+#endif
+
+#if defined(ARDUINO_ARCH_RP2040)
+#undef FLOPPYIO_SAMPLERATE
+#define FLOPPYIO_SAMPLERATE (F_CPU * 13u / 100u) // empirical on RP2040 @ 200MHz
 #endif
 
 #define T2_5 (FLOPPYIO_SAMPLERATE * 5 / 2 / 1000000)

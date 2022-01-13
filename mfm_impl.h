@@ -20,9 +20,9 @@ typedef struct mfm_io mfm_io_t;
 // and define T2_5 and T3_5 to the empirical values dividing between T2/3 and T3/4 pulses.
 #if MFM_IO_MMIO
 struct mfm_io {
-    volatile uint32_t *index_port;
+    const volatile uint32_t *index_port;
     uint32_t index_mask;
-    volatile uint32_t *data_port;
+    const volatile uint32_t *data_port;
     uint32_t data_mask;
     unsigned index_state;
     unsigned index_count;
@@ -203,7 +203,7 @@ static int read_track(mfm_io_t io, int n_sectors, void *data, uint8_t *validity)
         }
         if (buf[0] != DAM) { continue; }
 
-        memcpy(data + blocksize * r, buf+1, blocksize);
+        memcpy((char *)data + blocksize * r, buf+1, blocksize);
         validity[r] = 1;
         n_valid ++;
     }
