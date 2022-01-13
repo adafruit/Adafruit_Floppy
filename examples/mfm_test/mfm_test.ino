@@ -71,6 +71,7 @@ pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);      
   while (!Serial) delay(100);
 
+  delay(500); // wait for serial to open
   Serial.println("its time for a nice floppy transfer!");
 
   floppy.debug_serial = &Serial;
@@ -81,17 +82,19 @@ pinMode(LED_BUILTIN, OUTPUT);
     Serial.println("Failed to spin up motor & find index pulse");
     while (1) yield();
   }
+}
 
+uint8_t track = 0;
+void loop() {
   Serial.print("Seeking track...");
-  if (! floppy.goto_track(0)) {
+  if (! floppy.goto_track(track)) {
     Serial.println("Failed to seek to track");
     while (1) yield();
   }
   Serial.println("done!");
-}
+  track = (track + 1) % 160;
 
-void loop() {
-    uint8_t validity[N_SECTORS];
+  uint8_t validity[N_SECTORS];
   uint32_t captured_sectors = floppy.read_track_mfm(track_data, N_SECTORS, validity);
  
   Serial.print("Captured ");
@@ -103,25 +106,27 @@ void loop() {
     Serial.print(validity[i] ? "V" : "?");
   }
   Serial.print("\n");
-
-  if(validity[0]) {
-      for(size_t i=0; i<512; i+=32) {
-        Serial.printf("%04x", i);
-        for(size_t j=0; j<32; j++) {
-           Serial.printf(" %02x", track_data[i+j]);
+  for(size_t sector=0; sector<N_SECTORS; sector++) {
+    if (!validity[sector]) {
+      continue; // skip it, not valid
+    }
+    for(size_t i=0; i<512; i+=16) {
+      size_t addr = sector * 512 + i;
+      Serial.printf("%08x", addr);
+      for(size_t j=0; j<16; j++) {
+         Serial.printf(" %02x", track_data[addr+j]);
+      }
+      Serial.print(" | ");
+      for(size_t j=0; j<16; j++) {
+        uint8_t d = track_data[addr+j];
+        if (! isprint(d)) {
+          d = ' ';
         }
-        Serial.print("\n");
+        Serial.write(d);
+      }
+      Serial.print("\n");
     }
   }
-
-  if ((millis() - time_stamp) > 1000) {
-    Serial.print("Ready? ");
-    Serial.println(digitalRead(READY_PIN) ? "No" : "Yes");
-    Serial.print("Write Protected? "); 
-    Serial.println(digitalRead(PROT_PIN) ? "No" : "Yes");
-    Serial.print("Track 0? ");
-    Serial.println(digitalRead(TRK0_PIN) ? "No" : "Yes");
-    time_stamp = millis();
-  }
-  yield();
+  
+  delay(1000);
 }
