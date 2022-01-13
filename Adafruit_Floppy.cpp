@@ -9,6 +9,7 @@
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
+#define FLOPPYIO_SAMPLERATE (F_CPU * 11 / 90) // empirical on SAM D51 @ 120MHz
 #elif defined(ARDUINO_ARCH_RP2040)
 #define read_index() gpio_get(_indexpin)
 #define read_data() gpio_get(_rddatapin)
@@ -16,12 +17,18 @@
 #define clr_debug_led() gpio_put(led_pin, 0)
 #endif
 
+#define T2_5 (FLOPPYIO_SAMPLERATE * 5 / 2 / 1000000)
+#define T3_5 (FLOPPYIO_SAMPLERATE * 7 / 2 / 1000000)
+
 #if !DEBUG_FLOPPY
 #undef set_debug_led
 #undef clr_debug_led
 #define set_debug_led() ((void)0)
 #define clr_debug_led() ((void)0)
 #endif
+
+#define MFM_IO_MMIO (1)
+#include "mfm_impl.h"
 
 /**************************************************************************/
 /*!
@@ -270,6 +277,42 @@ void Adafruit_Floppy::step(bool dir, uint8_t times) {
 */
 /**************************************************************************/
 int8_t Adafruit_Floppy::track(void) { return _track; }
+
+/**************************************************************************/
+/*!
+    @brief  Capture and decode one track of MFM data
+    @param  sectors A pointer to an array of memory we can use to store into, 512*n_sectors bytes
+    @param  n_sectors The number of sectors (e.g., 18 for a standard 3.5", 1.44MB format)
+    @param  sector_validity An array of values set to 1 if the sector was captured, 0 if not captured (no IDAM, CRC error, etc)
+    @return Number of sectors we actually captured
+*/
+/**************************************************************************/
+uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity) {
+    mfm_io_t io;
+#ifdef BUSIO_USE_FAST_PINIO
+    BusIO_PortReg *dataPort, *ledPort;
+    BusIO_PortMask dataMask, ledMask;
+    dataPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_rddatapin));
+    dataMask = digitalPinToBitMask(_rddatapin);
+    ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
+    ledMask = digitalPinToBitMask(led_pin);
+    io.index_port = indexPort;
+    io.index_mask = indexMask;
+    io.data_port = dataPort;
+    io.data_mask = dataMask;
+#elif defined(ARDUINO_ARCH_RP2040)
+    io.index_port = &sio_hw->gpio_in;
+    io.index_mask = 1u << _indexpin;
+    io.data_port = &sio_hw->gpio_in;
+    io.data_mask = 1u << _rddatapin;
+#endif
+
+    noInterrupts();
+    int result = read_track(io, n_sectors, sectors, sector_validity);
+    interrupts();
+
+    return result;
+}
 
 /**************************************************************************/
 /*!

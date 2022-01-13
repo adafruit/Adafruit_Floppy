@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
-mfm: main.c mfm_impl.h
-	gcc -o $@ $<
+mfm: stand/main.c mfm_impl.h
+	gcc -iquote . -o $@ $<
 
 .PHONY: test
 test: mfm
