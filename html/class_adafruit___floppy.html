@@ -103,6 +103,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:a40acef58cd980ccee3be3801b0c36624"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a40acef58cd980ccee3be3801b0c36624">step</a> (bool dir, uint8_t times)</td></tr>
 <tr class="memdesc:a40acef58cd980ccee3be3801b0c36624"><td class="mdescLeft">&#160;</td><td class="mdescRight">Step the track motor.  <a href="#a40acef58cd980ccee3be3801b0c36624">More...</a><br /></td></tr>
 <tr class="separator:a40acef58cd980ccee3be3801b0c36624"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a97254b5a80f489a0b6663abb76cb94ea"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a97254b5a80f489a0b6663abb76cb94ea">read_track_mfm</a> (uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity)</td></tr>
+<tr class="memdesc:a97254b5a80f489a0b6663abb76cb94ea"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture and decode one track of MFM data.  <a href="#a97254b5a80f489a0b6663abb76cb94ea">More...</a><br /></td></tr>
+<tr class="separator:a97254b5a80f489a0b6663abb76cb94ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa11ff892b60f4cf47c5f18968248d9b5"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#aa11ff892b60f4cf47c5f18968248d9b5">capture_track</a> (uint8_t *pulses, uint32_t max_pulses) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:aa11ff892b60f4cf47c5f18968248d9b5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#aa11ff892b60f4cf47c5f18968248d9b5">More...</a><br /></td></tr>
 <tr class="separator:aa11ff892b60f4cf47c5f18968248d9b5"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -426,6 +429,51 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="a97254b5a80f489a0b6663abb76cb94ea"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a97254b5a80f489a0b6663abb76cb94ea">&#9670;&nbsp;</a></span>read_track_mfm()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t Adafruit_Floppy::read_track_mfm </td>
+          <td>(</td>
+          <td class="paramtype">uint8_t *&#160;</td>
+          <td class="paramname"><em>sectors</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n_sectors</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t *&#160;</td>
+          <td class="paramname"><em>sector_validity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Capture and decode one track of MFM data. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">sectors</td><td>A pointer to an array of memory we can use to store into, 512*n_sectors bytes </td></tr>
+    <tr><td class="paramname">n_sectors</td><td>The number of sectors (e.g., 18 for a standard 3.5", 1.44MB format) </td></tr>
+    <tr><td class="paramname">sector_validity</td><td>An array of values set to 1 if the sector was captured, 0 if not captured (no IDAM, CRC error, etc) </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Number of sectors we actually captured </dd></dl>
 
 </div>
 </div>
