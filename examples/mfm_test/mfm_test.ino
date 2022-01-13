@@ -85,14 +85,22 @@ pinMode(LED_BUILTIN, OUTPUT);
 }
 
 uint8_t track = 0;
+bool head = 0;
 void loop() {
-  Serial.print("Seeking track...");
+  Serial.printf("Seeking track %d head %d\n", track, head);
   if (! floppy.goto_track(track)) {
     Serial.println("Failed to seek to track");
     while (1) yield();
   }
+  floppy.side(head);
   Serial.println("done!");
-  track = (track + 1) % 160;
+
+  if (!head) {  // we were on side 0
+    head = 1;   // go to side 1
+  } else {      // we were on side 1?
+    track = (track + 1) % 80; // next track!
+    head = 0;   // and side 0
+  }
 
   uint8_t validity[N_SECTORS];
   uint32_t captured_sectors = floppy.read_track_mfm(track_data, N_SECTORS, validity);
