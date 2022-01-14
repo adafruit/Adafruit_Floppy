@@ -229,7 +229,7 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
   delay(settle_delay_ms);
 
   // ok its a non-track 0 step, first, we cant go past 79 ok?
-  track_num = min(track_num, MAX_TRACKS - 1);
+  track_num = min(track_num, FLOPPY_MAX_TRACKS - 1);
   if (debug_serial)
     debug_serial->printf("Going to track %d\n\r", track_num);
 
