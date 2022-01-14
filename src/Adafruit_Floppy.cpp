@@ -229,7 +229,7 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
   delay(settle_delay_ms);
 
   // ok its a non-track 0 step, first, we cant go past 79 ok?
-  track_num = min(track_num, MAX_TRACKS - 1);
+  track_num = min(track_num, FLOPPY_MAX_TRACKS - 1);
   if (debug_serial)
     debug_serial->printf("Going to track %d\n\r", track_num);
 
@@ -305,6 +305,8 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
   dataMask = digitalPinToBitMask(_rddatapin);
   ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
   ledMask = digitalPinToBitMask(led_pin);
+  (void)ledPort;
+  (void)ledMask;
   io.index_port = indexPort;
   io.index_mask = indexMask;
   io.data_port = dataPort;
@@ -344,6 +346,8 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   dataMask = digitalPinToBitMask(_rddatapin);
   ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
   ledMask = digitalPinToBitMask(led_pin);
+  (void)ledPort;
+  (void)ledMask;
 #endif
 
   memset(pulses, 0, max_pulses); // zero zem out

@@ -3,8 +3,16 @@
 
 #include "Arduino.h"
 #include <Adafruit_SPIDevice.h>
+// to implement SdFat Block Driver
+#include "SdFat.h"
+#include "SdFatConfig.h"
 
-#define MAX_TRACKS 80
+#define FLOPPY_MAX_TRACKS 80
+#define FLOPPY_HEADS       2
+
+#define MFM_SECTORS_PER_TRACK 18
+#define MFM_BYTES_PER_SECTOR 512UL
+
 #define STEP_OUT HIGH
 #define STEP_IN LOW
 #define MAX_FLUX_PULSE_PER_TRACK                                               \
@@ -71,5 +79,35 @@ private:
   BusIO_PortMask indexMask;
 #endif
 };
+
+
+// This class adds support for the BaseBlockDriver interface.
+// This allows it to be used with SdFat's FatFileSystem class.
+class Adafruit_MFM_Floppy : public BaseBlockDriver  {
+public:
+  Adafruit_MFM_Floppy(Adafruit_Floppy *floppy);
+
+
+  bool begin(void);
+  bool end(void);
+
+  uint32_t size(void);
+
+  //------------- SdFat BaseBlockDRiver API -------------//
+  virtual bool readBlock(uint32_t block, uint8_t *dst);
+  virtual bool writeBlock(uint32_t block, const uint8_t *src);
+  virtual bool syncBlocks();
+  virtual bool readBlocks(uint32_t block, uint8_t *dst, size_t nb);
+  virtual bool writeBlocks(uint32_t block, const uint8_t *src, size_t nb);
+
+private:
+  int8_t last_track_read = -1;  // last cached track
+
+  uint8_t track_data[MFM_SECTORS_PER_TRACK * MFM_BYTES_PER_SECTOR];
+  uint8_t track_validity[MFM_SECTORS_PER_TRACK];
+
+  Adafruit_Floppy *_floppy = NULL;
+};
+
 
 #endif
