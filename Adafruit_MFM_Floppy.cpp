@@ -36,6 +36,7 @@ bool Adafruit_MFM_Floppy::readBlock(uint32_t block, uint8_t *dst) {
     _floppy->side(head);
     //Serial.println("done!");
     uint32_t captured_sectors =_floppy->read_track_mfm(track_data, MFM_SECTORS_PER_TRACK, track_validity);
+    (void)captured_sectors;
 
     /*
       Serial.print("Captured %d sectors", captured_sectors);
@@ -59,7 +60,8 @@ bool Adafruit_MFM_Floppy::readBlock(uint32_t block, uint8_t *dst) {
 }
 
 bool Adafruit_MFM_Floppy::writeBlock(uint32_t block, const uint8_t *src) {
-  Serial.println("Writing block");
+  Serial.printf("Writing block %d\n", block);
+  (void *)src;
   return false;
 }
 
@@ -79,6 +81,7 @@ bool Adafruit_MFM_Floppy::readBlocks(uint32_t block, uint8_t *dst,
 
 bool Adafruit_MFM_Floppy::writeBlocks(uint32_t block, const uint8_t *src,
                                          size_t nb) {
-  Serial.println("Writing blocks");
+  Serial.printf("Writing %d blocks %d\n", nb, block);
+  (void *)src;
   return false;
 }

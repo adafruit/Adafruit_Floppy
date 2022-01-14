@@ -305,6 +305,8 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
   dataMask = digitalPinToBitMask(_rddatapin);
   ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
   ledMask = digitalPinToBitMask(led_pin);
+  (void)ledPort;
+  (void)ledMask;
   io.index_port = indexPort;
   io.index_mask = indexMask;
   io.data_port = dataPort;
@@ -344,6 +346,8 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   dataMask = digitalPinToBitMask(_rddatapin);
   ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
   ledMask = digitalPinToBitMask(led_pin);
+  (void)ledPort;
+  (void)ledMask;
 #endif
 
   memset(pulses, 0, max_pulses); // zero zem out
