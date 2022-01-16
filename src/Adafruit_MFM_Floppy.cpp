@@ -15,7 +15,7 @@ Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
   _floppy = floppy;
   _format = format;
 
-  // different formats have different 'hardcode'
+  // different formats have different 'hardcoded' sectors and tracks
   if (_format == IBMPC1440K) {
     _sectors_per_track = MFM_IBMPC1440K_SECTORS_PER_TRACK;
     _tracks_per_side = FLOPPY_IBMPC_HD_TRACKS;
