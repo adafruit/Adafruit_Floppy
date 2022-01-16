@@ -18,7 +18,6 @@ jobs:
 
     - name: pre-install
       run: bash ci/actions_install.sh
-      run: rm -rf /home/runner/.arduino15/packages/rp2040/hardware/rp2040/1.9.13/libraries/SdFat
 
     - name: test platforms
       run: python3 ci/build_platform.py feather_m4_express_tinyusb feather_rp2040_tinyusb
