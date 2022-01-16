@@ -103,6 +103,8 @@ uint8_t cmd_buff_idx = 0;
 #define GW_ACK_NOTRACK0 3
 #define GW_ACK_NOUNIT 7
 
+uint32_t timestamp = 0;
+
 void setup() {
   Serial.begin(115200);
   Serial1.begin(115200); 
@@ -111,6 +113,7 @@ void setup() {
 
   floppy.debug_serial = &Serial1;
   floppy.begin();
+  timestamp = millis();
 }
 
 uint8_t get_cmd(uint8_t *buff, uint8_t maxbuff) {
@@ -138,9 +141,21 @@ uint32_t captured_pulses;
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
 bool motor_state = false; // we can cache whether the motor is spinning
 
+
 void loop() {
   uint8_t cmd_len = get_cmd(cmd_buffer, sizeof(cmd_buffer));
-  if (!cmd_len) return;
+  if (!cmd_len) {
+    if ((millis() > timestamp) && ((millis()-timestamp) > 3000)) {
+      Serial1.println("Timed out waiting for command, resetting motor");
+      floppy.goto_track(0);
+      floppy.spin_motor(false);
+      motor_state = false;
+      floppy.select(false);
+      timestamp = millis();
+    }
+    return;
+  }
+  timestamp = millis();
   
   int i = 0;
   uint8_t cmd = cmd_buffer[0];
