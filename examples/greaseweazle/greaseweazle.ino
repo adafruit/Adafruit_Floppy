@@ -136,7 +136,7 @@ uint32_t transfered_bytes;
 uint32_t captured_pulses;
 // WARNING! there are 100K max flux pulses per track!
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
-
+bool motor_state = false; // we can cache whether the motor is spinning
 
 void loop() {
   uint8_t cmd_len = get_cmd(cmd_buffer, sizeof(cmd_buffer));
@@ -263,9 +263,15 @@ void loop() {
     uint8_t unit = cmd_buffer[2];
     uint8_t state = cmd_buffer[3];
     Serial1.printf("Turn motor %d %s\n\r", unit, state ? "on" : "off");
-    if (! floppy.spin_motor(state)) {
-      reply_buffer[i++] = GW_ACK_NOINDEX;
+    if (motor_state != state) { // we're in the opposite state
+      if (! floppy.spin_motor(state)) {
+        reply_buffer[i++] = GW_ACK_NOINDEX;
+      } else {
+        reply_buffer[i++] = GW_ACK_OK;
+      }
+      motor_state = state;
     } else {
+      // our cached state is correct!
       reply_buffer[i++] = GW_ACK_OK;
     }
     Serial.write(reply_buffer, 2);
@@ -304,6 +310,10 @@ void loop() {
     revs <<= 8;
     revs |= cmd_buffer[6]; 
     revs -= 1;
+
+    if (floppy.track() == -1) {
+      floppy.goto_track(0);
+    }
     
     Serial1.printf("Reading flux0rs on track %d: %u ticks and %d revs\n\r", floppy.track(), flux_ticks, revs);
     reply_buffer[i++] = GW_ACK_OK;
@@ -336,6 +346,18 @@ void loop() {
         captured_pulses -= to_send;
       }
     }
+    
+    // send a final indexop
+    reply_buffer[0] = 0xFF;
+    reply_buffer[1] = 1; // index opcode
+    reply_buffer[2] = 0x1;
+    reply_buffer[3] = 0x1;
+    reply_buffer[4] = 0x1;
+    reply_buffer[5] = 0x1; // 0 are special, so we send 1 to == 0
+    Serial.write(reply_buffer, 6);
+
+    // flush input, to account for fluxengine bug
+    while (Serial.available()) Serial.read();
     Serial.write((byte)0);
   }
 
@@ -446,21 +468,43 @@ void loop() {
      Serial1.println(" bytes per sec");
   } else if (cmd == GW_CMD_GETPIN) {
      uint32_t pin = cmd_buffer[2];
-     reply_buffer[i++] = GW_ACK_OK;
      Serial1.printf("getpin %d\n\r", pin);
 
      switch(pin) {
       case 26:
+        reply_buffer[i++] = GW_ACK_OK;
         reply_buffer[i++] = digitalRead(TRK0_PIN);
-      break;
+        break;
 
       default:
+        // unknown pin, don't pretend we did it right
+        reply_buffer[i++] = GW_ACK_BADCMD;
         reply_buffer[i++] = 0;
       }
       Serial.write(reply_buffer, i);
+  } else if (cmd == GW_CMD_SETPIN) {
+     uint32_t pin = cmd_buffer[2];
+     bool value = cmd_buffer[3];
+     Serial1.printf("setpin %d to \n\r", pin, value);
+
+     switch(pin) {
+      case 2:
+        pinMode(DENSITY_PIN, OUTPUT);
+        digitalWrite(DENSITY_PIN, value);
+        reply_buffer[i++] = GW_ACK_OK;
+        break;
+
+      default:
+        // unknown pin, don't pretend we did it right
+        reply_buffer[i++] = GW_ACK_BADCMD;
+     }
+      
+     Serial.write(reply_buffer, i);
+
   /********** unknown ! ********/
   } else {
     reply_buffer[i++] = GW_ACK_BADCMD;
     Serial.write(reply_buffer, 2);
   }
+  //Serial1.println("cmd complete!");
 }
