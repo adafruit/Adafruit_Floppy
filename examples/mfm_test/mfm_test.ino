@@ -62,6 +62,8 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        MOTOR_PIN, DIR_PIN, STEP_PIN,
                        WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
+
+// You can select IBMPC1440K or IBMPC360K (check adafruit_floppy_disk_t options!)
 Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC360K);
 
 
@@ -95,7 +97,7 @@ void loop() {
     while (1) yield();
   }
  
-  Serial.print("Captured %d sectors\n", captured_sectors);
+  Serial.printf("Captured %d sectors\n", captured_sectors);
 
   Serial.print("Validity: ");
   for(size_t i=0; i < mfm_floppy.sectors_per_track(); i++) {
