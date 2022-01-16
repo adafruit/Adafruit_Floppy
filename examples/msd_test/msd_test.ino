@@ -68,7 +68,7 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
 
 // You can select IBMPC1440K or IBMPC360K (check adafruit_floppy_disk_t options!)
-Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC360K);
+Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC1440K);
 
 
 constexpr size_t SECTOR_SIZE = 512UL;
@@ -122,24 +122,26 @@ int32_t msc_read_callback (uint32_t lba, void* buffer, uint32_t bufsize)
   uint8_t head = (lba / mfm_floppy.sectors_per_track()) % 2;
   uint8_t subsector = lba % mfm_floppy.sectors_per_track();
 
-  if ((track * 2 + head) != last_track_read) {
-    // oof it is not cached!
+  uint8_t retries = 5;
+
+  for (int retry=0; retry<retries; retry++) {
+    if (((track * 2 + head) == last_track_read) && mfm_floppy.track_validity[subsector]) {
+      // aah we've got it and its valid!
+      Serial.println("OK!");
+      memcpy(buffer, mfm_floppy.track_data+(subsector * SECTOR_SIZE), SECTOR_SIZE);
+      return SECTOR_SIZE;
+    }
+    // ok so either its not valid, or we didn't read this track yet...
     int32_t tracks_read = mfm_floppy.readTrack(track, head);
     if (tracks_read < 0) {
       Serial.println("Failed to seek to track");
       return 0;
     }
-
     last_track_read = track * 2 + head;
+    // we'll go again on the next round
   }
-
-  if (! mfm_floppy.track_validity[subsector]) {
-    Serial.println("subsector invalid");
-    return 0;
-  }
-  Serial.println("OK!");
-  memcpy(buffer, mfm_floppy.track_data+(subsector * SECTOR_SIZE), SECTOR_SIZE);
-  return SECTOR_SIZE;
+  Serial.println("subsector invalid CRC :(");
+  return 0;
 }
 
 // Callback invoked when received WRITE10 command.
