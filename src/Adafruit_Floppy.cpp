@@ -219,7 +219,7 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
       debug_serial->println("Going to track 0");
 
     // step back a lil more than expected just in case we really seeked out
-    uint8_t max_steps = 250;
+    uint8_t max_steps = 100;
     while (max_steps--) {
       if (!digitalRead(_track0pin)) {
         _track = 0;
@@ -230,9 +230,23 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
 
     if (digitalRead(_track0pin)) {
       // we never got a track 0 indicator :(
-      if (debug_serial)
-        debug_serial->println("Could not find track 0");
-      return false; // we 'timed' out, were not able to locate track 0
+      // what if we try stepping in a bit??
+
+      max_steps = 20;
+      while (max_steps--) {
+        if (!digitalRead(_track0pin)) {
+          _track = 0;
+          break;
+        }
+        step(STEP_IN, 1);
+      }
+
+      if (digitalRead(_track0pin)) {
+        // STILL not found!
+        if (debug_serial)
+            debug_serial->println("Could not find track 0");
+          return false; // we 'timed' out, were not able to locate track 0
+      }
     }
   }
   delay(settle_delay_ms);
@@ -276,12 +290,14 @@ void Adafruit_Floppy::step(bool dir, uint8_t times) {
 
   while (times--) {
     digitalWrite(_steppin, HIGH);
-    delayMicroseconds(step_delay_us);
+    delay((step_delay_us / 1000UL) + 1); // round up to at least 1ms
     digitalWrite(_steppin, LOW);
-    delayMicroseconds(step_delay_us);
+    delay((step_delay_us / 1000UL) + 1);
     digitalWrite(_steppin, HIGH); // end high
     yield();
   }
+  // one more for good measure (5.25" drives seemed to like this)
+  delay((step_delay_us / 1000UL) + 1);
 }
 
 /**************************************************************************/

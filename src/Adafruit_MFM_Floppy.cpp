@@ -5,6 +5,8 @@ extern uint32_t T2_5, T3_5;
 Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy, adafruit_floppy_disk_t format) {
   _floppy = floppy;
   _format = format;
+
+  // different formats have different 'hardcode' 
   if (_format == IBMPC1440K) {
     _sectors_per_track = MFM_IBMPC1440K_SECTORS_PER_TRACK;
     _tracks_per_side = FLOPPY_IBMPC_HD_TRACKS;
@@ -21,7 +23,15 @@ Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy, adafruit_flopp
 bool Adafruit_MFM_Floppy::begin(void) {
   if (!_floppy) return false;
   _floppy->begin();
+
+  // now's the time to tweak settings
+  if (_format == IBMPC360K) {
+    _floppy->step_delay_us = 65000UL; // lets make it max 65ms not 10ms?
+    _floppy->settle_delay_ms = 50;   // 50ms not 15
+  }
+
   _floppy->select(true);
+
   return _floppy->spin_motor(true);
 }
 
