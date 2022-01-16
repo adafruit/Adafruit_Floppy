@@ -7,7 +7,8 @@
 #include "SdFat.h"
 #include "SdFatConfig.h"
 
-#define FLOPPY_IBMPC_TRACKS 80
+#define FLOPPY_IBMPC_HD_TRACKS 80
+#define FLOPPY_IBMPC_DD_TRACKS 40
 #define FLOPPY_HEADS       2
 
 #define MFM_IBMPC1440K_SECTORS_PER_TRACK 18
@@ -118,6 +119,9 @@ public:
   uint8_t sectors_per_track(void) {
     return _sectors_per_track;
   }
+  uint8_t tracks_per_side(void) {
+    return _tracks_per_side;
+  }
 
   //------------- SdFat BaseBlockDRiver API -------------//
   virtual bool readBlock(uint32_t block, uint8_t *dst);
@@ -132,6 +136,7 @@ public:
 
 private:
   uint8_t _sectors_per_track = 0;
+  uint8_t _tracks_per_side = 0;
   int8_t _last_track_read = -1;  // last cached track
   Adafruit_Floppy *_floppy = NULL;
   adafruit_floppy_disk_t _format=IBMPC1440K;

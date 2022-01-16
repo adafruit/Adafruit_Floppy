@@ -68,7 +68,7 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
 
 // You can select IBMPC1440K or IBMPC360K (check adafruit_floppy_disk_t options!)
-Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC1440K);
+Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC360K);
 
 
 constexpr size_t SECTOR_SIZE = 512UL;
@@ -88,7 +88,7 @@ void setup() {
   usb_msc.setID("Adafruit", "Floppy Mass Storage", "1.0");
 
     // Set disk size
-  usb_msc.setCapacity(mfm_floppy.sectors_per_track() * FLOPPY_IBMPC_TRACKS * FLOPPY_HEADS, SECTOR_SIZE);
+  usb_msc.setCapacity(mfm_floppy.sectors_per_track() * mfm_floppy.tracks_per_side() * FLOPPY_HEADS, SECTOR_SIZE);
 
   // Set callback
   usb_msc.setReadWriteCallback(msc_read_callback, msc_write_callback, msc_flush_callback);

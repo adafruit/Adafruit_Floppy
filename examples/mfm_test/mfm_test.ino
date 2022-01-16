@@ -130,7 +130,7 @@ void loop() {
   if (!head) {  // we were on side 0
     head = 1;   // go to side 1
   } else {      // we were on side 1?
-    track = (track + 1) % 80; // next track!
+    track = (track + 1) % mfm_floppy.tracks_per_side(); // next track!
     head = 0;   // and side 0
   }
   

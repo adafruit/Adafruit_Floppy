@@ -7,10 +7,12 @@ Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy, adafruit_flopp
   _format = format;
   if (_format == IBMPC1440K) {
     _sectors_per_track = MFM_IBMPC1440K_SECTORS_PER_TRACK;
+    _tracks_per_side = FLOPPY_IBMPC_HD_TRACKS;
     T2_5 = T2_5_IBMPC_HD;
     T3_5 = T3_5_IBMPC_HD;
   } else if (_format == IBMPC360K) {
     _sectors_per_track = MFM_IBMPC360K_SECTORS_PER_TRACK;
+    _tracks_per_side = FLOPPY_IBMPC_DD_TRACKS;
     T2_5 = T2_5_IBMPC_DD;
     T3_5 = T3_5_IBMPC_DD;
   }
@@ -24,7 +26,7 @@ bool Adafruit_MFM_Floppy::begin(void) {
 }
 
 uint32_t Adafruit_MFM_Floppy::size(void) { 
-  return (uint32_t)FLOPPY_IBMPC_TRACKS * FLOPPY_HEADS * _sectors_per_track * MFM_BYTES_PER_SECTOR; 
+  return (uint32_t)_tracks_per_side * FLOPPY_HEADS * _sectors_per_track * MFM_BYTES_PER_SECTOR; 
 }
 
 
