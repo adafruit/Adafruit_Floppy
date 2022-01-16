@@ -9,7 +9,7 @@
 
 #define FLOPPY_IBMPC_HD_TRACKS 80
 #define FLOPPY_IBMPC_DD_TRACKS 40
-#define FLOPPY_HEADS       2
+#define FLOPPY_HEADS 2
 
 #define MFM_IBMPC1440K_SECTORS_PER_TRACK 18
 #define MFM_IBMPC360K_SECTORS_PER_TRACK 9
@@ -24,10 +24,10 @@
 #define FLOPPYIO_SAMPLERATE (F_CPU * 13u / 100u) // empirical on RP2040 @ 200MHz
 #endif
 
-#define T2_5_IBMPC_HD  (FLOPPYIO_SAMPLERATE * 5 / 2 / 1000000)
-#define T3_5_IBMPC_HD  (FLOPPYIO_SAMPLERATE * 7 / 2 / 1000000)
-#define T2_5_IBMPC_DD  (T2_5_IBMPC_HD * 2)
-#define T3_5_IBMPC_DD  (T3_5_IBMPC_HD * 2)
+#define T2_5_IBMPC_HD (FLOPPYIO_SAMPLERATE * 5 / 2 / 1000000)
+#define T3_5_IBMPC_HD (FLOPPYIO_SAMPLERATE * 7 / 2 / 1000000)
+#define T2_5_IBMPC_DD (T2_5_IBMPC_HD * 2)
+#define T3_5_IBMPC_DD (T3_5_IBMPC_HD * 2)
 
 #define STEP_OUT HIGH
 #define STEP_IN LOW
@@ -38,12 +38,10 @@
 #define BUSTYPE_IBMPC 1
 #define BUSTYPE_SHUGART 2
 
-
 typedef enum {
   IBMPC1440K,
   IBMPC360K,
 } adafruit_floppy_disk_t;
-
 
 /**************************************************************************/
 /*!
@@ -103,12 +101,12 @@ private:
 #endif
 };
 
-
 // This class adds support for the BaseBlockDriver interface.
 // This allows it to be used with SdFat's FatFileSystem class.
-class Adafruit_MFM_Floppy : public BaseBlockDriver  {
+class Adafruit_MFM_Floppy : public BaseBlockDriver {
 public:
-  Adafruit_MFM_Floppy(Adafruit_Floppy *floppy, adafruit_floppy_disk_t format=IBMPC1440K);
+  Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
+                      adafruit_floppy_disk_t format = IBMPC1440K);
 
   bool begin(void);
   bool end(void);
@@ -116,12 +114,8 @@ public:
   uint32_t size(void);
   int32_t readTrack(uint8_t track, bool head);
 
-  uint8_t sectors_per_track(void) {
-    return _sectors_per_track;
-  }
-  uint8_t tracks_per_side(void) {
-    return _tracks_per_side;
-  }
+  uint8_t sectors_per_track(void) { return _sectors_per_track; }
+  uint8_t tracks_per_side(void) { return _tracks_per_side; }
 
   //------------- SdFat BaseBlockDRiver API -------------//
   virtual bool readBlock(uint32_t block, uint8_t *dst);
@@ -130,17 +124,15 @@ public:
   virtual bool readBlocks(uint32_t block, uint8_t *dst, size_t nb);
   virtual bool writeBlocks(uint32_t block, const uint8_t *src, size_t nb);
 
-
   uint8_t track_data[MFM_IBMPC1440K_SECTORS_PER_TRACK * MFM_BYTES_PER_SECTOR];
   uint8_t track_validity[MFM_IBMPC1440K_SECTORS_PER_TRACK];
 
 private:
   uint8_t _sectors_per_track = 0;
   uint8_t _tracks_per_side = 0;
-  int8_t _last_track_read = -1;  // last cached track
+  int8_t _last_track_read = -1; // last cached track
   Adafruit_Floppy *_floppy = NULL;
-  adafruit_floppy_disk_t _format=IBMPC1440K;
+  adafruit_floppy_disk_t _format = IBMPC1440K;
 };
-
 
 #endif

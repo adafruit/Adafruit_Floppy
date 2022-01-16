@@ -2,11 +2,12 @@
 
 extern uint32_t T2_5, T3_5;
 
-Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy, adafruit_floppy_disk_t format) {
+Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
+                                         adafruit_floppy_disk_t format) {
   _floppy = floppy;
   _format = format;
 
-  // different formats have different 'hardcode' 
+  // different formats have different 'hardcode'
   if (_format == IBMPC1440K) {
     _sectors_per_track = MFM_IBMPC1440K_SECTORS_PER_TRACK;
     _tracks_per_side = FLOPPY_IBMPC_HD_TRACKS;
@@ -21,13 +22,14 @@ Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy, adafruit_flopp
 }
 
 bool Adafruit_MFM_Floppy::begin(void) {
-  if (!_floppy) return false;
+  if (!_floppy)
+    return false;
   _floppy->begin();
 
   // now's the time to tweak settings
   if (_format == IBMPC360K) {
     _floppy->step_delay_us = 65000UL; // lets make it max 65ms not 10ms?
-    _floppy->settle_delay_ms = 50;   // 50ms not 15
+    _floppy->settle_delay_ms = 50;    // 50ms not 15
   }
 
   _floppy->select(true);
@@ -35,32 +37,32 @@ bool Adafruit_MFM_Floppy::begin(void) {
   return _floppy->spin_motor(true);
 }
 
-uint32_t Adafruit_MFM_Floppy::size(void) { 
-  return (uint32_t)_tracks_per_side * FLOPPY_HEADS * _sectors_per_track * MFM_BYTES_PER_SECTOR; 
+uint32_t Adafruit_MFM_Floppy::size(void) {
+  return (uint32_t)_tracks_per_side * FLOPPY_HEADS * _sectors_per_track *
+         MFM_BYTES_PER_SECTOR;
 }
-
 
 int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
 
-    //Serial.printf("\tSeeking track %d head %d...", track, head);
-    if (! _floppy->goto_track(track)) {
-      //Serial.println("failed to seek to track");
-      return -1;
+  // Serial.printf("\tSeeking track %d head %d...", track, head);
+  if (!_floppy->goto_track(track)) {
+    // Serial.println("failed to seek to track");
+    return -1;
+  }
+  _floppy->side(head);
+  // Serial.println("done!");
+  uint32_t captured_sectors =
+      _floppy->read_track_mfm(track_data, _sectors_per_track, track_validity);
+  /*
+    Serial.print("Captured %d sectors", captured_sectors);
+
+    Serial.print("Validity: ");
+    for(size_t i=0; i<MFM_SECTORS_PER_TRACK; i++) {
+      Serial.print(track_validity[i] ? "V" : "?");
     }
-    _floppy->side(head);
-    //Serial.println("done!");
-    uint32_t captured_sectors =_floppy->read_track_mfm(track_data, _sectors_per_track, track_validity);
-    /*
-      Serial.print("Captured %d sectors", captured_sectors);
-
-      Serial.print("Validity: ");
-      for(size_t i=0; i<MFM_SECTORS_PER_TRACK; i++) {
-        Serial.print(track_validity[i] ? "V" : "?");
-      }
-    */
-    return captured_sectors;
+  */
+  return captured_sectors;
 }
-
 
 //--------------------------------------------------------------------+
 // SdFat BaseBlockDriver API
@@ -70,24 +72,25 @@ bool Adafruit_MFM_Floppy::readBlock(uint32_t block, uint8_t *dst) {
   uint8_t track = block / (FLOPPY_HEADS * _sectors_per_track);
   uint8_t head = (block / _sectors_per_track) % FLOPPY_HEADS;
   uint8_t subsector = block % _sectors_per_track;
-  
-  //Serial.printf("\tRead request block %d\n", block);
+
+  // Serial.printf("\tRead request block %d\n", block);
   if ((track * FLOPPY_HEADS + head) != _last_track_read) {
     // oof it is not cached!
 
     if (readTrack(track, head) == -1) {
-        return false;
-      }
+      return false;
+    }
 
     _last_track_read = track * FLOPPY_HEADS + head;
   }
 
-  if (! track_validity[subsector]) {
-    //Serial.println("subsector invalid");
+  if (!track_validity[subsector]) {
+    // Serial.println("subsector invalid");
     return false;
   }
-  //Serial.println("OK!");
-  memcpy(dst, track_data+(subsector * MFM_BYTES_PER_SECTOR), MFM_BYTES_PER_SECTOR);
+  // Serial.println("OK!");
+  memcpy(dst, track_data + (subsector * MFM_BYTES_PER_SECTOR),
+         MFM_BYTES_PER_SECTOR);
 
   return true;
 }
@@ -98,22 +101,19 @@ bool Adafruit_MFM_Floppy::writeBlock(uint32_t block, const uint8_t *src) {
   return false;
 }
 
-bool Adafruit_MFM_Floppy::syncBlocks() {
-  return false;
-}
+bool Adafruit_MFM_Floppy::syncBlocks() { return false; }
 
-bool Adafruit_MFM_Floppy::readBlocks(uint32_t block, uint8_t *dst,
-                                        size_t nb) {
+bool Adafruit_MFM_Floppy::readBlocks(uint32_t block, uint8_t *dst, size_t nb) {
   // read each block one by one
-  for (size_t blocknum=0; blocknum<nb; blocknum++) {
-    if (!readBlock(block+blocknum, dst + (blocknum*MFM_BYTES_PER_SECTOR)))
+  for (size_t blocknum = 0; blocknum < nb; blocknum++) {
+    if (!readBlock(block + blocknum, dst + (blocknum * MFM_BYTES_PER_SECTOR)))
       return false;
   }
   return true;
 }
 
 bool Adafruit_MFM_Floppy::writeBlocks(uint32_t block, const uint8_t *src,
-                                         size_t nb) {
+                                      size_t nb) {
   Serial.printf("Writing %d blocks %d\n", nb, block);
   (void *)src;
   return false;

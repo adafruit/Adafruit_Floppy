@@ -124,7 +124,6 @@ void Adafruit_Floppy::soft_reset(void) {
     digitalWrite(_wrgatepin, HIGH);
   }
 
-
 #ifdef BUSIO_USE_FAST_PINIO
   indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
   indexMask = digitalPinToBitMask(_indexpin);
@@ -244,8 +243,8 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
       if (digitalRead(_track0pin)) {
         // STILL not found!
         if (debug_serial)
-            debug_serial->println("Could not find track 0");
-          return false; // we 'timed' out, were not able to locate track 0
+          debug_serial->println("Could not find track 0");
+        return false; // we 'timed' out, were not able to locate track 0
       }
     }
   }
