@@ -101,8 +101,13 @@ private:
 #endif
 };
 
-// This class adds support for the BaseBlockDriver interface.
-// This allows it to be used with SdFat's FatFileSystem class.
+/**************************************************************************/
+/*!
+    This class adds support for the BaseBlockDriver interface to an MFM
+    encoded floppy disk. This allows it to be used with SdFat's FatFileSystem
+   class. or for a mass storage device
+*/
+/**************************************************************************/
 class Adafruit_MFM_Floppy : public BaseBlockDriver {
 public:
   Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
@@ -114,7 +119,11 @@ public:
   uint32_t size(void);
   int32_t readTrack(uint8_t track, bool head);
 
+  /**! @brief The expected number of sectors per track in this format
+       @returns The number of sectors per track */
   uint8_t sectors_per_track(void) { return _sectors_per_track; }
+  /**! @brief The expected number of tracks per side in this format
+       @returns The number of tracks per side */
   uint8_t tracks_per_side(void) { return _tracks_per_side; }
 
   //------------- SdFat BaseBlockDRiver API -------------//
@@ -124,7 +133,10 @@ public:
   virtual bool readBlocks(uint32_t block, uint8_t *dst, size_t nb);
   virtual bool writeBlocks(uint32_t block, const uint8_t *src, size_t nb);
 
+  /**! The raw byte decoded data from the last track read */
   uint8_t track_data[MFM_IBMPC1440K_SECTORS_PER_TRACK * MFM_BYTES_PER_SECTOR];
+
+  /**! Which tracks from the last track-read were valid MFM/CRC! */
   uint8_t track_validity[MFM_IBMPC1440K_SECTORS_PER_TRACK];
 
 private:
