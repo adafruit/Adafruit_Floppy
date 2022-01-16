@@ -1,5 +1,7 @@
 #include <Adafruit_Floppy.h>
 
+
+
 // If using SAMD51, turn on TINYUSB USB stack
 #if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
   #define DENSITY_PIN  A0    // IDC 2
@@ -60,14 +62,13 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        MOTOR_PIN, DIR_PIN, STEP_PIN,
                        WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
+Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC360K);
 
-constexpr size_t N_SECTORS = 18;
-uint8_t track_data[512*N_SECTORS];
 
 uint32_t time_stamp = 0;
 
 void setup() {
-pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);      
   while (!Serial) delay(100);
 
@@ -75,10 +76,8 @@ pinMode(LED_BUILTIN, OUTPUT);
   Serial.println("its time for a nice floppy transfer!");
 
   floppy.debug_serial = &Serial;
-  floppy.begin();
 
-  floppy.select(true);
-  if (! floppy.spin_motor(true)) {
+  if (! mfm_floppy.begin()) {
     Serial.println("Failed to spin up motor & find index pulse");
     while (1) yield();
   }
@@ -87,46 +86,35 @@ pinMode(LED_BUILTIN, OUTPUT);
 uint8_t track = 0;
 bool head = 0;
 void loop() {
+  int32_t captured_sectors;
+  
   Serial.printf("Seeking track %d head %d\n", track, head);
-  if (! floppy.goto_track(track)) {
+  captured_sectors = mfm_floppy.readTrack(track, head);
+  if (captured_sectors < 0) {
     Serial.println("Failed to seek to track");
     while (1) yield();
   }
-  floppy.side(head);
-  Serial.println("done!");
-
-  if (!head) {  // we were on side 0
-    head = 1;   // go to side 1
-  } else {      // we were on side 1?
-    track = (track + 1) % 80; // next track!
-    head = 0;   // and side 0
-  }
-
-  uint8_t validity[N_SECTORS];
-  uint32_t captured_sectors = floppy.read_track_mfm(track_data, N_SECTORS, validity);
  
-  Serial.print("Captured ");
-  Serial.print(captured_sectors);
-  Serial.println(" sectors");
+  Serial.print("Captured %d sectors\n", captured_sectors);
 
   Serial.print("Validity: ");
-  for(size_t i=0; i<N_SECTORS; i++) {
-    Serial.print(validity[i] ? "V" : "?");
+  for(size_t i=0; i < mfm_floppy.sectors_per_track(); i++) {
+    Serial.print(mfm_floppy.track_validity[i] ? "V" : "?");
   }
   Serial.print("\n");
-  for(size_t sector=0; sector<N_SECTORS; sector++) {
-    if (!validity[sector]) {
+  for(size_t sector=0; sector < mfm_floppy.sectors_per_track(); sector++) {
+    if (!mfm_floppy.track_validity[sector]) {
       continue; // skip it, not valid
     }
     for(size_t i=0; i<512; i+=16) {
       size_t addr = sector * 512 + i;
       Serial.printf("%08x", addr);
       for(size_t j=0; j<16; j++) {
-         Serial.printf(" %02x", track_data[addr+j]);
+         Serial.printf(" %02x", mfm_floppy.track_data[addr+j]);
       }
       Serial.print(" | ");
       for(size_t j=0; j<16; j++) {
-        uint8_t d = track_data[addr+j];
+        uint8_t d = mfm_floppy.track_data[addr+j];
         if (! isprint(d)) {
           d = ' ';
         }
@@ -134,6 +122,14 @@ void loop() {
       }
       Serial.print("\n");
     }
+  }
+
+  // advance to next track
+  if (!head) {  // we were on side 0
+    head = 1;   // go to side 1
+  } else {      // we were on side 1?
+    track = (track + 1) % 80; // next track!
+    head = 0;   // and side 0
   }
   
   delay(1000);

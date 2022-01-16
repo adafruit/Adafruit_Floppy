@@ -1,7 +1,19 @@
 #include <Adafruit_Floppy.h>
 
-Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy) {
+extern uint32_t T2_5, T3_5;
+
+Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy, adafruit_floppy_disk_t format) {
   _floppy = floppy;
+  _format = format;
+  if (_format == IBMPC1440K) {
+    _sectors_per_track = MFM_IBMPC1440K_SECTORS_PER_TRACK;
+    T2_5 = T2_5_IBMPC_HD;
+    T3_5 = T3_5_IBMPC_HD;
+  } else if (_format == IBMPC360K) {
+    _sectors_per_track = MFM_IBMPC360K_SECTORS_PER_TRACK;
+    T2_5 = T2_5_IBMPC_DD;
+    T3_5 = T3_5_IBMPC_DD;
+  }
 }
 
 bool Adafruit_MFM_Floppy::begin(void) {
@@ -12,32 +24,20 @@ bool Adafruit_MFM_Floppy::begin(void) {
 }
 
 uint32_t Adafruit_MFM_Floppy::size(void) { 
-  return (uint32_t)FLOPPY_MAX_TRACKS * FLOPPY_HEADS * MFM_SECTORS_PER_TRACK * MFM_BYTES_PER_SECTOR; 
+  return (uint32_t)FLOPPY_IBMPC_TRACKS * FLOPPY_HEADS * _sectors_per_track * MFM_BYTES_PER_SECTOR; 
 }
 
-//--------------------------------------------------------------------+
-// SdFat BaseBlockDriver API
-// A block is 512 bytes
-//--------------------------------------------------------------------+
-bool Adafruit_MFM_Floppy::readBlock(uint32_t block, uint8_t *dst) {
-  uint8_t track = block / (FLOPPY_HEADS * MFM_SECTORS_PER_TRACK);
-  uint8_t head = (block / MFM_SECTORS_PER_TRACK) % FLOPPY_HEADS;
-  uint8_t subsector = block % MFM_SECTORS_PER_TRACK;
-  
-  //Serial.printf("\tRead request block %d\n", block);
-  if ((track * FLOPPY_HEADS + head) != last_track_read) {
-    // oof it is not cached!
+
+int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
 
     //Serial.printf("\tSeeking track %d head %d...", track, head);
     if (! _floppy->goto_track(track)) {
       //Serial.println("failed to seek to track");
-      return false;
+      return -1;
     }
     _floppy->side(head);
     //Serial.println("done!");
-    uint32_t captured_sectors =_floppy->read_track_mfm(track_data, MFM_SECTORS_PER_TRACK, track_validity);
-    (void)captured_sectors;
-
+    uint32_t captured_sectors =_floppy->read_track_mfm(track_data, _sectors_per_track, track_validity);
     /*
       Serial.print("Captured %d sectors", captured_sectors);
 
@@ -46,7 +46,28 @@ bool Adafruit_MFM_Floppy::readBlock(uint32_t block, uint8_t *dst) {
         Serial.print(track_validity[i] ? "V" : "?");
       }
     */
-    last_track_read = track * FLOPPY_HEADS + head;
+    return captured_sectors;
+}
+
+
+//--------------------------------------------------------------------+
+// SdFat BaseBlockDriver API
+// A block is 512 bytes
+//--------------------------------------------------------------------+
+bool Adafruit_MFM_Floppy::readBlock(uint32_t block, uint8_t *dst) {
+  uint8_t track = block / (FLOPPY_HEADS * _sectors_per_track);
+  uint8_t head = (block / _sectors_per_track) % FLOPPY_HEADS;
+  uint8_t subsector = block % _sectors_per_track;
+  
+  //Serial.printf("\tRead request block %d\n", block);
+  if ((track * FLOPPY_HEADS + head) != _last_track_read) {
+    // oof it is not cached!
+
+    if (readTrack(track, head) == -1) {
+        return false;
+      }
+
+    _last_track_read = track * FLOPPY_HEADS + head;
   }
 
   if (! track_validity[subsector]) {

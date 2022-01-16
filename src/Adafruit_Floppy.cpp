@@ -9,7 +9,6 @@
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
-#define FLOPPYIO_SAMPLERATE (F_CPU * 11u / 90u) // empirical on SAM D51 @ 120MHz
 #elif defined(ARDUINO_ARCH_RP2040)
 #define read_index() gpio_get(_indexpin)
 #define read_data() gpio_get(_rddatapin)
@@ -17,13 +16,8 @@
 #define clr_debug_led() gpio_put(led_pin, 0)
 #endif
 
-#if defined(ARDUINO_ARCH_RP2040)
-#undef FLOPPYIO_SAMPLERATE
-#define FLOPPYIO_SAMPLERATE (F_CPU * 13u / 100u) // empirical on RP2040 @ 200MHz
-#endif
-
-#define T2_5 (FLOPPYIO_SAMPLERATE * 5 / 2 / 1000000)
-#define T3_5 (FLOPPYIO_SAMPLERATE * 7 / 2 / 1000000)
+uint32_t T2_5 = T2_5_IBMPC_HD;
+uint32_t T3_5 = T3_5_IBMPC_HD;
 
 #if !DEBUG_FLOPPY
 #undef set_debug_led
@@ -115,6 +109,21 @@ void Adafruit_Floppy::soft_reset(void) {
   pinMode(_protectpin, INPUT_PULLUP);
   pinMode(_readypin, INPUT_PULLUP);
   pinMode(_rddatapin, INPUT_PULLUP);
+
+  // set high density
+  pinMode(_densitypin, OUTPUT);
+  digitalWrite(_densitypin, LOW);
+
+  // set write OFF
+  if (_wrdatapin >= 0) {
+    pinMode(_wrdatapin, OUTPUT);
+    digitalWrite(_wrdatapin, HIGH);
+  }
+  if (_wrgatepin >= 0) {
+    pinMode(_wrgatepin, OUTPUT);
+    digitalWrite(_wrgatepin, HIGH);
+  }
+
 
 #ifdef BUSIO_USE_FAST_PINIO
   indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
@@ -229,7 +238,7 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
   delay(settle_delay_ms);
 
   // ok its a non-track 0 step, first, we cant go past 79 ok?
-  track_num = min(track_num, FLOPPY_MAX_TRACKS - 1);
+  track_num = min(track_num, FLOPPY_IBMPC_TRACKS - 1);
   if (debug_serial)
     debug_serial->printf("Going to track %d\n\r", track_num);
 
