@@ -93,7 +93,7 @@ enum { triple_mark_magic = 0x09926499, triple_mark_mask = 0x0fffffff };
 __attribute__((always_inline)) inline static bool
 wait_triple_sync_mark(mfm_io_t *io) {
   uint32_t state = 0;
-  while (mfm_io_get_sync_count(io) < 2 && state != triple_mark_magic) {
+  while (mfm_io_get_sync_count(io) < 3 && state != triple_mark_magic) {
     state = ((state << 2) | mfm_io_read_symbol(io)) & triple_mark_mask;
   }
   return state == triple_mark_magic;
@@ -193,7 +193,7 @@ static int read_track(mfm_io_t io, int n_sectors, void *data,
   mfm_io_reset_sync_count(&io);
 
   unsigned char buf[512 + 3];
-  while (mfm_io_get_sync_count(&io) < 2 && n_valid < n_sectors) {
+  while (mfm_io_get_sync_count(&io) < 3 && n_valid < n_sectors) {
     if (!wait_triple_sync_mark_receive_crc(&io, buf, metadata_size)) {
       continue;
     }
