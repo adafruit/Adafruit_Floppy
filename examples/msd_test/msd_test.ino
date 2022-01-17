@@ -1,4 +1,4 @@
-// this example makes a lot of assumptions: 1.44MB MFM floppy which is already inserted
+// this example makes a lot of assumptions: MFM floppy which is already inserted
 // and only reading is supported - no write yet!
 
 #include <Adafruit_Floppy.h>
@@ -67,13 +67,11 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
 
-constexpr size_t N_SECTORS = 18;
-constexpr size_t SECTOR_SIZE = 512UL;
-#define DISK_BLOCK_NUM  (N_SECTORS * 80 * 2)
-#define DISK_BLOCK_SIZE SECTOR_SIZE
+// You can select IBMPC1440K or IBMPC360K (check adafruit_floppy_disk_t options!)
+Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC1440K);
 
-uint8_t track_data[SECTOR_SIZE*N_SECTORS];
-uint8_t track_validity[N_SECTORS];
+
+constexpr size_t SECTOR_SIZE = 512UL;
 int8_t last_track_read = -1;  // last cached track
 
 void setup() {
@@ -90,27 +88,21 @@ void setup() {
   usb_msc.setID("Adafruit", "Floppy Mass Storage", "1.0");
 
     // Set disk size
-  usb_msc.setCapacity(DISK_BLOCK_NUM, DISK_BLOCK_SIZE);
+  usb_msc.setCapacity(mfm_floppy.sectors_per_track() * mfm_floppy.tracks_per_side() * FLOPPY_HEADS, SECTOR_SIZE);
 
   // Set callback
   usb_msc.setReadWriteCallback(msc_read_callback, msc_write_callback, msc_flush_callback);
 
   floppy.debug_serial = &Serial;
   floppy.begin();
-  // Set Lun ready 
+  // Set Lun ready
   usb_msc.setUnitReady(true);
   Serial.println("Ready!");
 
   usb_msc.begin();
-    
-  floppy.select(true);
-  if (! floppy.spin_motor(true)) {
+
+  if (! mfm_floppy.begin()) {
     Serial.println("Failed to spin up motor & find index pulse");
-    while (1) yield();
-  }
-  Serial.println("Seeking track 0");
-  if (! floppy.goto_track(0)) {
-    Serial.println("Failed to seek to track");
     while (1) yield();
   }
 }
@@ -126,32 +118,30 @@ int32_t msc_read_callback (uint32_t lba, void* buffer, uint32_t bufsize)
 {
   Serial.printf("read call back block %d size %d\n", lba, bufsize);
 
-  uint8_t track = lba / (2 * N_SECTORS);
-  uint8_t head = (lba / N_SECTORS) % 2;
-  uint8_t subsector = lba % N_SECTORS;
+  uint8_t track = lba / (2 * mfm_floppy.sectors_per_track());
+  uint8_t head = (lba / mfm_floppy.sectors_per_track()) % 2;
+  uint8_t subsector = lba % mfm_floppy.sectors_per_track();
 
-  if ((track * 2 + head) != last_track_read) {
-    // oof it is not cached!
+  uint8_t retries = 5;
 
-    Serial.printf("Seeking track %d head %d\n", track, head);
-    if (! floppy.goto_track(track)) {
+  for (int retry=0; retry<retries; retry++) {
+    if (((track * 2 + head) == last_track_read) && mfm_floppy.track_validity[subsector]) {
+      // aah we've got it and its valid!
+      Serial.println("OK!");
+      memcpy(buffer, mfm_floppy.track_data+(subsector * SECTOR_SIZE), SECTOR_SIZE);
+      return SECTOR_SIZE;
+    }
+    // ok so either its not valid, or we didn't read this track yet...
+    int32_t tracks_read = mfm_floppy.readTrack(track, head);
+    if (tracks_read < 0) {
       Serial.println("Failed to seek to track");
       return 0;
     }
-    floppy.side(head);
-    Serial.println("done!");
-    floppy.read_track_mfm(track_data, N_SECTORS, track_validity);
-
     last_track_read = track * 2 + head;
+    // we'll go again on the next round
   }
-
-  if (! track_validity[subsector]) {
-    Serial.println("subsector invalid");
-    return 0;
-  }
-  Serial.println("OK!");
-  memcpy(buffer, track_data+(subsector * SECTOR_SIZE), SECTOR_SIZE);
-  return SECTOR_SIZE;
+  Serial.println("subsector invalid CRC :(");
+  return 0;
 }
 
 // Callback invoked when received WRITE10 command.

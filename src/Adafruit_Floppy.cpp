@@ -9,7 +9,6 @@
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
-#define FLOPPYIO_SAMPLERATE (F_CPU * 11u / 90u) // empirical on SAM D51 @ 120MHz
 #elif defined(ARDUINO_ARCH_RP2040)
 #define read_index() gpio_get(_indexpin)
 #define read_data() gpio_get(_rddatapin)
@@ -17,13 +16,8 @@
 #define clr_debug_led() gpio_put(led_pin, 0)
 #endif
 
-#if defined(ARDUINO_ARCH_RP2040)
-#undef FLOPPYIO_SAMPLERATE
-#define FLOPPYIO_SAMPLERATE (F_CPU * 13u / 100u) // empirical on RP2040 @ 200MHz
-#endif
-
-#define T2_5 (FLOPPYIO_SAMPLERATE * 5 / 2 / 1000000)
-#define T3_5 (FLOPPYIO_SAMPLERATE * 7 / 2 / 1000000)
+uint32_t T2_5 = T2_5_IBMPC_HD;
+uint32_t T3_5 = T3_5_IBMPC_HD;
 
 #if !DEBUG_FLOPPY
 #undef set_debug_led
@@ -115,6 +109,20 @@ void Adafruit_Floppy::soft_reset(void) {
   pinMode(_protectpin, INPUT_PULLUP);
   pinMode(_readypin, INPUT_PULLUP);
   pinMode(_rddatapin, INPUT_PULLUP);
+
+  // set high density
+  pinMode(_densitypin, OUTPUT);
+  digitalWrite(_densitypin, LOW);
+
+  // set write OFF
+  if (_wrdatapin >= 0) {
+    pinMode(_wrdatapin, OUTPUT);
+    digitalWrite(_wrdatapin, HIGH);
+  }
+  if (_wrgatepin >= 0) {
+    pinMode(_wrgatepin, OUTPUT);
+    digitalWrite(_wrgatepin, HIGH);
+  }
 
 #ifdef BUSIO_USE_FAST_PINIO
   indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
@@ -210,7 +218,7 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
       debug_serial->println("Going to track 0");
 
     // step back a lil more than expected just in case we really seeked out
-    uint8_t max_steps = 250;
+    uint8_t max_steps = 100;
     while (max_steps--) {
       if (!digitalRead(_track0pin)) {
         _track = 0;
@@ -221,15 +229,29 @@ bool Adafruit_Floppy::goto_track(uint8_t track_num) {
 
     if (digitalRead(_track0pin)) {
       // we never got a track 0 indicator :(
-      if (debug_serial)
-        debug_serial->println("Could not find track 0");
-      return false; // we 'timed' out, were not able to locate track 0
+      // what if we try stepping in a bit??
+
+      max_steps = 20;
+      while (max_steps--) {
+        if (!digitalRead(_track0pin)) {
+          _track = 0;
+          break;
+        }
+        step(STEP_IN, 1);
+      }
+
+      if (digitalRead(_track0pin)) {
+        // STILL not found!
+        if (debug_serial)
+          debug_serial->println("Could not find track 0");
+        return false; // we 'timed' out, were not able to locate track 0
+      }
     }
   }
   delay(settle_delay_ms);
 
   // ok its a non-track 0 step, first, we cant go past 79 ok?
-  track_num = min(track_num, FLOPPY_MAX_TRACKS - 1);
+  track_num = min(track_num, FLOPPY_IBMPC_HD_TRACKS - 1);
   if (debug_serial)
     debug_serial->printf("Going to track %d\n\r", track_num);
 
@@ -267,12 +289,14 @@ void Adafruit_Floppy::step(bool dir, uint8_t times) {
 
   while (times--) {
     digitalWrite(_steppin, HIGH);
-    delayMicroseconds(step_delay_us);
+    delay((step_delay_us / 1000UL) + 1); // round up to at least 1ms
     digitalWrite(_steppin, LOW);
-    delayMicroseconds(step_delay_us);
+    delay((step_delay_us / 1000UL) + 1);
     digitalWrite(_steppin, HIGH); // end high
     yield();
   }
+  // one more for good measure (5.25" drives seemed to like this)
+  delay((step_delay_us / 1000UL) + 1);
 }
 
 /**************************************************************************/
