@@ -339,17 +339,22 @@ void loop() {
       //floppy.print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
       // trim down extra long pulses 
       for (uint32_t f=0; f<captured_pulses; f++) {
-        if (flux_transitions[f] > 250) {
-          flux_transitions[f] = 250;
+        // MEME FIX: in theory, we can 'pack' longer flux transitions
+        // with modulo 250 byte math but we're lazy right now
+        if (flux_transitions[f] > 249) {
+          Serial1.printf("*** Extra long pulse encountered ***\n");
+          flux_transitions[f] = 249;
         }
       }
-      // Send the index opcode, which is right at the start of this data xfer
-      reply_buffer[0] = 0xFF;
+      // Send the index falling signal opcode, which was right 
+      // at the start of this data xfer (we wait for index to fall
+      // before we start reading
+      reply_buffer[0] = 0xFF; // FLUXOP INDEX
       reply_buffer[1] = 1; // index opcode
-      reply_buffer[2] = 0x1;
-      reply_buffer[3] = 0x1;
-      reply_buffer[4] = 0x1;
-      reply_buffer[5] = 0x1; // 0 are special, so we send 1 to == 0
+      reply_buffer[2] = 0x1;  // 0 are special, so we send 1's to == 0
+      reply_buffer[3] = 0x1;  // ""
+      reply_buffer[4] = 0x1;  // ""
+      reply_buffer[5] = 0x1;  // ""
       Serial.write(reply_buffer, 6);
 
       uint8_t *flux_ptr = flux_transitions;

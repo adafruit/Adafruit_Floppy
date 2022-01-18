@@ -1,6 +1,6 @@
 #include "Adafruit_Floppy.h"
 
-#define DEBUG_FLOPPY (0)
+#define DEBUG_FLOPPY (1)
 
 // We need to read and write some pins at optimized speeds - use raw registers
 // or native SDK API!
@@ -9,6 +9,8 @@
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
+#define set_write() (*writePort |= writeMask)
+#define clr_write() (*writePort &= ~writeMask)
 #elif defined(ARDUINO_ARCH_RP2040)
 #define read_index() gpio_get(_indexpin)
 #define read_data() gpio_get(_rddatapin)
@@ -358,7 +360,7 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
+uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset) {
   unsigned pulse_count;
   uint8_t *pulses_ptr = pulses;
   uint8_t *pulses_end = pulses + max_pulses;
@@ -403,9 +405,13 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
     // ahh a L to H transition
     if (!last_index_state && index_state) {
       index_transitions++;
-      if (index_transitions ==
-          2) // and its the second one, so we're done with this track!
-        break;
+      if (index_transitions == 2) 
+        break; // and its the second one, so we're done with this track!
+    }
+    // ooh a H to L transition, thats 1 revolution
+    else if (last_index_state && !index_state) {
+      // we'll keep track of when it happened
+      *falling_index_offset = (pulses_ptr - pulses);
     }
     last_index_state = index_state;
 
@@ -435,6 +441,57 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   // whew done
   interrupts();
   return pulses_ptr - pulses;
+}
+
+
+void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses) {
+  unsigned pulse_count, pulse_count2;
+  uint8_t *pulses_ptr = pulses;
+
+#ifdef BUSIO_USE_FAST_PINIO
+  BusIO_PortReg *writePort, *ledPort;
+  BusIO_PortMask writeMask, ledMask;
+  writePort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(_wrdatapin));
+  writeMask = digitalPinToBitMask(_wrdatapin);
+  ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
+  ledMask = digitalPinToBitMask(led_pin);
+  (void)ledPort;
+  (void)ledMask;
+#endif
+
+  pinMode(_wrdatapin, OUTPUT);
+  digitalWrite(_wrdatapin, HIGH);
+
+  pinMode(_wrgatepin, OUTPUT);
+  digitalWrite(_wrgatepin, HIGH);
+
+  noInterrupts();
+  wait_for_index_pulse_low();
+  digitalWrite(_wrgatepin, LOW);
+  
+  // write track data
+  while (num_pulses--) {
+    pulse_count = pulses_ptr[0];
+    pulses_ptr++;
+    // ?? lets bail
+    if (pulse_count == 0) break;
+
+    clr_write();
+    pulse_count -= 11;
+    while(pulse_count--) {
+      asm("nop; nop; nop; nop; nop; nop; nop; nop; nop;");
+    }
+    set_write();
+    pulse_count = 8;
+    while(pulse_count--) {
+      asm("nop; nop; nop; nop; nop; nop; nop; nop; nop;");
+    }
+  }
+  // whew done
+  digitalWrite(_wrgatepin, HIGH);
+  digitalWrite(_wrdatapin, HIGH);
+  interrupts();
+  return;
 }
 
 /**************************************************************************/
