@@ -85,6 +85,7 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_GETPARAMS_DELAYS 0
 #define GW_CMD_MOTOR      6
 #define GW_CMD_READFLUX   7
+#define GW_CMD_WRITEFLUX   8
 #define GW_CMD_GETFLUXSTATUS  9
 #define GW_CMD_SELECT    12
 #define GW_CMD_DESELECT  13
@@ -162,7 +163,7 @@ void loop() {
   memset(reply_buffer, 0, sizeof(reply_buffer));
   reply_buffer[i++] = cmd;  // echo back the cmd itself
   
-  Serial1.printf("Got command 0x%02x\n\r", cmd);
+  Serial1.printf("Got command 0x%02x of length %d\n\r", cmd, cmd_buffer[1]);
   
   if (cmd == GW_CMD_GETINFO) {
     Serial1.println("Get info");
@@ -334,15 +335,17 @@ void loop() {
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
     while (revs--) {
-      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions));
-      Serial1.printf("Rev #%d captured %u pulses\n\r", revs, captured_pulses);
+      uint32_t index_offset;
+      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_offset);
+      Serial1.printf("Rev #%d captured %u pulses, second index fall @ %d\n\r", 
+                     revs, captured_pulses, index_offset);
       //floppy.print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
       // trim down extra long pulses 
       for (uint32_t f=0; f<captured_pulses; f++) {
         // MEME FIX: in theory, we can 'pack' longer flux transitions
         // with modulo 250 byte math but we're lazy right now
         if (flux_transitions[f] > 249) {
-          Serial1.printf("*** Extra long pulse encountered ***\n");
+          Serial1.printf("*** Extra long pulse encountered ***\n\r");
           flux_transitions[f] = 249;
         }
       }
@@ -358,6 +361,26 @@ void loop() {
       Serial.write(reply_buffer, 6);
 
       uint8_t *flux_ptr = flux_transitions;
+      // send all data until the flux transition
+      while (index_offset) {
+        uint32_t to_send = min(index_offset, (uint32_t)256);
+        Serial.write(flux_ptr, to_send);
+        //Serial1.println(to_send);
+        flux_ptr += to_send;
+        captured_pulses -= to_send;
+        index_offset -= to_send;
+      }
+
+      // we interrupt this broadcast for a flux op index
+      reply_buffer[0] = 0xFF; // FLUXOP INDEX
+      reply_buffer[1] = 1; // index opcode
+      reply_buffer[2] = 0x1;  // 0 are special, so we send 1's to == 0
+      reply_buffer[3] = 0x1;  // ""
+      reply_buffer[4] = 0x1;  // ""
+      reply_buffer[5] = 0x1;  // ""
+      Serial.write(reply_buffer, 6);
+      
+      // send remaining data until the flux transition
       while (captured_pulses) {
         uint32_t to_send = min(captured_pulses, (uint32_t)256);
         Serial.write(flux_ptr, to_send);
@@ -366,24 +389,47 @@ void loop() {
         captured_pulses -= to_send;
       }
     }
-    
-    // send a final indexop
-    reply_buffer[0] = 0xFF;
-    reply_buffer[1] = 1; // index opcode
-    reply_buffer[2] = 0x1;
-    reply_buffer[3] = 0x1;
-    reply_buffer[4] = 0x1;
-    reply_buffer[5] = 0x1; // 0 are special, so we send 1 to == 0
-    Serial.write(reply_buffer, 6);
 
     // flush input, to account for fluxengine bug
     while (Serial.available()) Serial.read();
+
+    // THE END
     Serial.write((byte)0);
   }
+  else if (cmd == GW_CMD_WRITEFLUX) {
+    Serial1.println("write flux");
 
+    uint8_t cue_at_index = cmd_buffer[2];
+    uint8_t terminate_at_index = cmd_buffer[3];
+    reply_buffer[i++] = GW_ACK_OK;
+    Serial.write(reply_buffer, 2);
+        
+    uint32_t fluxors = 0;
+    uint8_t flux = 0xFF;
+    while (flux && (fluxors < MAX_FLUX_PULSE_PER_TRACK)) {
+      while (!Serial.available()) yield();
+      flux = Serial.read();
+      flux_transitions[fluxors++] = flux;
+    }
+    if (fluxors == MAX_FLUX_PULSE_PER_TRACK) {
+      Serial1.println("*** FLUX OVERRUN ***");
+      while(1) yield();
+    }
+    Serial1.printf("Read in %d flux transitions\n\r", fluxors);
+    for (uint32_t i=0; i<fluxors; i++) {
+      uint8_t flux = flux_transitions[i];
+      if (flux >= 250) { // a fluxop!
+        Serial1.printf("Fluxop 0x%x at %d\n\r", flux, i);
+      }
+    }
+    floppy.print_pulse_bins(flux_transitions, fluxors-7, 64);
+    floppy.write_track(flux_transitions, fluxors-7);
+    Serial1.println("wrote fluxors");
+    Serial.write((byte)0);
+  }
   else if (cmd == GW_CMD_GETFLUXSTATUS) {
     Serial1.println("get flux status");
-    reply_buffer[i++] = GW_ACK_OK;
+    reply_buffer[i++] = GW_ACK_OK;    
     Serial.write(reply_buffer, 2);
   }
 
