@@ -479,7 +479,7 @@ void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses) {
     clr_write();
     pulse_count -= 11;
     while(pulse_count--) {
-      asm("nop; nop; nop; nop; nop; nop; nop; nop; nop;");
+      asm("nop; nop; nop; nop; nop;");
     }
     set_write();
     pulse_count = 8;
