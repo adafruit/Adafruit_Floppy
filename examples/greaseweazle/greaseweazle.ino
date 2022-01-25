@@ -107,7 +107,10 @@ void setup() {
   Serial1.println("GrizzlyWizzly");
 
   floppy.debug_serial = &Serial1;
-  floppy.begin();
+  if (!floppy.begin()) {
+    Serial1.println("Failed to initialize floppy interface");
+    while (1) yield();
+  }
   timestamp = millis();
 }
 
@@ -140,8 +143,7 @@ bool motor_state = false; // we can cache whether the motor is spinning
 void loop() {
   uint8_t cmd_len = get_cmd(cmd_buffer, sizeof(cmd_buffer));
   if (!cmd_len) {
-    /*
-    if ((millis() > timestamp) && ((millis()-timestamp) > 5000)) {
+    if ((millis() > timestamp) && ((millis()-timestamp) > 10000)) {
       Serial1.println("Timed out waiting for command, resetting motor");
       floppy.goto_track(0);
       floppy.spin_motor(false);
@@ -149,7 +151,6 @@ void loop() {
       floppy.select(false);
       timestamp = millis();
     }
-    */
     return;
   }
   timestamp = millis();
