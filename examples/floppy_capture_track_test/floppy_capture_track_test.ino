@@ -92,14 +92,14 @@ void setup() {
 
 void loop() {
   uint32_t index_pulse_offset;
-  uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset);
+  uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset, true);
  
   Serial.print("Captured ");
   Serial.print(captured_flux);
   Serial.println(" flux transitions");
 
   //floppy.print_pulses(flux_transitions, captured_flux);
-  floppy.print_pulse_bins(flux_transitions, captured_flux, 255);
+  floppy.print_pulse_bins(flux_transitions, captured_flux, 255, true);
   
   if ((millis() - time_stamp) > 1000) {
     Serial.print("Ready? ");
