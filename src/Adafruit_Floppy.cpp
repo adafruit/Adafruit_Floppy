@@ -33,6 +33,7 @@ uint32_t T3_5 = T3_5_IBMPC_HD;
 extern volatile uint8_t *g_flux_pulses;
 extern volatile uint32_t g_max_pulses;
 extern volatile uint32_t g_num_pulses;
+extern volatile bool g_store_greaseweazle;
 extern volatile uint8_t g_timing_div;
 #endif
 
@@ -396,7 +397,8 @@ uint32_t Adafruit_Floppy::getSampleFrequency(void) {
 /**************************************************************************/
 uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
                                         uint32_t max_pulses,
-                                        uint32_t *falling_index_offset) {
+                                        uint32_t *falling_index_offset,
+                                        bool store_greaseweazle) {
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
   noInterrupts();
@@ -410,6 +412,7 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   g_flux_pulses = pulses;
   g_max_pulses = max_pulses;
   g_num_pulses = 0;
+  g_store_greaseweazle = store_greaseweazle;
   // enable capture
   enable_capture();
   // meanwhile... wait for *second* low pulse
@@ -548,27 +551,37 @@ void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses) {
 */
 /**************************************************************************/
 void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
-                                       uint8_t max_bins) {
+                                       uint8_t max_bins, bool is_gw_format) {
   if (!debug_serial)
     return;
+  uint32_t pulse_len=0;
 
   // lets bin em!
   uint32_t bins[max_bins][2];
   memset(bins, 0, max_bins * 2 * sizeof(uint32_t));
   // we'll add each pulse to a bin so we can figure out the 3 buckets
-  for (uint32_t i = 0; i < num_pulses; i++) {
+  for (uint32_t i = 0; i < num_pulses; i++) {    
     uint8_t p = pulses[i];
+    if (p < 250) {
+      pulse_len = p;
+    } else {
+      //Serial.printf("long pulse! %d and %d ->", p, pulses[i+1]);
+      pulse_len = 250 + ((uint16_t)p - 250) * 255;
+      i++;
+      pulse_len += pulses[i] - 1;
+      //Serial.printf(" %d \n\r", pulse_len);
+    }
     // find a bin for this pulse
     uint8_t bin = 0;
     for (bin = 0; bin < max_bins; bin++) {
       // bin already exists? increment the count!
-      if (bins[bin][0] == p) {
+      if (bins[bin][0] == pulse_len) {
         bins[bin][1]++;
         break;
       }
       if (bins[bin][0] == 0) {
         // ok we never found the bin, so lets make it this one!
-        bins[bin][0] = p;
+        bins[bin][0] = pulse_len;
         bins[bin][1] = 1;
         break;
       }
@@ -577,7 +590,7 @@ void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
       debug_serial->println("oof we ran out of bins but we'll keep going");
   }
   // this is a very lazy way to print the bins sorted
-  for (uint8_t pulse_w = 1; pulse_w < 255; pulse_w++) {
+  for (uint16_t pulse_w = 1; pulse_w < 512; pulse_w++) {
     for (uint8_t b = 0; b < max_bins; b++) {
       if (bins[b][0] == pulse_w) {
         debug_serial->print(bins[b][0]);

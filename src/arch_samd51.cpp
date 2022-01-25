@@ -37,19 +37,40 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
   if (theTimer->COUNT16.INTFLAG.bit
           .MC0) // Check for match counter 0 (MC0) interrupt
   {
-    uint16_t period =
-        theTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
-    if (theTimer && g_flux_pulses && (g_num_pulses < g_max_pulses)) {
-      period = max(2, min(249, period));
-      g_flux_pulses[g_num_pulses++] = period;
-    }
+    uint16_t ticks =
+      theTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
+     if (ticks == 0) {
+       // dont do something if its 0 - thats wierd!
+     }
+     else if (ticks < 250 || !g_store_greaseweazle) {
+       // 1-249: One byte.
+       g_flux_pulses[g_num_pulses++] = min(249, ticks);
+     }
+     else {
+       uint8_t high = (ticks - 250) / 255;
+       if (high < 5) {
+         // 250-1524: Two bytes.
+         g_flux_pulses[g_num_pulses++] = 250 + high;
+         g_flux_pulses[g_num_pulses++] = 1 + ((ticks-250) % 255);
+       } else {
+         // TODO MEME FIX!
+         /* 1525-(2^28-1): Seven bytes. 
+         g_flux_pulses[g_num_pulses++] = 0xff;
+         g_flux_pulses[g_num_pulses++] = FLUXOP_SPACE;
+         _write_28bit(ticks - 249);
+         u_buf[U_MASK(u_prod++)] = 249;
+         }
+         */
+       }
+     }
   }
 
-  if (theTimer->COUNT16.INTFLAG.bit
-          .MC1) // Check for match counter 1 (MC1) interrupt
+  // Check for match counter 1 (MC1) interrupt
+  if (theTimer->COUNT16.INTFLAG.bit.MC1)
   {
     uint16_t pulsewidth =
         theTimer->COUNT16.CC[1].reg; // Copy the pulse width, DONT REMOVE
+    (void)pulsewidth;
   }
 }
 
