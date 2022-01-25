@@ -29,7 +29,7 @@ volatile uint8_t *g_flux_pulses = NULL;
 volatile uint32_t g_max_pulses = 0;
 volatile uint32_t g_num_pulses = 0;
 volatile bool g_store_greaseweazle = false;
-volatile uint8_t g_timing_div = 1;
+volatile uint8_t g_timing_div = 2;
 
 void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
 {
