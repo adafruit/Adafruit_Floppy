@@ -55,7 +55,7 @@ public:
                   int8_t wrdatapin, int8_t wrgatepin, int8_t track0pin,
                   int8_t protectpin, int8_t rddatapin, int8_t sidepin,
                   int8_t readypin);
-  void begin(void);
+  bool begin(void);
   void soft_reset(void);
 
   void select(bool selected);
@@ -67,7 +67,7 @@ public:
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity);
-  uint32_t capture_track(uint8_t *pulses, uint32_t max_pulses)
+  uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset)
       __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                         uint8_t max_bins = 64);
@@ -85,8 +85,15 @@ public:
 
   Stream *debug_serial = NULL; ///< optional debug stream for serial output
 
+#if defined(__SAMD51__)
+  bool init_capture(void);
+  void disable_capture(void);
+  void enable_capture(void);
+#endif
+
 private:
   void wait_for_index_pulse_low(void);
+
 
   // theres a lot of GPIO!
   int8_t _densitypin, _indexpin, _selectpin, _motorpin, _directionpin, _steppin,

@@ -29,6 +29,13 @@ uint32_t T3_5 = T3_5_IBMPC_HD;
 #define MFM_IO_MMIO (1)
 #include "mfm_impl.h"
 
+
+#if defined(__SAMD51__)
+extern volatile uint8_t *g_flux_pulses;
+extern volatile uint32_t g_max_pulses;
+extern volatile uint32_t g_num_pulses;
+#endif
+
 /**************************************************************************/
 /*!
     @brief  Create a hardware interface to a floppy drive
@@ -76,7 +83,15 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
     @brief  Initializes the GPIO pins but do not start the motor or anything
 */
 /**************************************************************************/
-void Adafruit_Floppy::begin(void) { soft_reset(); }
+bool Adafruit_Floppy::begin(void) { 
+  soft_reset(); 
+#if defined(__SAMD51__)
+  if (!init_capture()) {
+    return false;
+  }
+#endif
+  return true;
+}
 
 /**************************************************************************/
 /*!
@@ -358,10 +373,33 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
-  unsigned pulse_count;
-  uint8_t *pulses_ptr = pulses;
-  uint8_t *pulses_end = pulses + max_pulses;
+uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset) {
+  memset((void *)pulses, 0, max_pulses); // zero zem out
+
+  noInterrupts();
+  wait_for_index_pulse_low();
+
+#if defined(__SAMD51__)
+  disable_capture();
+  // allow interrupts
+  interrupts();
+  // init global interrupt data
+  g_flux_pulses = pulses;
+  g_max_pulses = max_pulses;
+  g_num_pulses = 0;
+  // enable capture
+  enable_capture();
+  // meanwhile... wait for *second* low pulse
+  wait_for_index_pulse_low();
+  // track when it happened for later...
+  *falling_index_offset = g_num_pulses;
+  // wait another 50ms which is about 1/4 of a track
+  delay(50);
+  // ok we're done!
+  disable_capture();
+  return g_num_pulses;
+
+#else // bitbang it!
 
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *dataPort, *ledPort;
@@ -374,11 +412,10 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   (void)ledMask;
 #endif
 
-  memset(pulses, 0, max_pulses); // zero zem out
-
-  noInterrupts();
-  wait_for_index_pulse_low();
-
+  unsigned pulse_count;
+  volatile uint8_t *pulses_ptr = pulses;
+  volatile uint8_t *pulses_end = pulses + max_pulses;
+  
   // wait for one clean flux pulse so we dont get cut off.
   // don't worry about losing this pulse, we'll get it on our
   // overlap run!
@@ -403,9 +440,13 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
     // ahh a L to H transition
     if (!last_index_state && index_state) {
       index_transitions++;
-      if (index_transitions ==
-          2) // and its the second one, so we're done with this track!
-        break;
+      if (index_transitions == 2) 
+        break; // and its the second one, so we're done with this track!
+    }
+    // ooh a H to L transition, thats 1 revolution
+    else if (last_index_state && !index_state) {
+      // we'll keep track of when it happened
+      *falling_index_offset = (pulses_ptr - pulses);
     }
     last_index_state = index_state;
 
@@ -435,6 +476,7 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   // whew done
   interrupts();
   return pulses_ptr - pulses;
+#endif
 }
 
 /**************************************************************************/
