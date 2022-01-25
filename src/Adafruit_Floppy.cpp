@@ -392,6 +392,7 @@ uint32_t Adafruit_Floppy::getSampleFrequency(void) {
     @param  falling_index_offset Pointer to a uint32_t where we will store the
     "flux index" where the second index pulse fell. usually we read 110-125% of
     one track so there is an overlap of index pulse reads
+    @param  store_greaseweazle Pass in true to pack long pulses with two bytes
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
@@ -548,6 +549,7 @@ void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses) {
     @param  pulses A pointer to an array of memory containing pulse counts
     @param  num_pulses The size of the pulses in the array
     @param  max_bins The maximum number of histogram bins to use (default 64)
+    @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
 void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
