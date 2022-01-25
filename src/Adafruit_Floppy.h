@@ -68,10 +68,11 @@ public:
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity);
   uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
-                         uint32_t *falling_index_offset, bool store_greaseweazle=false)
+                         uint32_t *falling_index_offset,
+                         bool store_greaseweazle = false)
       __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
-                        uint8_t max_bins = 64, bool is_gw_format=false);
+                        uint8_t max_bins = 64, bool is_gw_format = false);
   void print_pulses(uint8_t *pulses, uint32_t num_pulses);
   uint32_t getSampleFrequency(void);
 

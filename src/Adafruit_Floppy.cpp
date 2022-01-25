@@ -554,22 +554,22 @@ void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                                        uint8_t max_bins, bool is_gw_format) {
   if (!debug_serial)
     return;
-  uint32_t pulse_len=0;
+  uint32_t pulse_len = 0;
 
   // lets bin em!
   uint32_t bins[max_bins][2];
   memset(bins, 0, max_bins * 2 * sizeof(uint32_t));
   // we'll add each pulse to a bin so we can figure out the 3 buckets
-  for (uint32_t i = 0; i < num_pulses; i++) {    
+  for (uint32_t i = 0; i < num_pulses; i++) {
     uint8_t p = pulses[i];
     if (p < 250) {
       pulse_len = p;
     } else {
-      //Serial.printf("long pulse! %d and %d ->", p, pulses[i+1]);
+      // Serial.printf("long pulse! %d and %d ->", p, pulses[i+1]);
       pulse_len = 250 + ((uint16_t)p - 250) * 255;
       i++;
       pulse_len += pulses[i] - 1;
-      //Serial.printf(" %d \n\r", pulse_len);
+      // Serial.printf(" %d \n\r", pulse_len);
     }
     // find a bin for this pulse
     uint8_t bin = 0;
