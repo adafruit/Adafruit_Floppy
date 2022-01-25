@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Adafruit Floppy Interface Library: Adafruit_Floppy Class Reference</title>
+<title>Adafruit Library: Adafruit_Floppy Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -21,7 +21,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">Adafruit Floppy Interface Library
+   <div id="projectname">Adafruit Library
    </div>
   </td>
  </tr>
@@ -105,12 +105,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:a97254b5a80f489a0b6663abb76cb94ea"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a97254b5a80f489a0b6663abb76cb94ea">read_track_mfm</a> (uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity)</td></tr>
 <tr class="memdesc:a97254b5a80f489a0b6663abb76cb94ea"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture and decode one track of MFM data.  <a href="#a97254b5a80f489a0b6663abb76cb94ea">More...</a><br /></td></tr>
 <tr class="separator:a97254b5a80f489a0b6663abb76cb94ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8cf748e15dc1a61ffd5fe46b0f652d05"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a8cf748e15dc1a61ffd5fe46b0f652d05">capture_track</a> (volatile uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
-<tr class="memdesc:a8cf748e15dc1a61ffd5fe46b0f652d05"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#a8cf748e15dc1a61ffd5fe46b0f652d05">More...</a><br /></td></tr>
-<tr class="separator:a8cf748e15dc1a61ffd5fe46b0f652d05"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6d05514d19e7659ba2fd0094b5af53c0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a6d05514d19e7659ba2fd0094b5af53c0">print_pulse_bins</a> (uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64)</td></tr>
-<tr class="memdesc:a6d05514d19e7659ba2fd0094b5af53c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#a6d05514d19e7659ba2fd0094b5af53c0">More...</a><br /></td></tr>
-<tr class="separator:a6d05514d19e7659ba2fd0094b5af53c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6c860632338f76aa3d00c7cf4a2ee472"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a6c860632338f76aa3d00c7cf4a2ee472">capture_track</a> (volatile uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
+<tr class="memdesc:a6c860632338f76aa3d00c7cf4a2ee472"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#a6c860632338f76aa3d00c7cf4a2ee472">More...</a><br /></td></tr>
+<tr class="separator:a6c860632338f76aa3d00c7cf4a2ee472"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae689c8679faffd92690e08aedaf23d73"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ae689c8679faffd92690e08aedaf23d73">print_pulse_bins</a> (uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64, bool is_gw_format=false)</td></tr>
+<tr class="memdesc:ae689c8679faffd92690e08aedaf23d73"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#ae689c8679faffd92690e08aedaf23d73">More...</a><br /></td></tr>
+<tr class="separator:ae689c8679faffd92690e08aedaf23d73"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40692a5a89a3d4292937477bd17a2ed7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a40692a5a89a3d4292937477bd17a2ed7">print_pulses</a> (uint8_t *pulses, uint32_t num_pulses)</td></tr>
 <tr class="memdesc:a40692a5a89a3d4292937477bd17a2ed7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print the counts in a list of flux transitions.  <a href="#a40692a5a89a3d4292937477bd17a2ed7">More...</a><br /></td></tr>
 <tr class="separator:a40692a5a89a3d4292937477bd17a2ed7"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -500,8 +500,8 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 
 </div>
 </div>
-<a id="a8cf748e15dc1a61ffd5fe46b0f652d05"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8cf748e15dc1a61ffd5fe46b0f652d05">&#9670;&nbsp;</a></span>capture_track()</h2>
+<a id="a6c860632338f76aa3d00c7cf4a2ee472"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6c860632338f76aa3d00c7cf4a2ee472">&#9670;&nbsp;</a></span>capture_track()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -522,7 +522,13 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">uint32_t *&#160;</td>
-          <td class="paramname"><em>falling_index_offset</em>&#160;</td>
+          <td class="paramname"><em>falling_index_offset</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>store_greaseweazle</em> = <code>false</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -538,6 +544,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
     <tr><td class="paramname">pulses</td><td>A pointer to an array of memory we can use to store into </td></tr>
     <tr><td class="paramname">max_pulses</td><td>The size of the allocated pulses array </td></tr>
     <tr><td class="paramname">falling_index_offset</td><td>Pointer to a uint32_t where we will store the "flux index" where the second index pulse fell. usually we read 110-125% of one track so there is an overlap of index pulse reads </td></tr>
+    <tr><td class="paramname">store_greaseweazle</td><td>Pass in true to pack long pulses with two bytes </td></tr>
   </table>
   </dd>
 </dl>
@@ -545,8 +552,8 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 
 </div>
 </div>
-<a id="a6d05514d19e7659ba2fd0094b5af53c0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6d05514d19e7659ba2fd0094b5af53c0">&#9670;&nbsp;</a></span>print_pulse_bins()</h2>
+<a id="ae689c8679faffd92690e08aedaf23d73"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae689c8679faffd92690e08aedaf23d73">&#9670;&nbsp;</a></span>print_pulse_bins()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -567,7 +574,13 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">uint8_t&#160;</td>
-          <td class="paramname"><em>max_bins</em> = <code>64</code>&#160;</td>
+          <td class="paramname"><em>max_bins</em> = <code>64</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>is_gw_format</em> = <code>false</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -583,6 +596,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
     <tr><td class="paramname">pulses</td><td>A pointer to an array of memory containing pulse counts </td></tr>
     <tr><td class="paramname">num_pulses</td><td>The size of the pulses in the array </td></tr>
     <tr><td class="paramname">max_bins</td><td>The maximum number of histogram bins to use (default 64) </td></tr>
+    <tr><td class="paramname">is_gw_format</td><td>Set to true if we pack long pulses with two bytes </td></tr>
   </table>
   </dd>
 </dl>

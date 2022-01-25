@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Adafruit Floppy Interface Library: Member List</title>
+<title>Adafruit Library: Member List</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -21,7 +21,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">Adafruit Floppy Interface Library
+   <div id="projectname">Adafruit Library
    </div>
   </td>
  </tr>
@@ -68,13 +68,13 @@ $(function() {
   <tr class="even"><td class="entry"><a class="el" href="class_adafruit___floppy.html#abde4580fa7f965c87b9e434f85d62178">Adafruit_Floppy</a>(int8_t densitypin, int8_t indexpin, int8_t selectpin, int8_t motorpin, int8_t directionpin, int8_t steppin, int8_t wrdatapin, int8_t wrgatepin, int8_t track0pin, int8_t protectpin, int8_t rddatapin, int8_t sidepin, int8_t readypin)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="class_adafruit___floppy.html#a77f0c679ef02d40f4f6689dab4aad0cd">begin</a>(void)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="class_adafruit___floppy.html#ae042ab862f4141df7e4299d460478a92">bus_type</a></td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="class_adafruit___floppy.html#a8cf748e15dc1a61ffd5fe46b0f652d05">capture_track</a>(volatile uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset) __attribute__((optimize(&quot;O3&quot;)))</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="class_adafruit___floppy.html#a6c860632338f76aa3d00c7cf4a2ee472">capture_track</a>(volatile uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="class_adafruit___floppy.html#a4ef0961d7e6c57d7766312ad8dac2835">debug_serial</a></td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="class_adafruit___floppy.html#a5e771bb66e6b9a02d46f41a752ebb06f">getSampleFrequency</a>(void)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="class_adafruit___floppy.html#a7b3bc89a334cb15158c79b20a2264ba7">goto_track</a>(uint8_t track)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="class_adafruit___floppy.html#a0e6de66f3190366f020bca52dc46f5d4">led_pin</a></td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="class_adafruit___floppy.html#af3e1ed416c4e12511b9c27b3e1d06778">motor_delay_ms</a></td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="class_adafruit___floppy.html#a6d05514d19e7659ba2fd0094b5af53c0">print_pulse_bins</a>(uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="class_adafruit___floppy.html#ae689c8679faffd92690e08aedaf23d73">print_pulse_bins</a>(uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64, bool is_gw_format=false)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="class_adafruit___floppy.html#a40692a5a89a3d4292937477bd17a2ed7">print_pulses</a>(uint8_t *pulses, uint32_t num_pulses)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="class_adafruit___floppy.html#a97254b5a80f489a0b6663abb76cb94ea">read_track_mfm</a>(uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="class_adafruit___floppy.html#aa834c961dc31de44751f7178b33efaaf">select</a>(bool selected)</td><td class="entry"><a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a></td><td class="entry"></td></tr>
