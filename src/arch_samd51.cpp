@@ -170,9 +170,9 @@ bool Adafruit_Floppy::init_capture(void) {
           capture_irq); // Set event generator (sender) as ext int
 
   theTimer->COUNT16.EVCTRL.reg =
-      TC_EVCTRL_TCEI | // Enable the TCC event input
-                       // TC_EVCTRL_TCINV |             // Invert the event
-                       // input
+      TC_EVCTRL_TCEI |     // Enable the TCC event input
+                           // TC_EVCTRL_TCINV |             // Invert the event
+                           // input
       TC_EVCTRL_EVACT_PPW; // Set up the timer for capture: CC0 period, CC1
                            // pulsewidth
 
