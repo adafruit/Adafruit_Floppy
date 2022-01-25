@@ -15,9 +15,6 @@
   #define READ_PIN      9    // IDC 30
   #define SIDE_PIN      6    // IDC 32
   #define READY_PIN     5    // IDC 34
-#if F_CPU != 180000000L
-  #warning "please set CPU speed to 180MHz overclock"
-#endif
 #elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
   #define DENSITY_PIN  A0    // IDC 2
   #define INDEX_PIN    A1    // IDC 8
@@ -73,7 +70,11 @@ void setup() {
 
   Serial.println("its time for a nice floppy transfer!");
   floppy.debug_serial = &Serial;
-  floppy.begin();
+
+  if (!floppy.begin()) {
+    Serial.println("Failed to initialize floppy interface");
+    while (1) yield();
+  }
 
   floppy.select(true);
   if (! floppy.spin_motor(true)) {
@@ -90,7 +91,8 @@ void setup() {
 }
 
 void loop() {
-  uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions));
+  uint32_t index_pulse_offset;
+  uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset);
  
   Serial.print("Captured ");
   Serial.print(captured_flux);
