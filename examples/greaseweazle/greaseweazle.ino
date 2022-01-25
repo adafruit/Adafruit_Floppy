@@ -334,19 +334,11 @@ void loop() {
     Serial.write(reply_buffer, 2);
     while (revs--) {
       uint32_t index_offset;
-      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_offset);
+      // read in greaseweazle mode (long pulses encoded with 250's)
+      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_offset, true);
       Serial1.printf("Rev #%d captured %u pulses, second index fall @ %d\n\r", 
                      revs, captured_pulses, index_offset);
       //floppy.print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
-      // trim down extra long pulses 
-      for (uint32_t f=0; f<captured_pulses; f++) {
-        // MEME FIX: in theory, we can 'pack' longer flux transitions
-        // with modulo 250 byte math but we're lazy right now
-        if (flux_transitions[f] > 249) {
-          Serial1.printf("*** Extra long pulse encountered ***\n\r");
-          flux_transitions[f] = 249;
-        }
-      }
       // Send the index falling signal opcode, which was right 
       // at the start of this data xfer (we wait for index to fall
       // before we start reading
