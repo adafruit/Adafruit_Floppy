@@ -2,10 +2,10 @@
 #include <Adafruit_Floppy.h>
 
 static const struct {
-  Tc *tc;   // -> Timer/Counter base address
+  Tc *tc;         // -> Timer/Counter base address
   IRQn_Type IRQn; // Interrupt number
-  int gclk; // GCLK ID
-  int evu;  // EVSYS user ID
+  int gclk;       // GCLK ID
+  int evu;        // EVSYS user ID
 } tcList[] = {{TC0, TC0_IRQn, TC0_GCLK_ID, EVSYS_ID_USER_TC0_EVU},
               {TC1, TC1_IRQn, TC1_GCLK_ID, EVSYS_ID_USER_TC1_EVU},
               {TC2, TC2_IRQn, TC2_GCLK_ID, EVSYS_ID_USER_TC2_EVU},
@@ -24,27 +24,32 @@ static const struct {
 #endif
 };
 
-
 Tc *theTimer = NULL;
 volatile uint8_t *g_flux_pulses = NULL;
 volatile uint32_t g_max_pulses = 0;
 volatile uint32_t g_num_pulses = 0;
+volatile bool g_store_greaseweazle = false;
+volatile uint8_t g_timing_div = 1;
 
-
-void FLOPPY_TC_HANDLER()                                       // Interrupt Service Routine (ISR) for timer TCx
+void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
 {
 
-  if (theTimer->COUNT16.INTFLAG.bit.MC0)                // Check for match counter 0 (MC0) interrupt
+  if (theTimer->COUNT16.INTFLAG.bit
+          .MC0) // Check for match counter 0 (MC0) interrupt
   {
-    uint16_t period = theTimer->COUNT16.CC[0].reg;      // Copy the period
+    uint16_t period =
+        theTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
     if (theTimer && g_flux_pulses && (g_num_pulses < g_max_pulses)) {
-      g_flux_pulses[g_num_pulses++] = period / 2;  // div by 2 so we get 24MHz sample rate, 0 to 10us pulses
+      period = max(2, min(249, period));
+      g_flux_pulses[g_num_pulses++] = period;
     }
   }
 
-  if (theTimer->COUNT16.INTFLAG.bit.MC1)                 // Check for match counter 1 (MC1) interrupt
+  if (theTimer->COUNT16.INTFLAG.bit
+          .MC1) // Check for match counter 1 (MC1) interrupt
   {
-    uint16_t pulsewidth = theTimer->COUNT16.CC[1].reg;   // Copy the pulse width, DONT REMOVE
+    uint16_t pulsewidth =
+        theTimer->COUNT16.CC[1].reg; // Copy the pulse width, DONT REMOVE
   }
 }
 
@@ -58,28 +63,30 @@ void Adafruit_Floppy::enable_capture(void) {
   if (!theTimer)
     return;
 
-  theTimer->COUNT16.CTRLA.bit.ENABLE = 1;                        // Enable the TC timer
-  while (theTimer->COUNT16.SYNCBUSY.bit.ENABLE);                 // Wait for synchronization
+  theTimer->COUNT16.CTRLA.bit.ENABLE = 1; // Enable the TC timer
+  while (theTimer->COUNT16.SYNCBUSY.bit.ENABLE)
+    ; // Wait for synchronization
 }
 
 void Adafruit_Floppy::disable_capture(void) {
   if (!theTimer)
     return;
 
-  theTimer->COUNT16.CTRLA.bit.ENABLE = 0;                        // disable the TC timer
+  theTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
 }
 
-bool Adafruit_Floppy::init_capture(void)
-{
-  MCLK->APBBMASK.reg |= MCLK_APBBMASK_EVSYS;         // Switch on the event system peripheral
-  
+bool Adafruit_Floppy::init_capture(void) {
+  MCLK->APBBMASK.reg |=
+      MCLK_APBBMASK_EVSYS; // Switch on the event system peripheral
+
   // Enable the port multiplexer on READDATA
   PinDescription pinDesc = g_APinDescription[_rddatapin];
   uint32_t capture_port = pinDesc.ulPort;
   uint32_t capture_pin = pinDesc.ulPin;
   EExt_Interrupts capture_irq = pinDesc.ulExtInt;
   if (capture_irq == NOT_AN_INTERRUPT) {
-    if (debug_serial) debug_serial->println("Not an interrupt pin!");
+    if (debug_serial)
+      debug_serial->println("Not an interrupt pin!");
     return false;
   }
 
@@ -88,39 +95,46 @@ bool Adafruit_Floppy::init_capture(void)
 
   if (tcNum < TCC_INST_NUM) {
     if (pinDesc.ulTCChannel != NOT_ON_TIMER) {
-      if (debug_serial) debug_serial->println("PWM is on a TCC not TC, lets look at the TCChannel");
+      if (debug_serial)
+        debug_serial->println(
+            "PWM is on a TCC not TC, lets look at the TCChannel");
       tcNum = GetTCNumber(pinDesc.ulTCChannel);
       tcChannel = GetTCChannelNumber(pinDesc.ulTCChannel);
     }
     if (tcNum < TCC_INST_NUM) {
-      if (debug_serial) debug_serial->println("Couldn't find a TC channel for this pin :(");
+      if (debug_serial)
+        debug_serial->println("Couldn't find a TC channel for this pin :(");
       return false;
     }
   }
   tcNum -= TCC_INST_NUM; // adjust naming
-  if (debug_serial) 
-    debug_serial->printf("readdata on port %d and pin %d, IRQ #%d, TC%d.%d\n", 
-                         capture_port, capture_pin, capture_irq, tcNum, tcChannel);
+  if (debug_serial)
+    debug_serial->printf("readdata on port %d and pin %d, IRQ #%d, TC%d.%d\n\r",
+                         capture_port, capture_pin, capture_irq, tcNum,
+                         tcChannel);
   theTimer = tcList[tcNum].tc;
-  
-  if (debug_serial) 
-    debug_serial->printf("TC GCLK ID=%d, EVU=%d\n", tcList[tcNum].gclk, tcList[tcNum].evu);
+
+  if (debug_serial)
+    debug_serial->printf("TC GCLK ID=%d, EVU=%d\n\r", tcList[tcNum].gclk,
+                         tcList[tcNum].evu);
 
   // Setup INPUT capture clock
 
-  GCLK->PCHCTRL[tcList[tcNum].gclk].reg = GCLK_PCHCTRL_GEN_GCLK1_Val |
-                                          (1 << GCLK_PCHCTRL_CHEN_Pos); // use GCLK1 to get 48MHz on SAMD51
+  GCLK->PCHCTRL[tcList[tcNum].gclk].reg =
+      GCLK_PCHCTRL_GEN_GCLK1_Val |
+      (1 << GCLK_PCHCTRL_CHEN_Pos); // use GCLK1 to get 48MHz on SAMD51
   PORT->Group[capture_port].PINCFG[capture_pin].bit.PMUXEN = 1;
- 
+
   // Set-up the pin as an EIC (interrupt) peripheral on READDATA
   if (capture_pin % 2 == 0) { // even pmux
     PORT->Group[capture_port].PMUX[capture_pin >> 1].reg |= PORT_PMUX_PMUXE(0);
   } else {
     PORT->Group[capture_port].PMUX[capture_pin >> 1].reg |= PORT_PMUX_PMUXO(0);
   }
-  
-  EIC->CTRLA.bit.ENABLE = 0;                        // Disable the EIC peripheral
-  while (EIC->SYNCBUSY.bit.ENABLE);                 // Wait for synchronization 
+
+  EIC->CTRLA.bit.ENABLE = 0; // Disable the EIC peripheral
+  while (EIC->SYNCBUSY.bit.ENABLE)
+    ; // Wait for synchronization
   // Look for right CONFIG register to be addressed
   uint8_t eic_config, eic_config_pos;
   if (capture_irq > EXTERNAL_INT_7) {
@@ -134,35 +148,50 @@ bool Adafruit_Floppy::init_capture(void)
   // Set event on detecting a HIGH level
   EIC->CONFIG[eic_config].reg &= ~(EIC_CONFIG_SENSE0_Msk << eic_config_pos);
   EIC->CONFIG[eic_config].reg |= EIC_CONFIG_SENSE0_HIGH_Val << eic_config_pos;
-  EIC->EVCTRL.reg = 1 << capture_irq;               // Enable event output on external interrupt 
-  EIC->INTENCLR.reg = 1 << capture_irq;             // Clear interrupt on external interrupt
-  EIC->ASYNCH.reg = 1 << capture_irq;               // Set-up interrupt as asynchronous input
-  EIC->CTRLA.bit.ENABLE = 1;                        // Enable the EIC peripheral
-  while (EIC->SYNCBUSY.bit.ENABLE);                 // Wait for synchronization
- 
-  // Select the event system user on channel 0 (USER number = channel number + 1)
-  EVSYS->USER[tcList[tcNum].evu].reg = EVSYS_USER_CHANNEL(1);                   // Set the event user (receiver) as timer
+  EIC->EVCTRL.reg =
+      1 << capture_irq; // Enable event output on external interrupt
+  EIC->INTENCLR.reg = 1 << capture_irq; // Clear interrupt on external interrupt
+  EIC->ASYNCH.reg = 1 << capture_irq; // Set-up interrupt as asynchronous input
+  EIC->CTRLA.bit.ENABLE = 1;          // Enable the EIC peripheral
+  while (EIC->SYNCBUSY.bit.ENABLE)
+    ; // Wait for synchronization
+
+  // Select the event system user on channel 0 (USER number = channel number +
+  // 1)
+  EVSYS->USER[tcList[tcNum].evu].reg =
+      EVSYS_USER_CHANNEL(1); // Set the event user (receiver) as timer
 
   // Select the event system generator on channel 0
-  EVSYS->Channel[0].CHANNEL.reg = EVSYS_CHANNEL_EDGSEL_NO_EVT_OUTPUT |              // No event edge detection
-                                  EVSYS_CHANNEL_PATH_ASYNCHRONOUS |                 // Set event path as asynchronous
-                                  EVSYS_CHANNEL_EVGEN(EVSYS_ID_GEN_EIC_EXTINT_0 + capture_irq);   // Set event generator (sender) as ext int
+  EVSYS->Channel[0].CHANNEL.reg =
+      EVSYS_CHANNEL_EDGSEL_NO_EVT_OUTPUT | // No event edge detection
+      EVSYS_CHANNEL_PATH_ASYNCHRONOUS |    // Set event path as asynchronous
+      EVSYS_CHANNEL_EVGEN(
+          EVSYS_ID_GEN_EIC_EXTINT_0 +
+          capture_irq); // Set event generator (sender) as ext int
 
-  theTimer->COUNT16.EVCTRL.reg = TC_EVCTRL_TCEI |                // Enable the TCC event input
-                            //TC_EVCTRL_TCINV |             // Invert the event input         
-                            TC_EVCTRL_EVACT_PPW;            // Set up the timer for capture: CC0 period, CC1 pulsewidth
+  theTimer->COUNT16.EVCTRL.reg =
+      TC_EVCTRL_TCEI | // Enable the TCC event input
+                       // TC_EVCTRL_TCINV |             // Invert the event
+                       // input
+      TC_EVCTRL_EVACT_PPW; // Set up the timer for capture: CC0 period, CC1
+                           // pulsewidth
 
-  NVIC_SetPriority(tcList[tcNum].IRQn, 0);      // Set the Nested Vector Interrupt Controller (NVIC) priority for TCx to 0 (highest)
-  NVIC_EnableIRQ(tcList[tcNum].IRQn);           // Connect the TCx timer to the Nested Vector Interrupt Controller (NVIC)
+  NVIC_SetPriority(tcList[tcNum].IRQn,
+                   0); // Set the Nested Vector Interrupt Controller (NVIC)
+                       // priority for TCx to 0 (highest)
+  NVIC_EnableIRQ(tcList[tcNum].IRQn); // Connect the TCx timer to the Nested
+                                      // Vector Interrupt Controller (NVIC)
 
-  theTimer->COUNT16.INTENSET.reg = TC_INTENSET_MC1 |             // Enable compare channel 1 (CC1) interrupts
-                              TC_INTENSET_MC0;              // Enable compare channel 0 (CC0) interrupts 
-                                      
-  theTimer->COUNT16.CTRLA.reg = TC_CTRLA_CAPTEN1 |               // Enable pulse capture on CC1
-                           TC_CTRLA_CAPTEN0 |               // Enable pulse capture on CC0
-                           //TC_CTRLA_PRESCSYNC_PRESC |     // Roll over on prescaler clock
-                           //TC_CTRLA_PRESCALER_DIV1 |      // Set the prescaler
-                           TC_CTRLA_MODE_COUNT16;           // Set the timer to 16-bit mode
+  theTimer->COUNT16.INTENSET.reg =
+      TC_INTENSET_MC1 | // Enable compare channel 1 (CC1) interrupts
+      TC_INTENSET_MC0;  // Enable compare channel 0 (CC0) interrupts
+
+  theTimer->COUNT16.CTRLA.reg =
+      TC_CTRLA_CAPTEN1 | // Enable pulse capture on CC1
+      TC_CTRLA_CAPTEN0 | // Enable pulse capture on CC0
+      // TC_CTRLA_PRESCSYNC_PRESC |     // Roll over on prescaler clock
+      // TC_CTRLA_PRESCALER_DIV1 |      // Set the prescaler
+      TC_CTRLA_MODE_COUNT16; // Set the timer to 16-bit mode
 
   return true;
 }

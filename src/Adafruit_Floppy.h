@@ -67,11 +67,13 @@ public:
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity);
-  uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset)
+  uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
+                         uint32_t *falling_index_offset)
       __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                         uint8_t max_bins = 64);
   void print_pulses(uint8_t *pulses, uint32_t num_pulses);
+  uint32_t getSampleFrequency(void);
 
   int8_t led_pin = LED_BUILTIN; ///< Debug LED output for tracing
 
@@ -93,7 +95,6 @@ public:
 
 private:
   void wait_for_index_pulse_low(void);
-
 
   // theres a lot of GPIO!
   int8_t _densitypin, _indexpin, _selectpin, _motorpin, _directionpin, _steppin,

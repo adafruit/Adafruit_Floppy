@@ -29,11 +29,11 @@ uint32_t T3_5 = T3_5_IBMPC_HD;
 #define MFM_IO_MMIO (1)
 #include "mfm_impl.h"
 
-
 #if defined(__SAMD51__)
 extern volatile uint8_t *g_flux_pulses;
 extern volatile uint32_t g_max_pulses;
 extern volatile uint32_t g_num_pulses;
+extern volatile uint8_t g_timing_div;
 #endif
 
 /**************************************************************************/
@@ -81,10 +81,11 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
 /**************************************************************************/
 /*!
     @brief  Initializes the GPIO pins but do not start the motor or anything
+    @returns True if able to set up all pins and capture/waveform peripherals
 */
 /**************************************************************************/
-bool Adafruit_Floppy::begin(void) { 
-  soft_reset(); 
+bool Adafruit_Floppy::begin(void) {
+  soft_reset();
 #if defined(__SAMD51__)
   if (!init_capture()) {
     return false;
@@ -366,14 +367,36 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
 
 /**************************************************************************/
 /*!
+    @brief  Get the sample rate that we read and emit pulses at, platform and
+   implementation-dependant
+    @return Sample frequency in Hz
+*/
+/**************************************************************************/
+uint32_t Adafruit_Floppy::getSampleFrequency(void) {
+#if defined(__SAMD51__)
+  return 48000000UL / g_timing_div;
+#endif
+#if defined(RP2040)
+  return 26000000UL; // 26mhz for rp2040
+#endif
+  return 0;
+}
+
+/**************************************************************************/
+/*!
     @brief  Capture one track's worth of flux transitions, between two falling
    index pulses
     @param  pulses A pointer to an array of memory we can use to store into
     @param  max_pulses The size of the allocated pulses array
+    @param  falling_index_offset Pointer to a uint32_t where we will store the
+    "flux index" where the second index pulse fell. usually we read 110-125% of
+    one track so there is an overlap of index pulse reads
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses, uint32_t max_pulses, uint32_t *falling_index_offset) {
+uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
+                                        uint32_t max_pulses,
+                                        uint32_t *falling_index_offset) {
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
   noInterrupts();
@@ -415,7 +438,7 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses, uint32_t max_p
   unsigned pulse_count;
   volatile uint8_t *pulses_ptr = pulses;
   volatile uint8_t *pulses_end = pulses + max_pulses;
-  
+
   // wait for one clean flux pulse so we dont get cut off.
   // don't worry about losing this pulse, we'll get it on our
   // overlap run!
@@ -440,7 +463,7 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses, uint32_t max_p
     // ahh a L to H transition
     if (!last_index_state && index_state) {
       index_transitions++;
-      if (index_transitions == 2) 
+      if (index_transitions == 2)
         break; // and its the second one, so we're done with this track!
     }
     // ooh a H to L transition, thats 1 revolution
