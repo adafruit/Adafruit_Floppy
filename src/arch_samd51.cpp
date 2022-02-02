@@ -77,7 +77,7 @@ void TC1_Handler() { FLOPPY_TC_HANDLER(); }
 void TC2_Handler() { FLOPPY_TC_HANDLER(); }
 void TC3_Handler() { FLOPPY_TC_HANDLER(); }
 
-void Adafruit_Floppy::enable_capture(void) {
+static void enable_capture(void) {
   if (!theTimer)
     return;
 
@@ -86,14 +86,7 @@ void Adafruit_Floppy::enable_capture(void) {
     ; // Wait for synchronization
 }
 
-void Adafruit_Floppy::disable_capture(void) {
-  if (!theTimer)
-    return;
-
-  theTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
-}
-
-bool Adafruit_Floppy::init_capture(void) {
+static void init_capture(int _rddatapin, Stream *debug_serial) {
   MCLK->APBBMASK.reg |=
       MCLK_APBBMASK_EVSYS; // Switch on the event system peripheral
 
@@ -213,5 +206,23 @@ bool Adafruit_Floppy::init_capture(void) {
 
   return true;
 }
+
+
+#ifdef __cplusplus
+void Adafruit_Floppy::enable_capture(void) {
+    enable_capture();
+}
+
+void Adafruit_Floppy::disable_capture(void) {
+  if (!theTimer)
+    return;
+
+  theTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
+}
+
+bool Adafruit_Floppy::init_capture(void) {
+  return init_capture(_rddatapin, debug_serial);
+}
+#endif
 
 #endif

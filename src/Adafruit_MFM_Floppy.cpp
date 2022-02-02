@@ -19,13 +19,13 @@ Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
   if (_format == IBMPC1440K) {
     _sectors_per_track = MFM_IBMPC1440K_SECTORS_PER_TRACK;
     _tracks_per_side = FLOPPY_IBMPC_HD_TRACKS;
-    T2_5 = T2_5_IBMPC_HD;
-    T3_5 = T3_5_IBMPC_HD;
+    T2_5 = floppy->getSampleFrequency() * 5 / 2 / 1000000;
+    T3_5 = floppy->getSampleFrequency() * 7 / 2 / 1000000;
   } else if (_format == IBMPC360K) {
     _sectors_per_track = MFM_IBMPC360K_SECTORS_PER_TRACK;
     _tracks_per_side = FLOPPY_IBMPC_DD_TRACKS;
-    T2_5 = T2_5_IBMPC_DD;
-    T3_5 = T3_5_IBMPC_DD;
+    T2_5 = floppy->getSampleFrequency() * 5 / 1000000;
+    T3_5 = floppy->getSampleFrequency() * 7 / 1000000;
   }
 }
 

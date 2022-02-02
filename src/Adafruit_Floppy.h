@@ -15,20 +15,6 @@
 #define MFM_IBMPC360K_SECTORS_PER_TRACK 9
 #define MFM_BYTES_PER_SECTOR 512UL
 
-#ifdef BUSIO_USE_FAST_PINIO
-#define FLOPPYIO_SAMPLERATE (F_CPU * 11u / 90u) // empirical on SAM D51 @ 120MHz
-#endif
-
-#if defined(ARDUINO_ARCH_RP2040)
-#undef FLOPPYIO_SAMPLERATE
-#define FLOPPYIO_SAMPLERATE (F_CPU * 13u / 100u) // empirical on RP2040 @ 200MHz
-#endif
-
-#define T2_5_IBMPC_HD (FLOPPYIO_SAMPLERATE * 5 / 2 / 1000000)
-#define T3_5_IBMPC_HD (FLOPPYIO_SAMPLERATE * 7 / 2 / 1000000)
-#define T2_5_IBMPC_DD (T2_5_IBMPC_HD * 2)
-#define T3_5_IBMPC_DD (T3_5_IBMPC_HD * 2)
-
 #define STEP_OUT HIGH
 #define STEP_IN LOW
 #define MAX_FLUX_PULSE_PER_TRACK                                               \
