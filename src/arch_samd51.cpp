@@ -207,11 +207,8 @@ static void init_capture(int _rddatapin, Stream *debug_serial) {
   return true;
 }
 
-
 #ifdef __cplusplus
-void Adafruit_Floppy::enable_capture(void) {
-    enable_capture();
-}
+void Adafruit_Floppy::enable_capture(void) { enable_capture(); }
 
 void Adafruit_Floppy::disable_capture(void) {
   if (!theTimer)

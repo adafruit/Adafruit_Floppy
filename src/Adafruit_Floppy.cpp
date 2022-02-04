@@ -14,10 +14,11 @@
 #define read_data() gpio_get(_rddatapin)
 #define set_debug_led() gpio_put(led_pin, 1)
 #define clr_debug_led() gpio_put(led_pin, 0)
-extern uint32_t rp2040_flux_capture(int indexpin, int rdpin, volatile uint8_t *pulses,
-                                        volatile uint8_t *end,
-                                        uint32_t *falling_index_offset,
-                                        bool store_greaseweazle);
+extern uint32_t rp2040_flux_capture(int indexpin, int rdpin,
+                                    volatile uint8_t *pulses,
+                                    volatile uint8_t *end,
+                                    uint32_t *falling_index_offset,
+                                    bool store_greaseweazle);
 #endif
 
 uint32_t T2_5;
@@ -407,7 +408,8 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
 #if defined(ARDUINO_ARCH_RP2040)
-    return rp2040_flux_capture(_indexpin, _rddatapin, pulses, pulses+max_pulses, falling_index_offset, store_greaseweazle);
+  return rp2040_flux_capture(_indexpin, _rddatapin, pulses, pulses + max_pulses,
+                             falling_index_offset, store_greaseweazle);
 #elif defined(__SAMD51__)
   noInterrupts();
   wait_for_index_pulse_low();
