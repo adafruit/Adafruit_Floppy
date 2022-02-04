@@ -86,7 +86,7 @@ static void enable_capture(void) {
     ; // Wait for synchronization
 }
 
-static void init_capture(int _rddatapin, Stream *debug_serial) {
+static bool init_capture(int _rddatapin, Stream *debug_serial) {
   MCLK->APBBMASK.reg |=
       MCLK_APBBMASK_EVSYS; // Switch on the event system peripheral
 
@@ -218,7 +218,7 @@ void Adafruit_Floppy::disable_capture(void) {
 }
 
 bool Adafruit_Floppy::init_capture(void) {
-  return init_capture(_rddatapin, debug_serial);
+  return ::init_capture(_rddatapin, debug_serial);
 }
 #endif
 
