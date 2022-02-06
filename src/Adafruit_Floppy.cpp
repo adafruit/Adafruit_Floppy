@@ -545,7 +545,8 @@ void Adafruit_Floppy::wait_for_index_pulse_low(void) {
     @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
-void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses, bool is_gw_format) {
+void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses,
+                                   bool is_gw_format) {
   if (!debug_serial)
     return;
 

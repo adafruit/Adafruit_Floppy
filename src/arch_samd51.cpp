@@ -34,9 +34,8 @@ volatile uint8_t g_timing_div = 2;
 void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
 {
 
-  if (theTimer->COUNT16.INTFLAG.bit
-          .MC0) // Check for match counter 0 (MC0) interrupt
-  {
+  // Check for match counter 0 (MC0) interrupt
+  if (theTimer->COUNT16.INTFLAG.bit.MC0) {
     uint16_t ticks =
         theTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
     if (ticks == 0) {
@@ -77,7 +76,7 @@ void TC1_Handler() { FLOPPY_TC_HANDLER(); }
 void TC2_Handler() { FLOPPY_TC_HANDLER(); }
 void TC3_Handler() { FLOPPY_TC_HANDLER(); }
 
-static void enable_capture(void) {
+static void enable_capture_timer(void) {
   if (!theTimer)
     return;
 
@@ -86,7 +85,7 @@ static void enable_capture(void) {
     ; // Wait for synchronization
 }
 
-static bool init_capture(int _rddatapin, Stream *debug_serial) {
+static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
   MCLK->APBBMASK.reg |=
       MCLK_APBBMASK_EVSYS; // Switch on the event system peripheral
 
@@ -208,7 +207,7 @@ static bool init_capture(int _rddatapin, Stream *debug_serial) {
 }
 
 #ifdef __cplusplus
-void Adafruit_Floppy::enable_capture(void) { enable_capture(); }
+void Adafruit_Floppy::enable_capture(void) { enable_capture_timer(); }
 
 void Adafruit_Floppy::disable_capture(void) {
   if (!theTimer)
@@ -218,7 +217,7 @@ void Adafruit_Floppy::disable_capture(void) {
 }
 
 bool Adafruit_Floppy::init_capture(void) {
-  return ::init_capture(_rddatapin, debug_serial);
+  return init_capture_timer(_rddatapin, debug_serial);
 }
 #endif
 
