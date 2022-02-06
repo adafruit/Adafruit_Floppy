@@ -386,12 +386,11 @@ void loop() {
     // THE END
     Serial.write((byte)0);
   }
-  /*
   else if (cmd == GW_CMD_WRITEFLUX) {
     Serial1.println("write flux");
 
-    uint8_t cue_at_index = cmd_buffer[2];
-    uint8_t terminate_at_index = cmd_buffer[3];
+    //uint8_t cue_at_index = cmd_buffer[2];
+    //uint8_t terminate_at_index = cmd_buffer[3];
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
         
@@ -418,7 +417,6 @@ void loop() {
     Serial1.println("wrote fluxors");
     Serial.write((byte)0);
   }
-    */
   else if (cmd == GW_CMD_GETFLUXSTATUS) {
     Serial1.println("get flux status");
     reply_buffer[i++] = GW_ACK_OK;    
