@@ -111,9 +111,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:ae689c8679faffd92690e08aedaf23d73"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ae689c8679faffd92690e08aedaf23d73">print_pulse_bins</a> (uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64, bool is_gw_format=false)</td></tr>
 <tr class="memdesc:ae689c8679faffd92690e08aedaf23d73"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#ae689c8679faffd92690e08aedaf23d73">More...</a><br /></td></tr>
 <tr class="separator:ae689c8679faffd92690e08aedaf23d73"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a40692a5a89a3d4292937477bd17a2ed7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a40692a5a89a3d4292937477bd17a2ed7">print_pulses</a> (uint8_t *pulses, uint32_t num_pulses)</td></tr>
-<tr class="memdesc:a40692a5a89a3d4292937477bd17a2ed7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print the counts in a list of flux transitions.  <a href="#a40692a5a89a3d4292937477bd17a2ed7">More...</a><br /></td></tr>
-<tr class="separator:a40692a5a89a3d4292937477bd17a2ed7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad71ee07c030519cb0f0d8cc937df91fc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ad71ee07c030519cb0f0d8cc937df91fc">print_pulses</a> (uint8_t *pulses, uint32_t num_pulses, bool is_gw_format=false)</td></tr>
+<tr class="memdesc:ad71ee07c030519cb0f0d8cc937df91fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print the counts in a list of flux transitions.  <a href="#ad71ee07c030519cb0f0d8cc937df91fc">More...</a><br /></td></tr>
+<tr class="separator:ad71ee07c030519cb0f0d8cc937df91fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5e771bb66e6b9a02d46f41a752ebb06f"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a5e771bb66e6b9a02d46f41a752ebb06f">getSampleFrequency</a> (void)</td></tr>
 <tr class="memdesc:a5e771bb66e6b9a02d46f41a752ebb06f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the sample rate that we read and emit pulses at, platform and implementation-dependant.  <a href="#a5e771bb66e6b9a02d46f41a752ebb06f">More...</a><br /></td></tr>
 <tr class="separator:a5e771bb66e6b9a02d46f41a752ebb06f"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -603,8 +603,8 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 
 </div>
 </div>
-<a id="a40692a5a89a3d4292937477bd17a2ed7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a40692a5a89a3d4292937477bd17a2ed7">&#9670;&nbsp;</a></span>print_pulses()</h2>
+<a id="ad71ee07c030519cb0f0d8cc937df91fc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad71ee07c030519cb0f0d8cc937df91fc">&#9670;&nbsp;</a></span>print_pulses()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -619,7 +619,13 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>num_pulses</em>&#160;</td>
+          <td class="paramname"><em>num_pulses</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>is_gw_format</em> = <code>false</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -634,6 +640,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
   <table class="params">
     <tr><td class="paramname">pulses</td><td>A pointer to an array of memory containing pulse counts </td></tr>
     <tr><td class="paramname">num_pulses</td><td>The size of the pulses in the array </td></tr>
+    <tr><td class="paramname">is_gw_format</td><td>Set to true if we pack long pulses with two bytes </td></tr>
   </table>
   </dd>
 </dl>
