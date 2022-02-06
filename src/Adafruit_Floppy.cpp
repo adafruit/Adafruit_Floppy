@@ -14,10 +14,15 @@
 #define read_data() gpio_get(_rddatapin)
 #define set_debug_led() gpio_put(led_pin, 1)
 #define clr_debug_led() gpio_put(led_pin, 0)
+extern uint32_t rp2040_flux_capture(int indexpin, int rdpin,
+                                    volatile uint8_t *pulses,
+                                    volatile uint8_t *end,
+                                    uint32_t *falling_index_offset,
+                                    bool store_greaseweazle);
 #endif
 
-uint32_t T2_5 = T2_5_IBMPC_HD;
-uint32_t T3_5 = T3_5_IBMPC_HD;
+uint32_t T2_5;
+uint32_t T3_5;
 
 #if !DEBUG_FLOPPY
 #undef set_debug_led
@@ -370,15 +375,15 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
 /*!
     @brief  Get the sample rate that we read and emit pulses at, platform and
    implementation-dependant
-    @return Sample frequency in Hz
+    @return Sample frequency in Hz, or 0 if not known
 */
 /**************************************************************************/
 uint32_t Adafruit_Floppy::getSampleFrequency(void) {
 #if defined(__SAMD51__)
   return 48000000UL / g_timing_div;
 #endif
-#if defined(RP2040)
-  return 26000000UL; // 26mhz for rp2040
+#if defined(ARDUINO_ARCH_RP2040)
+  return 24000000UL;
 #endif
   return 0;
 }
@@ -402,10 +407,13 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
                                         bool store_greaseweazle) {
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
+#if defined(ARDUINO_ARCH_RP2040)
+  return rp2040_flux_capture(_indexpin, _rddatapin, pulses, pulses + max_pulses,
+                             falling_index_offset, store_greaseweazle);
+#elif defined(__SAMD51__)
   noInterrupts();
   wait_for_index_pulse_low();
 
-#if defined(__SAMD51__)
   disable_capture();
   // allow interrupts
   interrupts();
@@ -427,6 +435,9 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   return g_num_pulses;
 
 #else // bitbang it!
+
+  noInterrupts();
+  wait_for_index_pulse_low();
 
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *dataPort, *ledPort;
