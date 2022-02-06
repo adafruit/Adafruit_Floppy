@@ -9,6 +9,8 @@
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
+#define set_write() (*writePort |= writeMask)
+#define clr_write() (*writePort &= ~writeMask)
 #elif defined(ARDUINO_ARCH_RP2040)
 #define read_index() gpio_get(_indexpin)
 #define read_data() gpio_get(_rddatapin)
@@ -94,6 +96,9 @@ bool Adafruit_Floppy::begin(void) {
   soft_reset();
 #if defined(__SAMD51__)
   if (!init_capture()) {
+    return false;
+  }
+  if (!init_generate()) {
     return false;
   }
 #endif
@@ -415,6 +420,8 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   wait_for_index_pulse_low();
 
   disable_capture();
+  // in case the timer was reused, we will re-init it each time!
+  init_capture();
   // allow interrupts
   interrupts();
   // init global interrupt data
@@ -430,8 +437,9 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   *falling_index_offset = g_num_pulses;
   // wait another 50ms which is about 1/4 of a track
   delay(50);
-  // ok we're done!
+  // ok we're done, clean up!
   disable_capture();
+  deinit_capture();
   return g_num_pulses;
 
 #else // bitbang it!
@@ -515,6 +523,57 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   interrupts();
   return pulses_ptr - pulses;
 #endif
+}
+
+
+void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses) {
+  unsigned pulse_count, pulse_count2;
+  uint8_t *pulses_ptr = pulses;
+
+#ifdef BUSIO_USE_FAST_PINIO
+  BusIO_PortReg *writePort, *ledPort;
+  BusIO_PortMask writeMask, ledMask;
+  writePort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(_wrdatapin));
+  writeMask = digitalPinToBitMask(_wrdatapin);
+  ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
+  ledMask = digitalPinToBitMask(led_pin);
+  (void)ledPort;
+  (void)ledMask;
+#endif
+
+  pinMode(_wrdatapin, OUTPUT);
+  digitalWrite(_wrdatapin, HIGH);
+
+  pinMode(_wrgatepin, OUTPUT);
+  digitalWrite(_wrgatepin, HIGH);
+
+  noInterrupts();
+  wait_for_index_pulse_low();
+  digitalWrite(_wrgatepin, LOW);
+  
+  // write track data
+  while (num_pulses--) {
+    pulse_count = pulses_ptr[0];
+    pulses_ptr++;
+    // ?? lets bail
+    if (pulse_count == 0) break;
+
+    clr_write();
+    pulse_count -= 11;
+    while(pulse_count--) {
+      asm("nop; nop; nop; nop; nop;");
+    }
+    set_write();
+    pulse_count = 8;
+    while(pulse_count--) {
+      asm("nop; nop; nop; nop; nop; nop; nop; nop; nop;");
+    }
+  }
+  // whew done
+  digitalWrite(_wrgatepin, HIGH);
+  digitalWrite(_wrdatapin, HIGH);
+  interrupts();
+  return;
 }
 
 /**************************************************************************/

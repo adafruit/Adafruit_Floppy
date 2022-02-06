@@ -57,6 +57,8 @@ public:
                          uint32_t *falling_index_offset,
                          bool store_greaseweazle = false)
       __attribute__((optimize("O3")));
+  void write_track(uint8_t *pulses, uint32_t num_pulses)
+    __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                         uint8_t max_bins = 64, bool is_gw_format = false);
   void print_pulses(uint8_t *pulses, uint32_t num_pulses,
@@ -77,8 +79,10 @@ public:
 
 #if defined(__SAMD51__)
   bool init_capture(void);
+  void deinit_capture(void);
   void disable_capture(void);
   void enable_capture(void);
+  bool init_generate(void);
 #endif
 
 private:

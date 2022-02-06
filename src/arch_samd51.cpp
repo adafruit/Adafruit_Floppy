@@ -1,5 +1,6 @@
 #if defined(__SAMD51__)
 #include <Adafruit_Floppy.h>
+#include <wiring_private.h> // pinPeripheral() func
 
 static const struct {
   Tc *tc;         // -> Timer/Counter base address
@@ -24,7 +25,9 @@ static const struct {
 #endif
 };
 
-Tc *theTimer = NULL;
+Tc *theReadTimer = NULL;
+Tc *theWriteTimer = NULL;
+
 volatile uint8_t *g_flux_pulses = NULL;
 volatile uint32_t g_max_pulses = 0;
 volatile uint32_t g_num_pulses = 0;
@@ -33,11 +36,10 @@ volatile uint8_t g_timing_div = 2;
 
 void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
 {
-
   // Check for match counter 0 (MC0) interrupt
-  if (theTimer->COUNT16.INTFLAG.bit.MC0) {
+  if (theReadTimer && theReadTimer->COUNT16.INTFLAG.bit.MC0) {
     uint16_t ticks =
-        theTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
+        theReadTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
     if (ticks == 0) {
       // dont do something if its 0 - thats wierd!
     } else if (ticks < 250 || !g_store_greaseweazle) {
@@ -63,9 +65,9 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
   }
 
   // Check for match counter 1 (MC1) interrupt
-  if (theTimer->COUNT16.INTFLAG.bit.MC1) {
+  if (theReadTimer && theReadTimer->COUNT16.INTFLAG.bit.MC1) {
     uint16_t pulsewidth =
-        theTimer->COUNT16.CC[1].reg; // Copy the pulse width, DONT REMOVE
+        theReadTimer->COUNT16.CC[1].reg; // Copy the pulse width, DONT REMOVE
     (void)pulsewidth;
   }
 }
@@ -77,11 +79,11 @@ void TC2_Handler() { FLOPPY_TC_HANDLER(); }
 void TC3_Handler() { FLOPPY_TC_HANDLER(); }
 
 static void enable_capture_timer(void) {
-  if (!theTimer)
+  if (!theReadTimer)
     return;
 
-  theTimer->COUNT16.CTRLA.bit.ENABLE = 1; // Enable the TC timer
-  while (theTimer->COUNT16.SYNCBUSY.bit.ENABLE)
+  theReadTimer->COUNT16.CTRLA.bit.ENABLE = 1; // Enable the TC timer
+  while (theReadTimer->COUNT16.SYNCBUSY.bit.ENABLE)
     ; // Wait for synchronization
 }
 
@@ -122,7 +124,7 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
     debug_serial->printf("readdata on port %d and pin %d, IRQ #%d, TC%d.%d\n\r",
                          capture_port, capture_pin, capture_irq, tcNum,
                          tcChannel);
-  theTimer = tcList[tcNum].tc;
+  theReadTimer = tcList[tcNum].tc;
 
   if (debug_serial)
     debug_serial->printf("TC GCLK ID=%d, EVU=%d\n\r", tcList[tcNum].gclk,
@@ -179,7 +181,7 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
           EVSYS_ID_GEN_EIC_EXTINT_0 +
           capture_irq); // Set event generator (sender) as ext int
 
-  theTimer->COUNT16.EVCTRL.reg =
+  theReadTimer->COUNT16.EVCTRL.reg =
       TC_EVCTRL_TCEI |     // Enable the TCC event input
                            // TC_EVCTRL_TCINV |             // Invert the event
                            // input
@@ -192,11 +194,11 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
   NVIC_EnableIRQ(tcList[tcNum].IRQn); // Connect the TCx timer to the Nested
                                       // Vector Interrupt Controller (NVIC)
 
-  theTimer->COUNT16.INTENSET.reg =
+  theReadTimer->COUNT16.INTENSET.reg =
       TC_INTENSET_MC1 | // Enable compare channel 1 (CC1) interrupts
       TC_INTENSET_MC0;  // Enable compare channel 0 (CC0) interrupts
 
-  theTimer->COUNT16.CTRLA.reg =
+  theReadTimer->COUNT16.CTRLA.reg =
       TC_CTRLA_CAPTEN1 | // Enable pulse capture on CC1
       TC_CTRLA_CAPTEN0 | // Enable pulse capture on CC0
       // TC_CTRLA_PRESCSYNC_PRESC |     // Roll over on prescaler clock
@@ -206,18 +208,129 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
   return true;
 }
 
+
+static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
+  MCLK->APBBMASK.reg |=
+      MCLK_APBBMASK_EVSYS; // Switch on the event system peripheral
+
+  // Enable the port multiplexer on WRITEDATA
+  PinDescription pinDesc = g_APinDescription[_wrdatapin];
+  uint32_t generate_port = pinDesc.ulPort;
+  uint32_t generate_pin = pinDesc.ulPin;
+
+  uint32_t tcNum = GetTCNumber(pinDesc.ulPWMChannel);
+  uint8_t tcChannel = GetTCChannelNumber(pinDesc.ulPWMChannel);
+
+  if (tcNum < TCC_INST_NUM) {
+    if (pinDesc.ulTCChannel != NOT_ON_TIMER) {
+      if (debug_serial)
+        debug_serial->println(
+            "PWM is on a TCC not TC, lets look at the TCChannel");
+      tcNum = GetTCNumber(pinDesc.ulTCChannel);
+      tcChannel = GetTCChannelNumber(pinDesc.ulTCChannel);
+
+      pinPeripheral(_wrdatapin, PIO_TIMER_ALT); // PIO_TIMER_ALT if using a TCC periph
+    }
+    if (tcNum < TCC_INST_NUM) {
+      if (debug_serial)
+        debug_serial->println("Couldn't find a TC channel for this pin :(");
+      return false;
+    }
+  } else {
+    pinPeripheral(_wrdatapin, PIO_TIMER); // PIO_TIMER if using a TC periph
+  }
+
+  tcNum -= TCC_INST_NUM; // adjust naming
+  if (debug_serial)
+    debug_serial->printf("writedata on port %d and pin %d,, TC%d.%d\n\r",
+                         generate_port, generate_pin, tcNum,
+                         tcChannel);
+
+  // Because of the PWM mode used, we MUST use a TC#/WO[1] pin, can't
+  // use WO[0]. Different timers would need different pins,
+  // but the WO[1] thing is NOT negotiable.
+  if (tcChannel != 1) {
+    debug_serial->println("Must be on TCx.1, but we're not!");
+    return false;
+  }
+
+  theWriteTimer = tcList[tcNum].tc;
+
+  if (debug_serial)
+    debug_serial->printf("TC GCLK ID=%d, EVU=%d\n\r", tcList[tcNum].gclk,
+                         tcList[tcNum].evu);
+
+  // Configure TC timer source as GCLK1 (48 MHz peripheral clock)
+  GCLK->PCHCTRL[tcList[tcNum].gclk].bit.CHEN = 0;
+  while (GCLK->PCHCTRL[tcList[tcNum].gclk].bit.CHEN)
+    ; // Wait for disable
+  GCLK_PCHCTRL_Type pchctrl;
+  pchctrl.bit.GEN = GCLK_PCHCTRL_GEN_GCLK1_Val; // GCLK1 is 48 MHz
+  pchctrl.bit.CHEN = 1;
+  GCLK->PCHCTRL[tcList[tcNum].gclk].reg = pchctrl.reg;
+  while (!GCLK->PCHCTRL[tcList[tcNum].gclk].bit.CHEN)
+    ; // Wait for enable
+
+  // Software reset timer/counter to default state (also disables it)
+  theWriteTimer->COUNT16.CTRLA.bit.SWRST = 1;
+  while (theWriteTimer->COUNT16.SYNCBUSY.bit.SWRST)
+    ;
+
+  // Configure for MPWM, 1:2 prescale (24 MHz). 16-bit mode is defailt.
+  theWriteTimer->COUNT16.WAVE.bit.WAVEGEN = 3; // Match PWM mode
+  theWriteTimer->COUNT16.CTRLA.bit.PRESCALER = TC_CTRLA_PRESCALER_DIV2_Val;
+  // MPWM mode is weird but necessary because Normal PWM has a fixed TOP value.
+
+  // Count-up, no one-shot is default state, no need to fiddle those bits.
+
+  // Invert PWM channel 1 so it starts low, goes high on match
+  theWriteTimer->COUNT16.DRVCTRL.bit.INVEN1 = 1; // INVEN1 = channel 1
+
+  // Enable timer
+  theWriteTimer->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+  while (theWriteTimer->COUNT16.SYNCBUSY.bit.ENABLE)
+    ;
+
+  // IRQ is enabled but match-compare interrupt isn't enabled
+  // until send_pulses() is called.
+
+  NVIC_DisableIRQ(tcList[tcNum].IRQn);
+  NVIC_ClearPendingIRQ(tcList[tcNum].IRQn);
+  NVIC_SetPriority(tcList[tcNum].IRQn, 0); // Top priority
+  NVIC_EnableIRQ(tcList[tcNum].IRQn);
+
+  return true;
+}
+
 #ifdef __cplusplus
 void Adafruit_Floppy::enable_capture(void) { enable_capture_timer(); }
 
 void Adafruit_Floppy::disable_capture(void) {
-  if (!theTimer)
+  if (!theReadTimer)
     return;
 
-  theTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
+  theReadTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
+
+  //theReadTimer = NULL; // we're done with it for now, don't accidentally use it
 }
 
 bool Adafruit_Floppy::init_capture(void) {
   return init_capture_timer(_rddatapin, debug_serial);
+}
+
+void Adafruit_Floppy::deinit_capture(void) {
+  if (!theReadTimer)
+    return;
+
+  // Software reset timer/counter to default state (also disables it)
+  theReadTimer->COUNT16.CTRLA.bit.SWRST = 1;
+  while (theReadTimer->COUNT16.SYNCBUSY.bit.SWRST)
+    ;
+  theReadTimer = NULL;
+}
+
+bool Adafruit_Floppy::init_generate(void) {
+  return init_generate_timer(_wrdatapin, debug_serial);
 }
 #endif
 
