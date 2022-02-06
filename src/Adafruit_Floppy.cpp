@@ -42,6 +42,7 @@ extern volatile uint32_t g_max_pulses;
 extern volatile uint32_t g_num_pulses;
 extern volatile bool g_store_greaseweazle;
 extern volatile uint8_t g_timing_div;
+extern volatile bool g_writing_pulses;
 #endif
 
 /**************************************************************************/
@@ -98,9 +99,11 @@ bool Adafruit_Floppy::begin(void) {
   if (!init_capture()) {
     return false;
   }
+  deinit_capture();
   if (!init_generate()) {
     return false;
   }
+  deinit_generate();
 #endif
   return true;
 }
@@ -526,8 +529,50 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
 }
 
 
-void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses) {
-  unsigned pulse_count, pulse_count2;
+void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
+                                  bool store_greaseweazle) {
+#if defined(__SAMD51__)
+
+  pinMode(_wrdatapin, OUTPUT);
+  digitalWrite(_wrdatapin, HIGH);
+
+  pinMode(_wrgatepin, OUTPUT);
+  digitalWrite(_wrgatepin, HIGH);
+
+  disable_generate();
+  // in case the timer was reused, we will re-init it each time!
+  init_generate();
+
+  // init global interrupt data
+  g_flux_pulses = pulses;
+  g_max_pulses = num_pulses;
+  g_num_pulses = 1;  // Pulse 0 is config'd below...this is NEXT pulse index
+  g_store_greaseweazle = store_greaseweazle;
+  g_writing_pulses = true;
+
+  wait_for_index_pulse_low();
+  // start teh writin'
+  digitalWrite(_wrgatepin, LOW);
+  enable_generate();
+
+  bool last_index_state = read_index();
+  uint8_t index_transitions = 0;
+  while (g_writing_pulses) {
+    bool index_state = read_index();
+    // ahh a H to L transition, we have done one revolution
+    if (last_index_state && !index_state) {
+      break;
+    }
+    last_index_state = index_state;
+    yield();
+  }
+
+  // ok we're done, clean up!
+  digitalWrite(_wrgatepin, HIGH);
+  disable_generate();
+  deinit_generate();
+
+#else // bitbang it!
   uint8_t *pulses_ptr = pulses;
 
 #ifdef BUSIO_USE_FAST_PINIO
@@ -573,6 +618,7 @@ void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses) {
   digitalWrite(_wrgatepin, HIGH);
   digitalWrite(_wrdatapin, HIGH);
   interrupts();
+#endif
   return;
 }
 

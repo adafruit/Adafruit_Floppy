@@ -33,6 +33,7 @@ volatile uint32_t g_max_pulses = 0;
 volatile uint32_t g_num_pulses = 0;
 volatile bool g_store_greaseweazle = false;
 volatile uint8_t g_timing_div = 2;
+volatile bool g_writing_pulses = false;
 
 void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
 {
@@ -70,6 +71,26 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
         theReadTimer->COUNT16.CC[1].reg; // Copy the pulse width, DONT REMOVE
     (void)pulsewidth;
   }
+
+
+  if (theWriteTimer && theWriteTimer->COUNT16.INTFLAG.bit.MC0) {
+    // Because this uses CCBUF registers (updating CC on next timer rollover),
+    // the pulse_index check here looks odd, checking both under AND over num_pulses
+    // This is normal and OK and intended, because of the last-pulse-out case where
+    // we need one extra invocation of the interrupt to allow that pulse out before
+    // resetting PWM to steady high and disabling the interrupt.
+    if (g_num_pulses < g_max_pulses) {
+      // Set period for next pulse
+      theWriteTimer->COUNT16.CCBUF[0].reg = g_flux_pulses[g_num_pulses];
+    } else if (g_num_pulses > g_max_pulses) {
+      // Last pulse out was allowed its one extra PWM cycle, done now
+      theWriteTimer->COUNT16.CCBUF[1].reg = 0; // Steady high on next pulse
+      theWriteTimer->COUNT16.INTENCLR.bit.MC0 = 1; // Disable interrupt
+      g_writing_pulses = false;
+    }
+    g_num_pulses++; // Outside if/else to allow last-pulse case
+    theWriteTimer->COUNT16.INTFLAG.bit.MC0 = 1; // Clear interrupt flag
+  }
 }
 
 // this isnt great but how else can we dynamically choose the pin? :/
@@ -77,15 +98,10 @@ void TC0_Handler() { FLOPPY_TC_HANDLER(); }
 void TC1_Handler() { FLOPPY_TC_HANDLER(); }
 void TC2_Handler() { FLOPPY_TC_HANDLER(); }
 void TC3_Handler() { FLOPPY_TC_HANDLER(); }
+void TC4_Handler() { FLOPPY_TC_HANDLER(); }
 
-static void enable_capture_timer(void) {
-  if (!theReadTimer)
-    return;
+/************************************************************************/
 
-  theReadTimer->COUNT16.CTRLA.bit.ENABLE = 1; // Enable the TC timer
-  while (theReadTimer->COUNT16.SYNCBUSY.bit.ENABLE)
-    ; // Wait for synchronization
-}
 
 static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
   MCLK->APBBMASK.reg |=
@@ -209,6 +225,16 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
 }
 
 
+static void enable_capture_timer(void) {
+  if (!theReadTimer)
+    return;
+
+  theReadTimer->COUNT16.CTRLA.bit.ENABLE = 1; // Enable the TC timer
+  while (theReadTimer->COUNT16.SYNCBUSY.bit.ENABLE)
+    ; // Wait for synchronization
+}
+
+
 static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
   MCLK->APBBMASK.reg |=
       MCLK_APBBMASK_EVSYS; // Switch on the event system peripheral
@@ -222,14 +248,15 @@ static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
   uint8_t tcChannel = GetTCChannelNumber(pinDesc.ulPWMChannel);
 
   if (tcNum < TCC_INST_NUM) {
+    // OK so we're a TC!
     if (pinDesc.ulTCChannel != NOT_ON_TIMER) {
       if (debug_serial)
         debug_serial->println(
-            "PWM is on a TCC not TC, lets look at the TCChannel");
+            "PWM is on a TC");
       tcNum = GetTCNumber(pinDesc.ulTCChannel);
       tcChannel = GetTCChannelNumber(pinDesc.ulTCChannel);
 
-      pinPeripheral(_wrdatapin, PIO_TIMER_ALT); // PIO_TIMER_ALT if using a TCC periph
+      pinPeripheral(_wrdatapin, PIO_TIMER); // PIO_TIMER if using a TC periph
     }
     if (tcNum < TCC_INST_NUM) {
       if (debug_serial)
@@ -237,7 +264,7 @@ static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
       return false;
     }
   } else {
-    pinPeripheral(_wrdatapin, PIO_TIMER); // PIO_TIMER if using a TC periph
+    pinPeripheral(_wrdatapin, PIO_TIMER_ALT); // PIO_TIMER_ALT if using a TCC periph
   }
 
   tcNum -= TCC_INST_NUM; // adjust naming
@@ -302,17 +329,28 @@ static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
   return true;
 }
 
-#ifdef __cplusplus
-void Adafruit_Floppy::enable_capture(void) { enable_capture_timer(); }
-
-void Adafruit_Floppy::disable_capture(void) {
-  if (!theReadTimer)
-    return;
-
-  theReadTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
-
-  //theReadTimer = NULL; // we're done with it for now, don't accidentally use it
+static void enable_generate_timer(void) {
+  theWriteTimer->COUNT16.COUNT.reg = 0;  // Reset counter so we can time this right
+  while (theWriteTimer->COUNT16.SYNCBUSY.bit.COUNT)
+    ;
+  // Trigger 1st pulse in ~1/4 uS (need moment to set up other registers)
+  theWriteTimer->COUNT16.CC[0].reg = 5;
+  while (theWriteTimer->COUNT16.SYNCBUSY.bit.CC0)
+    ;
+  // Set up duration of first pulse when COUNT rolls over
+  theWriteTimer->COUNT16.CCBUF[0].reg = g_flux_pulses[0];
+  while (theWriteTimer->COUNT16.SYNCBUSY.bit.CC0)
+    ;
+  // Set up LOW period of pulses when COUNT rolls over
+  theWriteTimer->COUNT16.CCBUF[1].reg = 5; // 0.25 uS low pulses
+  while (theWriteTimer->COUNT16.SYNCBUSY.bit.CC1)
+    ;
+  // Enable match compare channel 0 interrupt
+  theWriteTimer->COUNT16.INTENSET.bit.MC0 = 1;
 }
+
+
+#ifdef __cplusplus
 
 bool Adafruit_Floppy::init_capture(void) {
   return init_capture_timer(_rddatapin, debug_serial);
@@ -329,9 +367,45 @@ void Adafruit_Floppy::deinit_capture(void) {
   theReadTimer = NULL;
 }
 
+
+void Adafruit_Floppy::enable_capture(void) { enable_capture_timer(); }
+
+void Adafruit_Floppy::disable_capture(void) {
+  if (!theReadTimer)
+    return;
+
+  theReadTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
+}
+
+
+
 bool Adafruit_Floppy::init_generate(void) {
   return init_generate_timer(_wrdatapin, debug_serial);
 }
+
+void Adafruit_Floppy::deinit_generate(void) {
+  if (!theWriteTimer)
+    return;
+
+  // Software reset timer/counter to default state (also disables it)
+  theWriteTimer->COUNT16.CTRLA.bit.SWRST = 1;
+  while (theWriteTimer->COUNT16.SYNCBUSY.bit.SWRST)
+    ;
+  theWriteTimer = NULL;
+}
+
+void Adafruit_Floppy::enable_generate(void) {
+  enable_generate_timer();
+}
+
+void Adafruit_Floppy::disable_generate(void) {
+  if (!theWriteTimer)
+    return;
+
+  theWriteTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
+}
+
+
 #endif
 
 #endif
