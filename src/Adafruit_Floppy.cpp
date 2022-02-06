@@ -127,7 +127,7 @@ void Adafruit_Floppy::soft_reset(void) {
   pinMode(_readypin, INPUT_PULLUP);
   pinMode(_rddatapin, INPUT_PULLUP);
 
-  // set high density
+  // set low density
   pinMode(_densitypin, OUTPUT);
   digitalWrite(_densitypin, LOW);
 
@@ -531,14 +531,27 @@ void Adafruit_Floppy::wait_for_index_pulse_low(void) {
     @brief  Pretty print the counts in a list of flux transitions
     @param  pulses A pointer to an array of memory containing pulse counts
     @param  num_pulses The size of the pulses in the array
+    @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
-void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses) {
+void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses, bool is_gw_format) {
   if (!debug_serial)
     return;
 
+  uint16_t pulse_len;
   for (uint32_t i = 0; i < num_pulses; i++) {
-    debug_serial->print(pulses[i]);
+    uint8_t p = pulses[i];
+    if (p < 250 || !is_gw_format) {
+      pulse_len = p;
+    } else {
+      // Serial.printf("long pulse! %d and %d ->", p, pulses[i+1]);
+      pulse_len = 250 + ((uint16_t)p - 250) * 255;
+      i++;
+      pulse_len += pulses[i] - 1;
+      // Serial.printf(" %d \n\r", pulse_len);
+    }
+
+    debug_serial->print(pulse_len);
     debug_serial->print(", ");
   }
   debug_serial->println();
