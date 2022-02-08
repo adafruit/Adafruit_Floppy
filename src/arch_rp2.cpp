@@ -44,54 +44,29 @@ static const uint16_t fluxread[] = {
     // vs wrapping.
     0x0040, //     jmp x--, wait_one
 };
-pio_program_t fluxread_struct = {.instructions = fluxread,
-                                 .length =
-                                     sizeof(fluxread) / sizeof(fluxread[0]),
-                                 .origin = -1};
+static const pio_program_t fluxread_struct = {.instructions = fluxread,
+                                              .length = sizeof(fluxread) /
+                                                        sizeof(fluxread[0]),
+                                              .origin = -1};
 
-static const int fluxwrite_sideset_pin_count = 0;
-static const bool fluxwrite_sideset_enable = 0;
+static const int fluxwrite_sideset_pin_count = 1;
+static const bool fluxwrite_sideset_enable = 1;
 static const uint16_t fluxwrite[] = {
-    // start:
-    // ;; ensure wgate is deasserted then wait for FIFO to be loaded
-    0xe001, //     set pins, 1
-    0x80e0, //     pull ifempty
-            // ; Wait for a falling edge on the index pin
-            // wait_index_high:
-    0x00c4, //     jmp pin wait_index_low
-    0x0002, //     jmp wait_index_high
-            // wait_index_low:
-    0x00c4, //     jmp pin wait_index_low
-            // ; Enable gate 2us before writing
-    0xe033, //     set x 19
-            // loop_gate:
-    0x0146, //     jmp x--, loop_gate [1]
-            // loop_flux:
+    // loop_flux:
     0xe000, //     set pins, 0 ; drive pin low
-    0x6030, //     out x, 16  ; get the next timing pulse information
-    // ;; If x is zero here, either a 0 was explicitly put into the flux timing
-    // stream,
-    // ;; OR the data ended naturally OR there was an under-run. In any case,
-    // jump back
-    // ;; to the beginning to wait for available data and then an index pulse --
-    // we're done.
-    0x0020, //     jmp !x, start
-    // ;; output the fixed on time.  10 cycles (preload reg with 6) is about
-    // 0.5us.
-    // ;; note that wdc1772 has varying low times, from 570 to 1380us
-    0xe046, //     set y, 6 ; fixed on time
-            // loop_low:
-    0x008b, //     jmp y--, loop_low
+    0x6030, //     out x, 16  ; get the next timing pulse information, may block
+            // ;; output the fixed on time.  16 is about 0.67us.
+            // ;; note that wdc1772 has varying low times, from 570 to 1380us
+    0xae42, //     nop [14]
     0xe001, //     set pins, 1 ; drive pin high
-    0x80c0, //     pull ifempty noblock
             // loop_high:
-    0x004e, //     jmp x--, loop_high
-    0x0007, //     jmp loop_flux
+    0x0044, //     jmp x--, loop_high
+    0x0000, //     jmp loop_flux
 };
-pio_program_t fluxwrite_struct = {.instructions = fluxwrite,
-                                  .length =
-                                      sizeof(fluxwrite) / sizeof(fluxwrite[0]),
-                                  .origin = -1};
+static const pio_program_t fluxwrite_struct = {.instructions = fluxwrite,
+                                               .length = sizeof(fluxwrite) /
+                                                         sizeof(fluxwrite[0]),
+                                               .origin = -1};
 
 typedef struct floppy_singleton {
   PIO pio;
@@ -100,19 +75,23 @@ typedef struct floppy_singleton {
   uint16_t half;
 } floppy_singleton_t;
 
-static floppy_singleton_t g_floppy;
+static floppy_singleton_t g_reader, g_writer;
 
 const static PIO pio_instances[2] = {pio0, pio1};
-static bool allocate_pio_set_program() {
+static bool allocate_pio_set_program(floppy_singleton_t *info,
+                                     const pio_program_t *program) {
+  memset(info, 0, sizeof(*info));
   for (size_t i = 0; i < NUM_PIOS; i++) {
     PIO pio = pio_instances[i];
-    if (!pio_can_add_program(pio, &fluxread_struct)) {
+    if (!pio_can_add_program(pio, program)) {
       continue;
     }
     int sm = pio_claim_unused_sm(pio, false);
     if (sm != -1) {
-      g_floppy.pio = pio;
-      g_floppy.sm = sm;
+      info->pio = pio;
+      info->sm = sm;
+      // cannot fail, we asked nicely already
+      info->offset = pio_add_program(pio, program);
       return true;
     }
   }
@@ -120,89 +99,68 @@ static bool allocate_pio_set_program() {
 }
 
 static bool init_capture(int index_pin, int read_pin) {
-  if (g_floppy.pio) {
+  if (g_reader.pio) {
     return true;
   }
-  Serial.println("init capture");
-  memset(&g_floppy, 0, sizeof(g_floppy));
 
-  if (!allocate_pio_set_program()) {
+  if (!allocate_pio_set_program(&g_reader, &fluxread_struct)) {
     return false;
   }
-  // cannot fail, we asked nicely already
-  g_floppy.offset = pio_add_program(g_floppy.pio, &fluxread_struct);
 
-  pio_gpio_init(g_floppy.pio, index_pin);
-  pio_gpio_init(g_floppy.pio, read_pin);
   gpio_pull_up(index_pin);
 
   pio_sm_config c = {0, 0, 0};
-  sm_config_set_wrap(&c, g_floppy.offset,
-                     g_floppy.offset + fluxread_struct.length - 1);
+  sm_config_set_wrap(&c, g_reader.offset,
+                     g_reader.offset + fluxread_struct.length - 1);
   sm_config_set_jmp_pin(&c, read_pin);
   sm_config_set_in_pins(&c, index_pin);
   sm_config_set_in_shift(&c, true, true, 32);
   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
-  pio_sm_set_pins_with_mask(g_floppy.pio, g_floppy.sm, 1 << read_pin,
+  pio_sm_set_pins_with_mask(g_reader.pio, g_reader.sm, 1 << read_pin,
                             1 << read_pin);
   float div = (float)clock_get_hz(clk_sys) / (3 * 24e6);
   sm_config_set_clkdiv(&c, div); // 72MHz capture clock / 24MHz sample rate
 
-  pio_sm_init(g_floppy.pio, g_floppy.sm, g_floppy.offset, &c);
+  pio_sm_init(g_reader.pio, g_reader.sm, g_reader.offset, &c);
 
-  // g_floppy.dreq = pio_get_dreq(g_floppy.pio, g_floppy.sm, false);
-  // g_floppy.dma = dma_claim_unused_channel(false);
-  // rx_source = g_floppy.pio->rxf[g_floppy.sm];
-  // dma_channel_configure(g_floppy.dma, &c, tx_destination,
   return true;
 }
 
 static void start_common() {
-  pio_sm_exec(g_floppy.pio, g_floppy.sm, g_floppy.offset);
-  pio_sm_restart(g_floppy.pio, g_floppy.sm);
+  pio_sm_exec(g_reader.pio, g_reader.sm, g_reader.offset);
+  pio_sm_restart(g_reader.pio, g_reader.sm);
 }
 
 static uint16_t read_fifo() {
-  if (g_floppy.half) {
-    uint16_t result = g_floppy.half;
-    g_floppy.half = 0;
+  if (g_reader.half) {
+    uint16_t result = g_reader.half;
+    g_reader.half = 0;
     return result;
   }
-  uint32_t value = pio_sm_get_blocking(g_floppy.pio, g_floppy.sm);
-  g_floppy.half = value >> 16;
+  uint32_t value = pio_sm_get_blocking(g_reader.pio, g_reader.sm);
+  g_reader.half = value >> 16;
   return value & 0xffff;
 }
 
 static void disable_capture(void) {
-  pio_sm_set_enabled(g_floppy.pio, g_floppy.sm, false);
+  pio_sm_set_enabled(g_reader.pio, g_reader.sm, false);
 }
 
 static void free_capture(void) {
-  if (!g_floppy.pio) {
+  if (!g_reader.pio) {
     // already deinit
     return;
   }
   disable_capture();
-  pio_sm_unclaim(g_floppy.pio, g_floppy.sm);
-  pio_remove_program(g_floppy.pio, &fluxwrite_struct, g_floppy.offset);
-  memset(&g_floppy, 0, sizeof(g_floppy));
+  pio_sm_unclaim(g_reader.pio, g_reader.sm);
+  pio_remove_program(g_reader.pio, &fluxwrite_struct, g_reader.offset);
+  memset(&g_reader, 0, sizeof(g_reader));
 }
 
-static void capture_foreground(int indexpin, uint8_t *start, uint8_t *end,
+static void capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
                                bool wait_index, bool stop_index,
                                uint32_t *falling_index_offset,
                                bool store_greaseweazle) {
-  // g_floppy.store_greaseweazle = store_greaseweazle;
-
-  // c = dma_channel_get_default_config(g_floppy.dma);
-  // channel_config_set_data_transfer_size(&c, DMA_SIZE_32);
-  // channel_config_set_dreq(&c, g_floppy.dreq);
-  // channel_config_set_read_increment(false);
-  // channel_config_set_write_increment(true);
-
-  // dma_channel_configure(g_floppy.dma, &c, start, (end-start) / 4, false);
-  // dma_start_channel_mask(1u << g_floppy.dma);
-
   if (falling_index_offset) {
     *falling_index_offset = ~0u;
   }
@@ -210,13 +168,13 @@ static void capture_foreground(int indexpin, uint8_t *start, uint8_t *end,
 
   // wait for a falling edge of index pin, then enable the capture peripheral
   if (wait_index) {
-    while (!gpio_get(indexpin)) { /* NOTHING */
+    while (!gpio_get(index_pin)) { /* NOTHING */
     }
-    while (gpio_get(indexpin)) { /* NOTHING */
+    while (gpio_get(index_pin)) { /* NOTHING */
     }
   }
 
-  pio_sm_set_enabled(g_floppy.pio, g_floppy.sm, true);
+  pio_sm_set_enabled(g_reader.pio, g_reader.sm, true);
   int last = read_fifo();
   int i = 0;
   while (start != end) {
@@ -247,15 +205,121 @@ static void capture_foreground(int indexpin, uint8_t *start, uint8_t *end,
 
 static void enable_capture_fifo() { start_common(); }
 
+static bool init_write(int wrdata_pin) {
+  if (g_writer.pio) {
+    return true;
+  }
+
+  if (!allocate_pio_set_program(&g_writer, &fluxwrite_struct)) {
+    return false;
+  }
+
+  uint32_t wrdata_bit = 1u << wrdata_pin;
+
+  pio_gpio_init(g_writer.pio, wrdata_pin);
+
+  pio_sm_set_pindirs_with_mask(g_writer.pio, g_writer.sm, wrdata_bit,
+                               wrdata_bit);
+  pio_sm_set_pins_with_mask(g_writer.pio, g_writer.sm, wrdata_bit, wrdata_bit);
+  pio_sm_set_pins_with_mask(g_writer.pio, g_writer.sm, 0, wrdata_bit);
+  pio_sm_set_pins_with_mask(g_writer.pio, g_writer.sm, wrdata_bit, wrdata_bit);
+
+  pio_sm_config c{};
+  sm_config_set_wrap(&c, g_writer.offset,
+                     g_writer.offset + fluxwrite_struct.length - 1);
+  sm_config_set_set_pins(&c, wrdata_pin, 1);
+  sm_config_set_out_shift(&c, true, true, 16);
+  sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+  float div = (float)clock_get_hz(clk_sys) / (24e6);
+  sm_config_set_clkdiv(&c, div); // 24MHz output clock
+
+  pio_sm_init(g_writer.pio, g_writer.sm, g_writer.offset, &c);
+
+  return true;
+}
+
+static void enable_write() {}
+
+#define OVERHEAD (20) // minimum pulse length due to PIO overhead, about 0.833us
+static void write_fifo(unsigned value) {
+  if (value < OVERHEAD) {
+    value = 1;
+  } else {
+    value -= OVERHEAD;
+    if (value > 0xffff)
+      value = 0xffff;
+  }
+  pio_sm_put_blocking(g_writer.pio, g_writer.sm, value);
+}
+
+static void disable_write() {
+  pio_sm_set_enabled(g_writer.pio, g_writer.sm, false);
+}
+
+static void write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
+                             uint8_t *pulse_end, bool store_greaseweazle) {
+  // don't start during an index pulse
+  while (!gpio_get(index_pin)) { /* NOTHING */
+  }
+
+  // wait for falling edge of index pin
+  while (gpio_get(index_pin)) { /* NOTHING */
+  }
+
+  pinMode(wrgate_pin, OUTPUT);
+  digitalWrite(wrgate_pin, LOW);
+
+  pio_sm_clear_fifos(g_writer.pio, g_writer.sm);
+  pio_sm_exec(g_writer.pio, g_writer.sm, g_writer.offset);
+  while (!pio_sm_is_tx_fifo_full(g_writer.pio, g_writer.sm)) {
+    unsigned value = greaseunpack(&pulses, pulse_end, store_greaseweazle);
+    value = (value < OVERHEAD) ? 1 : value - OVERHEAD;
+    pio_sm_put_blocking(g_writer.pio, g_writer.sm, value);
+  }
+  pio_sm_set_enabled(g_writer.pio, g_writer.sm, true);
+
+  noInterrupts();
+  bool old_index_state = false;
+  int i = 0;
+  while (pulses != pulse_end) {
+    bool index_state = gpio_get(index_pin);
+    if (old_index_state && !index_state) {
+      // falling edge of index pin
+      break;
+    }
+    while (!pio_sm_is_tx_fifo_full(g_writer.pio, g_writer.sm)) {
+      unsigned value = greaseunpack(&pulses, pulse_end, store_greaseweazle);
+      value = (value < OVERHEAD) ? 1 : value - OVERHEAD;
+      pio_sm_put_blocking(g_writer.pio, g_writer.sm, value);
+    }
+    old_index_state = index_state;
+  }
+  interrupts();
+
+  pio_sm_set_enabled(g_writer.pio, g_writer.sm, false);
+  pinMode(wrgate_pin, INPUT_PULLUP);
+}
+
+static void free_write() {
+  if (!g_writer.pio) {
+    // already deinit
+    return;
+  }
+  disable_write();
+  pio_sm_unclaim(g_writer.pio, g_writer.sm);
+  pio_remove_program(g_writer.pio, &fluxwrite_struct, g_writer.offset);
+  memset(&g_writer, 0, sizeof(g_writer));
+}
+
 #ifdef __cplusplus
 #include <Adafruit_Floppy.h>
 
-uint32_t rp2040_flux_capture(int indexpin, int rdpin, volatile uint8_t *pulses,
+uint32_t rp2040_flux_capture(int index_pin, int rdpin, volatile uint8_t *pulses,
                              volatile uint8_t *pulse_end,
                              uint32_t *falling_index_offset,
                              bool store_greaseweazle) {
-  init_capture(indexpin, rdpin);
-  capture_foreground(indexpin, (uint8_t *)pulses, (uint8_t *)pulse_end, true,
+  init_capture(index_pin, rdpin);
+  capture_foreground(index_pin, (uint8_t *)pulses, (uint8_t *)pulse_end, true,
                      false, falling_index_offset, store_greaseweazle);
   free_capture();
   return pulse_end - pulses;
@@ -271,7 +335,7 @@ bool Adafruit_Floppy::start_polled_capture(void) {
   if (!init_capture())
     return false;
   start_common();
-  pio_sm_set_enabled(g_floppy.pio, g_floppy.sm, true);
+  pio_sm_set_enabled(g_reader.pio, g_reader.sm, true);
   return true;
 }
 
@@ -288,6 +352,17 @@ uint16_t mfm_io_sample_flux(bool *index) {
     delta += 65536;
   *index = data & 1;
   return delta / 2;
+}
+
+void rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
+                       uint8_t *pulses, uint8_t *pulse_end,
+                       bool store_greaseweazle) {
+  if (!init_write(wrdata_pin)) {
+    return;
+  }
+  write_foreground(index_pin, wrgate_pin, (uint8_t *)pulses,
+                   (uint8_t *)pulse_end, store_greaseweazle);
+  free_write();
 }
 
 #endif

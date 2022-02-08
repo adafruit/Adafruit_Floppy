@@ -1,4 +1,5 @@
 #pragma once
+#include <Arduino.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -53,3 +54,49 @@ static inline uint8_t *greasepack(uint8_t *buf, uint8_t *end, unsigned value) {
 
   return buf;
 }
+
+static inline unsigned greaseunpack(uint8_t **buf_, uint8_t *end,
+                                    bool store_greaseweazel) {
+#define BUF (*buf_)
+  if (!store_greaseweazel) {
+    if (!BUF || BUF == end) {
+      return 0xffff;
+    }
+    return *BUF++;
+  }
+
+  while (true) {
+    // already no data left
+    if (!BUF || BUF == end) {
+      return 0xffff;
+    }
+
+    size_t left = end - BUF;
+    uint8_t data = *BUF++;
+    size_t need = data == 255 ? 6 : data >= cutoff_1byte ? 2 : 1;
+    if (left < need) {
+      BUF = end;
+      return 0xffff;
+    }
+
+    if (need == 1) {
+      return data;
+    }
+    if (need == 2) {
+      uint8_t data2 = *BUF++;
+      return (data - cutoff_1byte) * 250 + data2;
+    }
+    uint8_t data2 = *BUF++;
+    if (data2 != 2) {
+      BUF += 4;
+      continue;
+    } // something other than FluxOp.Space
+    uint32_t value = (*BUF++ & 254) >> 1;
+    value += (*BUF++ & 254) << 6;
+    value += (*BUF++ & 254) << 13;
+    value += (*BUF++ & 254) << 20;
+
+    return value;
+  }
+}
+#undef BUF

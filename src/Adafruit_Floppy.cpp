@@ -23,6 +23,9 @@ extern uint32_t rp2040_flux_capture(int indexpin, int rdpin,
                                     volatile uint8_t *end,
                                     uint32_t *falling_index_offset,
                                     bool store_greaseweazle);
+extern void rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
+                              uint8_t *pulses, uint8_t *pulse_end,
+                              bool store_greaseweazel);
 #endif
 
 #if !DEBUG_FLOPPY
@@ -154,8 +157,7 @@ void Adafruit_Floppy::soft_reset(void) {
     digitalWrite(_wrdatapin, HIGH);
   }
   if (_wrgatepin >= 0) {
-    pinMode(_wrgatepin, OUTPUT);
-    digitalWrite(_wrgatepin, HIGH);
+    pinMode(_wrgatepin, INPUT_PULLUP);
   }
 
 #ifdef BUSIO_USE_FAST_PINIO
@@ -524,7 +526,10 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
 
 void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
                                   bool store_greaseweazle) {
-#if defined(__SAMD51__)
+#if defined(ARDUINO_ARCH_RP2040)
+  rp2040_flux_write(_indexpin, _wrgatepin, _wrdatapin, pulses,
+                    pulses + num_pulses, store_greaseweazle);
+#elif defined(__SAMD51__)
 
   pinMode(_wrdatapin, OUTPUT);
   digitalWrite(_wrdatapin, HIGH);
