@@ -16,6 +16,8 @@
 #define read_data() gpio_get(_rddatapin)
 #define set_debug_led() gpio_put(led_pin, 1)
 #define clr_debug_led() gpio_put(led_pin, 0)
+#define set_write() gpio_put(_wrdatapin, 1)
+#define clr_write() gpio_put(_wrdatapin, 0)
 extern uint32_t rp2040_flux_capture(int indexpin, int rdpin,
                                     volatile uint8_t *pulses,
                                     volatile uint8_t *end,
@@ -589,7 +591,7 @@ void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
   
   // write track data
   while (num_pulses--) {
-    pulse_count = pulses_ptr[0];
+    uint8_t pulse_count = pulses_ptr[0];
     pulses_ptr++;
     // ?? lets bail
     if (pulse_count == 0) break;
