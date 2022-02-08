@@ -23,9 +23,6 @@ extern uint32_t rp2040_flux_capture(int indexpin, int rdpin,
                                     bool store_greaseweazle);
 #endif
 
-uint32_t T2_5;
-uint32_t T3_5;
-
 #if !DEBUG_FLOPPY
 #undef set_debug_led
 #undef clr_debug_led
@@ -33,7 +30,12 @@ uint32_t T3_5;
 #define clr_debug_led() ((void)0)
 #endif
 
-#define MFM_IO_MMIO (1)
+struct mfm_io {
+  bool index_state;
+  unsigned index_count;
+  uint16_t T2_5, T3_5;
+};
+
 #include "mfm_impl.h"
 
 #if defined(__SAMD51__)
@@ -350,31 +352,19 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
 */
 /**************************************************************************/
 uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
-                                         uint8_t *sector_validity) {
+                                         uint8_t *sector_validity, bool high_density) {
   mfm_io_t io;
-#ifdef BUSIO_USE_FAST_PINIO
-  BusIO_PortReg *dataPort, *ledPort;
-  BusIO_PortMask dataMask, ledMask;
-  dataPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_rddatapin));
-  dataMask = digitalPinToBitMask(_rddatapin);
-  ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
-  ledMask = digitalPinToBitMask(led_pin);
-  (void)ledPort;
-  (void)ledMask;
-  io.index_port = indexPort;
-  io.index_mask = indexMask;
-  io.data_port = dataPort;
-  io.data_mask = dataMask;
-#elif defined(ARDUINO_ARCH_RP2040)
-  io.index_port = &sio_hw->gpio_in;
-  io.index_mask = 1u << _indexpin;
-  io.data_port = &sio_hw->gpio_in;
-  io.data_mask = 1u << _rddatapin;
-#endif
 
-  noInterrupts();
+  if (high_density) {
+    io.T2_5 = getSampleFrequency() * 5 / 2 / 1000000;
+    io.T3_5 = getSampleFrequency() * 7 / 2 / 1000000;
+  } else {
+    io.T2_5 = getSampleFrequency() * 5 / 1000000;
+    io.T3_5 = getSampleFrequency() * 7 / 1000000;
+  }
+  if (!start_polled_capture()) { return 0; }
   int result = read_track(io, n_sectors, sectors, sector_validity);
-  interrupts();
+  disable_capture();
 
   return result;
 }
@@ -732,3 +722,26 @@ void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
     }
   }
 }
+
+uint16_t mfm_io_sample_flux(bool *index);
+
+static inline mfm_io_symbol_t mfm_io_read_symbol(mfm_io_t *io) {
+    bool new_index_state;
+    uint16_t fluxval = mfm_io_sample_flux(&new_index_state);
+    if(io->index_state && !new_index_state) {
+        io->index_count ++;
+    }
+    io->index_state = new_index_state;
+    if(fluxval > io->T3_5) { return pulse_1000; }
+    if(fluxval > io->T2_5) { return pulse_100; }
+    return pulse_10;
+}
+
+static inline void mfm_io_reset_sync_count(mfm_io_t *io) {
+    io->index_count = 0;
+}
+
+static inline int mfm_io_get_sync_count(mfm_io_t *io) {
+    return io->index_count;
+}
+

@@ -52,7 +52,7 @@ public:
   void step(bool dir, uint8_t times);
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
-                          uint8_t *sector_validity);
+                          uint8_t *sector_validity, bool high_density=true);
   uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
                          uint32_t *falling_index_offset,
                          bool store_greaseweazle = false)
@@ -79,19 +79,26 @@ public:
   Stream *debug_serial = NULL; ///< optional debug stream for serial output
 
 #if defined(__SAMD51__)
-  bool init_capture(void);
   void deinit_capture(void);
   void enable_capture(void);
-  void disable_capture(void);
 
   bool init_generate(void);
   void deinit_generate(void);
   void enable_generate(void);
   void disable_generate(void);
-
 #endif
 
+  bool start_polled_capture(void);
+  void disable_capture(void);
+  uint16_t sample_flux(bool &new_index_state);
+  uint16_t sample_flux() {
+    bool unused;
+    return sample_flux(unused);
+  }
+
 private:
+  bool init_capture(void);
+  void enable_background_capture(void);
   void wait_for_index_pulse_low(void);
 
   // theres a lot of GPIO!
@@ -146,9 +153,13 @@ public:
   uint8_t track_validity[MFM_IBMPC1440K_SECTORS_PER_TRACK];
 
 private:
+#if defined(PICO_BOARD) || defined(__RP2040__) || defined(ARDUINO_ARCH_RP2040)
+  uint16_t _last;
+#endif
   uint8_t _sectors_per_track = 0;
   uint8_t _tracks_per_side = 0;
   int8_t _last_track_read = -1; // last cached track
+  bool _high_density = true;
   Adafruit_Floppy *_floppy = NULL;
   adafruit_floppy_disk_t _format = IBMPC1440K;
 };
