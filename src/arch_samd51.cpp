@@ -73,19 +73,19 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
     (void)pulsewidth;
   }
 
-
   if (theWriteTimer && theWriteTimer->COUNT16.INTFLAG.bit.MC0) {
     // Because this uses CCBUF registers (updating CC on next timer rollover),
-    // the pulse_index check here looks odd, checking both under AND over num_pulses
-    // This is normal and OK and intended, because of the last-pulse-out case where
-    // we need one extra invocation of the interrupt to allow that pulse out before
-    // resetting PWM to steady high and disabling the interrupt.
+    // the pulse_index check here looks odd, checking both under AND over
+    // num_pulses This is normal and OK and intended, because of the
+    // last-pulse-out case where we need one extra invocation of the interrupt
+    // to allow that pulse out before resetting PWM to steady high and disabling
+    // the interrupt.
     if (g_num_pulses < g_max_pulses) {
       // Set period for next pulse
       theWriteTimer->COUNT16.CCBUF[0].reg = g_flux_pulses[g_num_pulses];
     } else if (g_num_pulses > g_max_pulses) {
       // Last pulse out was allowed its one extra PWM cycle, done now
-      theWriteTimer->COUNT16.CCBUF[1].reg = 0; // Steady high on next pulse
+      theWriteTimer->COUNT16.CCBUF[1].reg = 0;     // Steady high on next pulse
       theWriteTimer->COUNT16.INTENCLR.bit.MC0 = 1; // Disable interrupt
       g_writing_pulses = false;
     }
@@ -102,7 +102,6 @@ void TC3_Handler() { FLOPPY_TC_HANDLER(); }
 void TC4_Handler() { FLOPPY_TC_HANDLER(); }
 
 /************************************************************************/
-
 
 static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
   MCLK->APBBMASK.reg |=
@@ -205,9 +204,9 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
       TC_EVCTRL_EVACT_PPW; // Set up the timer for capture: CC0 period, CC1
                            // pulsewidth
 
-    NVIC_SetPriority(tcList[tcNum].IRQn,
-                     0); // Set the Nested Vector Interrupt Controller (NVIC)
-                         // priority for TCx to 0 (highest)
+  NVIC_SetPriority(tcList[tcNum].IRQn,
+                   0); // Set the Nested Vector Interrupt Controller (NVIC)
+                       // priority for TCx to 0 (highest)
   theReadTimer->COUNT16.INTENSET.reg =
       TC_INTENSET_MC1 | // Enable compare channel 1 (CC1) interrupts
       TC_INTENSET_MC0;  // Enable compare channel 0 (CC0) interrupts
@@ -222,24 +221,24 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
   return true;
 }
 
-
 static void enable_capture_timer(bool interrupt_driven) {
   if (!theReadTimer)
     return;
- 
+
   if (interrupt_driven) {
-    NVIC_EnableIRQ(tcList[g_tc_num].IRQn); // Connect the TCx timer to the Nested
-                                        // Vector Interrupt Controller (NVIC)
+    NVIC_EnableIRQ(
+        tcList[g_tc_num].IRQn); // Connect the TCx timer to the Nested
+                                // Vector Interrupt Controller (NVIC)
   } else {
-    NVIC_DisableIRQ(tcList[g_tc_num].IRQn); // Connect the TCx timer to the Nested
-                                        // Vector Interrupt Controller (NVIC)
+    NVIC_DisableIRQ(
+        tcList[g_tc_num].IRQn); // Connect the TCx timer to the Nested
+                                // Vector Interrupt Controller (NVIC)
   }
 
   theReadTimer->COUNT16.CTRLA.bit.ENABLE = 1; // Enable the TC timer
   while (theReadTimer->COUNT16.SYNCBUSY.bit.ENABLE)
     ; // Wait for synchronization
 }
-
 
 static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
   MCLK->APBBMASK.reg |=
@@ -257,8 +256,7 @@ static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
     // OK so we're a TC!
     if (pinDesc.ulTCChannel != NOT_ON_TIMER) {
       if (debug_serial)
-        debug_serial->println(
-            "PWM is on a TC");
+        debug_serial->println("PWM is on a TC");
       tcNum = GetTCNumber(pinDesc.ulTCChannel);
       tcChannel = GetTCChannelNumber(pinDesc.ulTCChannel);
 
@@ -270,14 +268,14 @@ static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
       return false;
     }
   } else {
-    pinPeripheral(_wrdatapin, PIO_TIMER_ALT); // PIO_TIMER_ALT if using a TCC periph
+    pinPeripheral(_wrdatapin,
+                  PIO_TIMER_ALT); // PIO_TIMER_ALT if using a TCC periph
   }
 
   tcNum -= TCC_INST_NUM; // adjust naming
   if (debug_serial)
     debug_serial->printf("writedata on port %d and pin %d,, TC%d.%d\n\r",
-                         generate_port, generate_pin, tcNum,
-                         tcChannel);
+                         generate_port, generate_pin, tcNum, tcChannel);
 
   // Because of the PWM mode used, we MUST use a TC#/WO[1] pin, can't
   // use WO[0]. Different timers would need different pins,
@@ -336,7 +334,8 @@ static bool init_generate_timer(int _wrdatapin, Stream *debug_serial) {
 }
 
 static void enable_generate_timer(void) {
-  theWriteTimer->COUNT16.COUNT.reg = 0;  // Reset counter so we can time this right
+  theWriteTimer->COUNT16.COUNT.reg =
+      0; // Reset counter so we can time this right
   while (theWriteTimer->COUNT16.SYNCBUSY.bit.COUNT)
     ;
   // Trigger 1st pulse in ~1/4 uS (need moment to set up other registers)
@@ -355,7 +354,6 @@ static void enable_generate_timer(void) {
   theWriteTimer->COUNT16.INTENSET.bit.MC0 = 1;
 }
 
-
 #ifdef __cplusplus
 
 bool Adafruit_Floppy::init_capture(void) {
@@ -373,7 +371,6 @@ void Adafruit_Floppy::deinit_capture(void) {
   theReadTimer = NULL;
 }
 
-
 void Adafruit_Floppy::enable_capture(void) { enable_capture_timer(true); }
 
 void Adafruit_Floppy::disable_capture(void) {
@@ -382,8 +379,6 @@ void Adafruit_Floppy::disable_capture(void) {
 
   theReadTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
 }
-
-
 
 bool Adafruit_Floppy::init_generate(void) {
   return init_generate_timer(_wrdatapin, debug_serial);
@@ -400,9 +395,7 @@ void Adafruit_Floppy::deinit_generate(void) {
   theWriteTimer = NULL;
 }
 
-void Adafruit_Floppy::enable_generate(void) {
-  enable_generate_timer();
-}
+void Adafruit_Floppy::enable_generate(void) { enable_generate_timer(); }
 
 void Adafruit_Floppy::disable_generate(void) {
   if (!theWriteTimer)
@@ -417,14 +410,15 @@ bool Adafruit_Floppy::start_polled_capture(void) {
 }
 
 uint16_t mfm_io_sample_flux(bool *index) {
-  if (!theReadTimer) return ~0u;
+  if (!theReadTimer)
+    return ~0u;
 
   // Check for match counter 0 (MC0) interrupt
   while (!(theReadTimer->COUNT16.INTFLAG.bit.MC0)) {
     /* NOTHING */
   }
   uint16_t ticks =
-    theReadTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
+      theReadTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
   return ticks;
 }
 

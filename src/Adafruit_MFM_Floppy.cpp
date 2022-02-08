@@ -88,8 +88,8 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
   }
   _floppy->side(head);
   // Serial.println("done!");
-  uint32_t captured_sectors =
-      _floppy->read_track_mfm(track_data, _sectors_per_track, track_validity, _high_density);
+  uint32_t captured_sectors = _floppy->read_track_mfm(
+      track_data, _sectors_per_track, track_validity, _high_density);
   /*
     Serial.print("Captured %d sectors", captured_sectors);
 

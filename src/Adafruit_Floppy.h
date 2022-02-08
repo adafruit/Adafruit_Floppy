@@ -52,14 +52,14 @@ public:
   void step(bool dir, uint8_t times);
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
-                          uint8_t *sector_validity, bool high_density=true);
+                          uint8_t *sector_validity, bool high_density = true);
   uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
                          uint32_t *falling_index_offset,
                          bool store_greaseweazle = false)
       __attribute__((optimize("O3")));
-  void write_track(uint8_t *pulses, uint32_t num_pulses, 
+  void write_track(uint8_t *pulses, uint32_t num_pulses,
                    bool store_greaseweazle = false)
-    __attribute__((optimize("O3")));
+      __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                         uint8_t max_bins = 64, bool is_gw_format = false);
   void print_pulses(uint8_t *pulses, uint32_t num_pulses,

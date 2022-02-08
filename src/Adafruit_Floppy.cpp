@@ -354,7 +354,8 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
 */
 /**************************************************************************/
 uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
-                                         uint8_t *sector_validity, bool high_density) {
+                                         uint8_t *sector_validity,
+                                         bool high_density) {
   mfm_io_t io;
 
   if (high_density) {
@@ -521,7 +522,6 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
 #endif
 }
 
-
 void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
                                   bool store_greaseweazle) {
 #if defined(__SAMD51__)
@@ -539,7 +539,7 @@ void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
   // init global interrupt data
   g_flux_pulses = pulses;
   g_max_pulses = num_pulses;
-  g_num_pulses = 1;  // Pulse 0 is config'd below...this is NEXT pulse index
+  g_num_pulses = 1; // Pulse 0 is config'd below...this is NEXT pulse index
   g_store_greaseweazle = store_greaseweazle;
   g_writing_pulses = true;
 
@@ -588,22 +588,23 @@ void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
   noInterrupts();
   wait_for_index_pulse_low();
   digitalWrite(_wrgatepin, LOW);
-  
+
   // write track data
   while (num_pulses--) {
     uint8_t pulse_count = pulses_ptr[0];
     pulses_ptr++;
     // ?? lets bail
-    if (pulse_count == 0) break;
+    if (pulse_count == 0)
+      break;
 
     clr_write();
     pulse_count -= 11;
-    while(pulse_count--) {
+    while (pulse_count--) {
       asm("nop; nop; nop; nop; nop;");
     }
     set_write();
     pulse_count = 8;
-    while(pulse_count--) {
+    while (pulse_count--) {
       asm("nop; nop; nop; nop; nop; nop; nop; nop; nop;");
     }
   }
@@ -729,23 +730,27 @@ void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
 uint16_t mfm_io_sample_flux(bool *index);
 
 static inline mfm_io_symbol_t mfm_io_read_symbol(mfm_io_t *io) {
-    bool new_index_state;
-    uint16_t fluxval = mfm_io_sample_flux(&new_index_state);
-    if(io->index_state && !new_index_state) {
-        io->index_count ++;
-    }
-    io->index_state = new_index_state;
-    if(fluxval > io->T3_5) { return pulse_1000; }
-    if(fluxval > io->T2_5) { return pulse_100; }
-    return pulse_10;
+  bool new_index_state;
+  uint16_t fluxval = mfm_io_sample_flux(&new_index_state);
+  if (io->index_state && !new_index_state) {
+    io->index_count++;
+  }
+  io->index_state = new_index_state;
+  if (fluxval > io->T3_5) {
+    return pulse_1000;
+  }
+  if (fluxval > io->T2_5) {
+    return pulse_100;
+  }
+  return pulse_10;
 }
 
 static inline void mfm_io_reset_sync_count(mfm_io_t *io) {
-    io->index_count = 0;
+  io->index_count = 0;
 }
 
 static inline int mfm_io_get_sync_count(mfm_io_t *io) {
-    return io->index_count;
+  return io->index_count;
 }
 
 uint16_t Adafruit_Floppy::sample_flux(bool &index) {

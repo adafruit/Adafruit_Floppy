@@ -123,7 +123,7 @@ static bool init_capture(int index_pin, int read_pin) {
   if (g_floppy.pio) {
     return true;
   }
-Serial.println("init capture");
+  Serial.println("init capture");
   memset(&g_floppy, 0, sizeof(g_floppy));
 
   if (!allocate_pio_set_program()) {
@@ -268,18 +268,17 @@ bool Adafruit_Floppy::init_capture(void) {
 }
 
 bool Adafruit_Floppy::start_polled_capture(void) {
-  if (!init_capture()) return false;
+  if (!init_capture())
+    return false;
   start_common();
   pio_sm_set_enabled(g_floppy.pio, g_floppy.sm, true);
   return true;
 }
 
-void Adafruit_Floppy::disable_capture(void) {
-    ::disable_capture();
-}
+void Adafruit_Floppy::disable_capture(void) { ::disable_capture(); }
 
 uint16_t mfm_io_sample_flux(bool *index) {
-  if(_last == ~0u) {
+  if (_last == ~0u) {
     _last = read_fifo();
   }
   int data = read_fifo();
