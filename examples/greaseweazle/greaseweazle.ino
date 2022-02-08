@@ -330,12 +330,24 @@ void loop() {
     }
     
     Serial1.printf("Reading flux0rs on track %d: %u ticks and %d revs\n\r", floppy.track(), flux_ticks, revs);
+    uint16_t capture_ms = 0;
+    uint16_t capture_revs = 0;
+    if (flux_ticks) {
+      // we'll back calculate the revolutions
+      capture_ms = 1000.0 * (float)flux_ticks / (float)floppy.getSampleFrequency();
+      revs = 1;
+    } else {
+      capture_revs = revs;
+      capture_ms = 0;
+    }
+    
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
     while (revs--) {
       uint32_t index_offset;
       // read in greaseweazle mode (long pulses encoded with 250's)
-      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_offset, true);
+      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions), 
+                                             &index_offset, true, capture_ms);
       Serial1.printf("Rev #%d captured %u pulses, second index fall @ %d\n\r", 
                      revs, captured_pulses, index_offset);
       //floppy.print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
@@ -379,7 +391,6 @@ void loop() {
         captured_pulses -= to_send;
       }
     }
-
     // flush input, to account for fluxengine bug
     while (Serial.available()) Serial.read();
 

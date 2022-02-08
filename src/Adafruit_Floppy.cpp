@@ -412,7 +412,8 @@ uint32_t Adafruit_Floppy::getSampleFrequency(void) {
 uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
                                         uint32_t max_pulses,
                                         uint32_t *falling_index_offset,
-                                        bool store_greaseweazle) {
+                                        bool store_greaseweazle,
+                                        uint32_t capture_ms) {
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
 #if defined(ARDUINO_ARCH_RP2040)
@@ -427,6 +428,7 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   init_capture();
   // allow interrupts
   interrupts();
+  int32_t start_time = millis();
   // init global interrupt data
   g_flux_pulses = pulses;
   g_max_pulses = max_pulses;
@@ -438,8 +440,17 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   wait_for_index_pulse_low();
   // track when it happened for later...
   *falling_index_offset = g_num_pulses;
-  // wait another 50ms which is about 1/4 of a track
-  delay(50);
+
+  if (!capture_ms) {
+    // wait another 50ms which is about 1/4 of a track
+    delay(50);
+  } else {
+    int32_t remaining = capture_ms - (millis() - start_time);
+    if (remaining > 0) {
+      debug_serial->printf("Delaying another %d ms post-index\n\r", remaining);
+      delay(remaining);
+    }
+  }
   // ok we're done, clean up!
   disable_capture();
   deinit_capture();
