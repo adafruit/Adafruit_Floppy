@@ -28,7 +28,7 @@ static const struct {
 Tc *theReadTimer = NULL;
 Tc *theWriteTimer = NULL;
 
-int g_tc_num;
+int g_cap_tc_num;
 volatile uint8_t *g_flux_pulses = NULL;
 volatile uint32_t g_max_pulses = 0;
 volatile uint32_t g_num_pulses = 0;
@@ -118,7 +118,7 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
     return false;
   }
 
-  uint32_t tcNum = g_tc_num = GetTCNumber(pinDesc.ulPWMChannel);
+  uint32_t tcNum = GetTCNumber(pinDesc.ulPWMChannel);
   uint8_t tcChannel = GetTCChannelNumber(pinDesc.ulPWMChannel);
 
   if (tcNum < TCC_INST_NUM) {
@@ -135,7 +135,7 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
       return false;
     }
   }
-  tcNum -= TCC_INST_NUM; // adjust naming
+  g_cap_tc_num = tcNum -= TCC_INST_NUM; // adjust naming
   if (debug_serial)
     debug_serial->printf("readdata on port %d and pin %d, IRQ #%d, TC%d.%d\n\r",
                          capture_port, capture_pin, capture_irq, tcNum,
@@ -227,11 +227,11 @@ static void enable_capture_timer(bool interrupt_driven) {
 
   if (interrupt_driven) {
     NVIC_EnableIRQ(
-        tcList[g_tc_num].IRQn); // Connect the TCx timer to the Nested
+        tcList[g_cap_tc_num].IRQn); // Connect the TCx timer to the Nested
                                 // Vector Interrupt Controller (NVIC)
   } else {
     NVIC_DisableIRQ(
-        tcList[g_tc_num].IRQn); // Connect the TCx timer to the Nested
+        tcList[g_cap_tc_num].IRQn); // Disconnect the TCx timer from the Nested
                                 // Vector Interrupt Controller (NVIC)
   }
 
