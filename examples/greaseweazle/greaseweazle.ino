@@ -323,7 +323,9 @@ void loop() {
     revs = cmd_buffer[7];
     revs <<= 8;
     revs |= cmd_buffer[6]; 
-    revs -= 1;
+    if (revs) {
+      revs -= 1;
+    }
 
     if (floppy.track() == -1) {
       floppy.goto_track(0);
