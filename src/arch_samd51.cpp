@@ -228,11 +228,11 @@ static void enable_capture_timer(bool interrupt_driven) {
   if (interrupt_driven) {
     NVIC_EnableIRQ(
         tcList[g_cap_tc_num].IRQn); // Connect the TCx timer to the Nested
-                                // Vector Interrupt Controller (NVIC)
+                                    // Vector Interrupt Controller (NVIC)
   } else {
     NVIC_DisableIRQ(
         tcList[g_cap_tc_num].IRQn); // Disconnect the TCx timer from the Nested
-                                // Vector Interrupt Controller (NVIC)
+                                    // Vector Interrupt Controller (NVIC)
   }
 
   theReadTimer->COUNT16.CTRLA.bit.ENABLE = 1; // Enable the TC timer
