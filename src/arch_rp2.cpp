@@ -291,9 +291,5 @@ uint16_t mfm_io_sample_flux(bool *index) {
   return delta / 2;
 }
 
-uint16_t Adafruit_Floppy::sample_flux(bool &index) {
-  return ::mfm_io_sample_flux(&index);
-}
-
 #endif
 #endif

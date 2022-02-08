@@ -28,6 +28,7 @@ static const struct {
 Tc *theReadTimer = NULL;
 Tc *theWriteTimer = NULL;
 
+int g_tc_num;
 volatile uint8_t *g_flux_pulses = NULL;
 volatile uint32_t g_max_pulses = 0;
 volatile uint32_t g_num_pulses = 0;
@@ -118,7 +119,7 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
     return false;
   }
 
-  uint32_t tcNum = GetTCNumber(pinDesc.ulPWMChannel);
+  uint32_t tcNum = g_tc_num = GetTCNumber(pinDesc.ulPWMChannel);
   uint8_t tcChannel = GetTCChannelNumber(pinDesc.ulPWMChannel);
 
   if (tcNum < TCC_INST_NUM) {
@@ -204,12 +205,9 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
       TC_EVCTRL_EVACT_PPW; // Set up the timer for capture: CC0 period, CC1
                            // pulsewidth
 
-  NVIC_SetPriority(tcList[tcNum].IRQn,
-                   0); // Set the Nested Vector Interrupt Controller (NVIC)
-                       // priority for TCx to 0 (highest)
-  NVIC_EnableIRQ(tcList[tcNum].IRQn); // Connect the TCx timer to the Nested
-                                      // Vector Interrupt Controller (NVIC)
-
+    NVIC_SetPriority(tcList[tcNum].IRQn,
+                     0); // Set the Nested Vector Interrupt Controller (NVIC)
+                         // priority for TCx to 0 (highest)
   theReadTimer->COUNT16.INTENSET.reg =
       TC_INTENSET_MC1 | // Enable compare channel 1 (CC1) interrupts
       TC_INTENSET_MC0;  // Enable compare channel 0 (CC0) interrupts
@@ -225,9 +223,17 @@ static bool init_capture_timer(int _rddatapin, Stream *debug_serial) {
 }
 
 
-static void enable_capture_timer(void) {
+static void enable_capture_timer(bool interrupt_driven) {
   if (!theReadTimer)
     return;
+ 
+  if (interrupt_driven) {
+    NVIC_EnableIRQ(tcList[g_tc_num].IRQn); // Connect the TCx timer to the Nested
+                                        // Vector Interrupt Controller (NVIC)
+  } else {
+    NVIC_DisableIRQ(tcList[g_tc_num].IRQn); // Connect the TCx timer to the Nested
+                                        // Vector Interrupt Controller (NVIC)
+  }
 
   theReadTimer->COUNT16.CTRLA.bit.ENABLE = 1; // Enable the TC timer
   while (theReadTimer->COUNT16.SYNCBUSY.bit.ENABLE)
@@ -368,7 +374,7 @@ void Adafruit_Floppy::deinit_capture(void) {
 }
 
 
-void Adafruit_Floppy::enable_capture(void) { enable_capture_timer(); }
+void Adafruit_Floppy::enable_capture(void) { enable_capture_timer(true); }
 
 void Adafruit_Floppy::disable_capture(void) {
   if (!theReadTimer)
@@ -405,6 +411,22 @@ void Adafruit_Floppy::disable_generate(void) {
   theWriteTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
 }
 
+bool Adafruit_Floppy::start_polled_capture(void) {
+  ::enable_capture_timer(false);
+  return true;
+}
+
+uint16_t mfm_io_sample_flux(bool *index) {
+  if (!theReadTimer) return ~0u;
+
+  // Check for match counter 0 (MC0) interrupt
+  while (!(theReadTimer->COUNT16.INTFLAG.bit.MC0)) {
+    /* NOTHING */
+  }
+  uint16_t ticks =
+    theReadTimer->COUNT16.CC[0].reg / g_timing_div; // Copy the period
+  return ticks;
+}
 
 #endif
 

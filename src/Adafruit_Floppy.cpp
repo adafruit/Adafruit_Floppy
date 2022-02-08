@@ -362,7 +362,8 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
     io.T2_5 = getSampleFrequency() * 5 / 1000000;
     io.T3_5 = getSampleFrequency() * 7 / 1000000;
   }
-  if (!start_polled_capture()) { return 0; }
+  init_capture();
+  start_polled_capture();
   int result = read_track(io, n_sectors, sectors, sector_validity);
   disable_capture();
 
@@ -745,3 +746,6 @@ static inline int mfm_io_get_sync_count(mfm_io_t *io) {
     return io->index_count;
 }
 
+uint16_t Adafruit_Floppy::sample_flux(bool &index) {
+  return ::mfm_io_sample_flux(&index);
+}
