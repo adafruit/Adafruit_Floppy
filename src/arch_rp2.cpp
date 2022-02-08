@@ -123,6 +123,7 @@ static bool init_capture(int index_pin, int read_pin) {
   if (g_floppy.pio) {
     return true;
   }
+  Serial.println("init capture");
   memset(&g_floppy, 0, sizeof(g_floppy));
 
   if (!allocate_pio_set_program()) {
@@ -258,6 +259,35 @@ uint32_t rp2040_flux_capture(int indexpin, int rdpin, volatile uint8_t *pulses,
                      false, falling_index_offset, store_greaseweazle);
   free_capture();
   return pulse_end - pulses;
+}
+
+unsigned _last = ~0u;
+bool Adafruit_Floppy::init_capture(void) {
+  _last = ~0u;
+  return ::init_capture(_indexpin, _rddatapin);
+}
+
+bool Adafruit_Floppy::start_polled_capture(void) {
+  if (!init_capture())
+    return false;
+  start_common();
+  pio_sm_set_enabled(g_floppy.pio, g_floppy.sm, true);
+  return true;
+}
+
+void Adafruit_Floppy::disable_capture(void) { ::disable_capture(); }
+
+uint16_t mfm_io_sample_flux(bool *index) {
+  if (_last == ~0u) {
+    _last = read_fifo();
+  }
+  int data = read_fifo();
+  int delta = _last - data;
+  _last = data;
+  if (delta < 0)
+    delta += 65536;
+  *index = data & 1;
+  return delta / 2;
 }
 
 #endif
