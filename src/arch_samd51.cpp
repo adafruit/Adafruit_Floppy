@@ -82,7 +82,20 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
     // the interrupt.
     if (g_num_pulses < g_max_pulses) {
       // Set period for next pulse
-      theWriteTimer->COUNT16.CCBUF[0].reg = g_flux_pulses[g_num_pulses];
+
+      uint16_t ticks = g_flux_pulses[g_num_pulses];
+      if (ticks == 0) {
+        // dont do something if its 0 - thats wierd!
+      } else if (ticks < 250 || !g_store_greaseweazle) {
+        // 1-249: One byte.
+        ticks = min(249, ticks);
+      } else {
+        // 250-1524: Two bytes.
+        uint16_t high = ((ticks - 250) + 1) * 255;
+        g_num_pulses++;
+        ticks = high + g_flux_pulses[g_num_pulses];
+      }
+      theWriteTimer->COUNT16.CCBUF[0].reg = ticks;
     } else if (g_num_pulses > g_max_pulses) {
       // Last pulse out was allowed its one extra PWM cycle, done now
       theWriteTimer->COUNT16.CCBUF[1].reg = 0;     // Steady high on next pulse

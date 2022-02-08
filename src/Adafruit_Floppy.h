@@ -55,7 +55,8 @@ public:
                           uint8_t *sector_validity, bool high_density = true);
   uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
                          uint32_t *falling_index_offset,
-                         bool store_greaseweazle = false)
+                         bool store_greaseweazle = false,
+                         uint32_t capture_ms = 0)
       __attribute__((optimize("O3")));
   void write_track(uint8_t *pulses, uint32_t num_pulses,
                    bool store_greaseweazle = false)

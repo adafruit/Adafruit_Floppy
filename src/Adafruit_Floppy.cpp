@@ -35,10 +35,12 @@ extern void rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
 #define clr_debug_led() ((void)0)
 #endif
 
+/*! Our MFM decoding state **/
 struct mfm_io {
-  bool index_state;
-  unsigned index_count;
-  uint16_t T2_5, T3_5;
+  bool index_state;     ///< Our MFM decoder index state
+  unsigned index_count; ///< Our MFM decoder index counter
+  uint16_t T2_5,        ///< Our MFM decoder cutoffs for 2us vs 3us
+      T3_5;             ///< Our MFM decoder cutoffs for 3us vs 4us
 };
 
 #include "mfm_impl.h"
@@ -352,6 +354,7 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
    standard 3.5", 1.44MB format)
     @param  sector_validity An array of values set to 1 if the sector was
    captured, 0 if not captured (no IDAM, CRC error, etc)
+    @param  high_density Whether the diskette is high density (HD) encoded
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
@@ -402,13 +405,17 @@ uint32_t Adafruit_Floppy::getSampleFrequency(void) {
     "flux index" where the second index pulse fell. usually we read 110-125% of
     one track so there is an overlap of index pulse reads
     @param  store_greaseweazle Pass in true to pack long pulses with two bytes
+    @param  capture_ms If not zero, we will capture at least one revolution and
+   extra time will be determined by this variable. e.g. 250ms means one
+   revolution plus about 50 ms post-index
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
 uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
                                         uint32_t max_pulses,
                                         uint32_t *falling_index_offset,
-                                        bool store_greaseweazle) {
+                                        bool store_greaseweazle,
+                                        uint32_t capture_ms) {
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
 #if defined(ARDUINO_ARCH_RP2040)
@@ -423,6 +430,7 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   init_capture();
   // allow interrupts
   interrupts();
+  int32_t start_time = millis();
   // init global interrupt data
   g_flux_pulses = pulses;
   g_max_pulses = max_pulses;
@@ -434,8 +442,17 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
   wait_for_index_pulse_low();
   // track when it happened for later...
   *falling_index_offset = g_num_pulses;
-  // wait another 50ms which is about 1/4 of a track
-  delay(50);
+
+  if (!capture_ms) {
+    // wait another 50ms which is about 1/4 of a track
+    delay(50);
+  } else {
+    int32_t remaining = capture_ms - (millis() - start_time);
+    if (remaining > 0) {
+      debug_serial->printf("Delaying another %d ms post-index\n\r", remaining);
+      delay(remaining);
+    }
+  }
   // ok we're done, clean up!
   disable_capture();
   deinit_capture();
@@ -524,6 +541,14 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
 #endif
 }
 
+/**************************************************************************/
+/*!
+    @brief  Write one track of flux pulse data, starting at the index pulse
+    @param  pulses An array of timer-count pulses
+    @param  num_pulses How many bytes are in the pulse array
+    @param  store_greaseweazle If true, long pulses are 'packed' in gw format
+*/
+/**************************************************************************/
 void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
                                   bool store_greaseweazle) {
 #if defined(ARDUINO_ARCH_RP2040)
