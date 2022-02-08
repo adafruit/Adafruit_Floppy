@@ -89,6 +89,7 @@ public:
   void disable_generate(void);
 #endif
 
+private:
   bool start_polled_capture(void);
   void disable_capture(void);
   uint16_t sample_flux(bool &new_index_state);
@@ -97,7 +98,6 @@ public:
     return sample_flux(unused);
   }
 
-private:
   bool init_capture(void);
   void enable_background_capture(void);
   void wait_for_index_pulse_low(void);
