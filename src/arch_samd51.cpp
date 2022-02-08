@@ -91,7 +91,7 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
         ticks = min(249, ticks);
       } else {
         // 250-1524: Two bytes.
-        uint16_t high = ((ticks - 250)+1) * 255;
+        uint16_t high = ((ticks - 250) + 1) * 255;
         g_num_pulses++;
         ticks = high + g_flux_pulses[g_num_pulses];
       }
