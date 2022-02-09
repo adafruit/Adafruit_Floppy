@@ -1,5 +1,4 @@
 #pragma once
-#include <Arduino.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -84,7 +83,7 @@ static inline unsigned greaseunpack(uint8_t **buf_, uint8_t *end,
     }
     if (need == 2) {
       uint8_t data2 = *BUF++;
-      return (data - cutoff_1byte) * 250 + data2;
+      return (data - cutoff_1byte + 1) * 250 + data2;
     }
     uint8_t data2 = *BUF++;
     if (data2 != 2) {
