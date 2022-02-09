@@ -28,9 +28,6 @@
   #define READ_PIN      9    // IDC 30
   #define SIDE_PIN      8    // IDC 32
   #define READY_PIN     7    // IDC 34
-#if F_CPU != 200000000L
-  #warning "please set CPU speed to 200MHz overclock"
-#endif
 #elif defined (ARDUINO_RASPBERRY_PI_PICO)
   #define DENSITY_PIN  2     // IDC 2
   #define INDEX_PIN    3     // IDC 8
@@ -45,9 +42,6 @@
   #define READ_PIN    12     // IDC 30
   #define SIDE_PIN    13     // IDC 32
   #define READY_PIN   14     // IDC 34
-#if F_CPU != 200000000L
-  #warning "please set CPU speed to 200MHz overclock"
-#endif
 #else
 #error "Please set up pin definitions!"
 #endif
