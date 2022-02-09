@@ -159,7 +159,6 @@ static void free_capture(void) {
 }
 
 static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
-                                   bool wait_index, bool stop_index,
                                    uint32_t *falling_index_offset,
                                    bool store_greaseweazle,
                                    uint32_t capture_counts) {
@@ -169,11 +168,9 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
   start_common();
 
   // wait for a falling edge of index pin, then enable the capture peripheral
-  if (wait_index) {
-    while (!gpio_get(index_pin)) { /* NOTHING */
-    }
-    while (gpio_get(index_pin)) { /* NOTHING */
-    }
+  while (!gpio_get(index_pin)) { /* NOTHING */
+  }
+  while (gpio_get(index_pin)) { /* NOTHING */
   }
 
   uint32_t total_counts = 0;
@@ -336,7 +333,7 @@ uint32_t rp2040_flux_capture(int index_pin, int rdpin, volatile uint8_t *pulses,
   }
   uint32_t result =
       capture_foreground(index_pin, (uint8_t *)pulses, (uint8_t *)pulse_end,
-                         true, false, falling_index_offset, store_greaseweazle,
+                         falling_index_offset, store_greaseweazle,
                          capture_counts) -
       pulses;
   free_capture();
