@@ -12,20 +12,7 @@
 #define set_write() (*writePort |= writeMask)
 #define clr_write() (*writePort &= ~writeMask)
 #elif defined(ARDUINO_ARCH_RP2040)
-#define read_index() gpio_get(_indexpin)
-#define read_data() gpio_get(_rddatapin)
-#define set_debug_led() gpio_put(led_pin, 1)
-#define clr_debug_led() gpio_put(led_pin, 0)
-#define set_write() gpio_put(_wrdatapin, 1)
-#define clr_write() gpio_put(_wrdatapin, 0)
-extern uint32_t rp2040_flux_capture(int indexpin, int rdpin,
-                                    volatile uint8_t *pulses,
-                                    volatile uint8_t *end,
-                                    uint32_t *falling_index_offset,
-                                    bool store_greaseweazle);
-extern void rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
-                              uint8_t *pulses, uint8_t *pulse_end,
-                              bool store_greaseweazel);
+#include "arch_rp2.h"
 #endif
 
 #if !DEBUG_FLOPPY
@@ -420,7 +407,8 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
 
 #if defined(ARDUINO_ARCH_RP2040)
   return rp2040_flux_capture(_indexpin, _rddatapin, pulses, pulses + max_pulses,
-                             falling_index_offset, store_greaseweazle);
+                             falling_index_offset, store_greaseweazle,
+                             capture_ms * (getSampleFrequency() / 1000));
 #elif defined(__SAMD51__)
   noInterrupts();
   wait_for_index_pulse_low();

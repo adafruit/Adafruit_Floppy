@@ -1,4 +1,5 @@
 #if defined(PICO_BOARD) || defined(__RP2040__) || defined(ARDUINO_ARCH_RP2040)
+#include "arch_rp2.h"
 #include "greasepack.h"
 #include <Arduino.h>
 #include <hardware/clocks.h>
@@ -153,14 +154,15 @@ static void free_capture(void) {
   }
   disable_capture();
   pio_sm_unclaim(g_reader.pio, g_reader.sm);
-  pio_remove_program(g_reader.pio, &fluxwrite_struct, g_reader.offset);
+  pio_remove_program(g_reader.pio, &fluxread_struct, g_reader.offset);
   memset(&g_reader, 0, sizeof(g_reader));
 }
 
-static void capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
-                               bool wait_index, bool stop_index,
-                               uint32_t *falling_index_offset,
-                               bool store_greaseweazle) {
+static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
+                                   bool wait_index, bool stop_index,
+                                   uint32_t *falling_index_offset,
+                                   bool store_greaseweazle,
+                                   uint32_t capture_counts) {
   if (falling_index_offset) {
     *falling_index_offset = ~0u;
   }
@@ -174,6 +176,10 @@ static void capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
     }
   }
 
+  uint32_t total_counts = 0;
+
+  noInterrupts();
+  pio_sm_clear_fifos(g_reader.pio, g_reader.sm);
   pio_sm_set_enabled(g_reader.pio, g_reader.sm, true);
   int last = read_fifo();
   int i = 0;
@@ -187,20 +193,27 @@ static void capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
       if (falling_index_offset) {
         *falling_index_offset = i;
         falling_index_offset = NULL;
-        if (stop_index)
-          break;
+        if (!capture_counts)
+          capture_counts = total_counts + 1200000; // capture 50ms post-index
       }
     }
     i++;
     last = data;
+    total_counts += delta;
     if (store_greaseweazle) {
       start = greasepack(start, end, delta);
     } else {
       *start++ = delta > 255 ? 255 : delta;
     }
+    if (capture_counts != 0 && total_counts >= capture_counts) {
+      break;
+    }
   }
+  interrupts();
 
   disable_capture();
+
+  return start;
 }
 
 static void enable_capture_fifo() { start_common(); }
@@ -317,12 +330,17 @@ static void free_write() {
 uint32_t rp2040_flux_capture(int index_pin, int rdpin, volatile uint8_t *pulses,
                              volatile uint8_t *pulse_end,
                              uint32_t *falling_index_offset,
-                             bool store_greaseweazle) {
-  init_capture(index_pin, rdpin);
-  capture_foreground(index_pin, (uint8_t *)pulses, (uint8_t *)pulse_end, true,
-                     false, falling_index_offset, store_greaseweazle);
+                             bool store_greaseweazle, uint32_t capture_counts) {
+  if (!init_capture(index_pin, rdpin)) {
+    return 0;
+  }
+  uint32_t result =
+      capture_foreground(index_pin, (uint8_t *)pulses, (uint8_t *)pulse_end,
+                         true, false, falling_index_offset, store_greaseweazle,
+                         capture_counts) -
+      pulses;
   free_capture();
-  return pulse_end - pulses;
+  return result;
 }
 
 unsigned _last = ~0u;
