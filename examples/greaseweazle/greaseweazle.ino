@@ -412,16 +412,6 @@ void loop() {
       Serial1.println("*** FLUX OVERRUN ***");
       while(1) yield();
     }
-    Serial1.printf("Read in %d flux transitions\n\r", fluxors);
-    for (uint32_t i=0; i<fluxors; i++) {
-      uint8_t flux = flux_transitions[i];
-      if (flux > 250) { // an unhandled fluxop!
-        Serial1.printf("Fluxop 0x%x at %d\n\r", flux, i);
-        while(1) yield();
-      }
-    }
-    floppy.print_pulses(flux_transitions, 64, true);
-    floppy.print_pulse_bins(flux_transitions, fluxors-7, 64, true);
     floppy.write_track(flux_transitions, fluxors-7, true);
     Serial1.println("wrote fluxors");
     Serial.write((byte)0);
