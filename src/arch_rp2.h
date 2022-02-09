@@ -6,7 +6,7 @@
 #define clr_debug_led() gpio_put(led_pin, 0)
 #define set_write() gpio_put(_wrdatapin, 1)
 #define clr_write() gpio_put(_wrdatapin, 0)
-extern Stream *debug_serial;
+#include <stdint.h>
 extern uint32_t
 rp2040_flux_capture(int indexpin, int rdpin, volatile uint8_t *pulses,
                     volatile uint8_t *end, uint32_t *falling_index_offset,
