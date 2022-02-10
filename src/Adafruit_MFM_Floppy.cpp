@@ -1,7 +1,5 @@
 #include <Adafruit_Floppy.h>
 
-extern uint32_t T2_5, T3_5;
-
 /**************************************************************************/
 /*!
     @brief  Instantiate an MFM-formatted floppy
@@ -19,13 +17,11 @@ Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
   if (_format == IBMPC1440K) {
     _sectors_per_track = MFM_IBMPC1440K_SECTORS_PER_TRACK;
     _tracks_per_side = FLOPPY_IBMPC_HD_TRACKS;
-    T2_5 = T2_5_IBMPC_HD;
-    T3_5 = T3_5_IBMPC_HD;
+    _high_density = true;
   } else if (_format == IBMPC360K) {
     _sectors_per_track = MFM_IBMPC360K_SECTORS_PER_TRACK;
     _tracks_per_side = FLOPPY_IBMPC_DD_TRACKS;
-    T2_5 = T2_5_IBMPC_DD;
-    T3_5 = T3_5_IBMPC_DD;
+    _high_density = false;
   }
 }
 
@@ -92,8 +88,8 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
   }
   _floppy->side(head);
   // Serial.println("done!");
-  uint32_t captured_sectors =
-      _floppy->read_track_mfm(track_data, _sectors_per_track, track_validity);
+  uint32_t captured_sectors = _floppy->read_track_mfm(
+      track_data, _sectors_per_track, track_validity, _high_density);
   /*
     Serial.print("Captured %d sectors", captured_sectors);
 

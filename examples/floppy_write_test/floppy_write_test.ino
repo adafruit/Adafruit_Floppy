@@ -104,5 +104,26 @@ void loop() {
     Serial.println(digitalRead(TRK0_PIN) ? "No" : "Yes");
     time_stamp = millis();
   }
+
+  unsigned T_2 = floppy.getSampleFrequency() * 2 / 1000000;
+  unsigned T_3 = floppy.getSampleFrequency() * 3 / 1000000;
+  unsigned T_4 = floppy.getSampleFrequency() * 4 / 1000000;
+
+  for(size_t i=0; i<sizeof(flux_transitions); i+=3) {
+    flux_transitions[i] = T_2;
+  }
+  for(size_t i=1; i<sizeof(flux_transitions); i+=3) {
+    flux_transitions[i] = T_3;
+  }
+  for(size_t i=2; i<sizeof(flux_transitions); i+=3) {
+    flux_transitions[i] = T_4;
+  }
+
+  floppy.print_pulse_bins(flux_transitions, captured_flux, 255, true);
+
+  Serial.println("Writing track with T234234...");
+  Serial.printf("T2 = %d T3 = %d T4 = %d\n", T_2, T_3, T_4);
+  floppy.write_track(flux_transitions, sizeof(flux_transitions), true);
+
   yield();
 }

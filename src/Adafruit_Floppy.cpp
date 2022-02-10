@@ -9,15 +9,11 @@
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
+#define set_write() (*writePort |= writeMask)
+#define clr_write() (*writePort &= ~writeMask)
 #elif defined(ARDUINO_ARCH_RP2040)
-#define read_index() gpio_get(_indexpin)
-#define read_data() gpio_get(_rddatapin)
-#define set_debug_led() gpio_put(led_pin, 1)
-#define clr_debug_led() gpio_put(led_pin, 0)
+#include "arch_rp2.h"
 #endif
-
-uint32_t T2_5 = T2_5_IBMPC_HD;
-uint32_t T3_5 = T3_5_IBMPC_HD;
 
 #if !DEBUG_FLOPPY
 #undef set_debug_led
@@ -26,8 +22,24 @@ uint32_t T3_5 = T3_5_IBMPC_HD;
 #define clr_debug_led() ((void)0)
 #endif
 
-#define MFM_IO_MMIO (1)
+/*! Our MFM decoding state **/
+struct mfm_io {
+  bool index_state;     ///< Our MFM decoder index state
+  unsigned index_count; ///< Our MFM decoder index counter
+  uint16_t T2_5,        ///< Our MFM decoder cutoffs for 2us vs 3us
+      T3_5;             ///< Our MFM decoder cutoffs for 3us vs 4us
+};
+
 #include "mfm_impl.h"
+
+#if defined(__SAMD51__)
+extern volatile uint8_t *g_flux_pulses;
+extern volatile uint32_t g_max_pulses;
+extern volatile uint32_t g_num_pulses;
+extern volatile bool g_store_greaseweazle;
+extern volatile uint8_t g_timing_div;
+extern volatile bool g_writing_pulses;
+#endif
 
 /**************************************************************************/
 /*!
@@ -74,9 +86,23 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
 /**************************************************************************/
 /*!
     @brief  Initializes the GPIO pins but do not start the motor or anything
+    @returns True if able to set up all pins and capture/waveform peripherals
 */
 /**************************************************************************/
-void Adafruit_Floppy::begin(void) { soft_reset(); }
+bool Adafruit_Floppy::begin(void) {
+  soft_reset();
+#if defined(__SAMD51__)
+  if (!init_capture()) {
+    return false;
+  }
+  deinit_capture();
+  if (!init_generate()) {
+    return false;
+  }
+  deinit_generate();
+#endif
+  return true;
+}
 
 /**************************************************************************/
 /*!
@@ -110,7 +136,7 @@ void Adafruit_Floppy::soft_reset(void) {
   pinMode(_readypin, INPUT_PULLUP);
   pinMode(_rddatapin, INPUT_PULLUP);
 
-  // set high density
+  // set low density
   pinMode(_densitypin, OUTPUT);
   digitalWrite(_densitypin, LOW);
 
@@ -120,8 +146,7 @@ void Adafruit_Floppy::soft_reset(void) {
     digitalWrite(_wrdatapin, HIGH);
   }
   if (_wrgatepin >= 0) {
-    pinMode(_wrgatepin, OUTPUT);
-    digitalWrite(_wrgatepin, HIGH);
+    pinMode(_wrgatepin, INPUT_PULLUP);
   }
 
 #ifdef BUSIO_USE_FAST_PINIO
@@ -316,37 +341,45 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
    standard 3.5", 1.44MB format)
     @param  sector_validity An array of values set to 1 if the sector was
    captured, 0 if not captured (no IDAM, CRC error, etc)
+    @param  high_density Whether the diskette is high density (HD) encoded
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
 uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
-                                         uint8_t *sector_validity) {
+                                         uint8_t *sector_validity,
+                                         bool high_density) {
   mfm_io_t io;
-#ifdef BUSIO_USE_FAST_PINIO
-  BusIO_PortReg *dataPort, *ledPort;
-  BusIO_PortMask dataMask, ledMask;
-  dataPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_rddatapin));
-  dataMask = digitalPinToBitMask(_rddatapin);
-  ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
-  ledMask = digitalPinToBitMask(led_pin);
-  (void)ledPort;
-  (void)ledMask;
-  io.index_port = indexPort;
-  io.index_mask = indexMask;
-  io.data_port = dataPort;
-  io.data_mask = dataMask;
-#elif defined(ARDUINO_ARCH_RP2040)
-  io.index_port = &sio_hw->gpio_in;
-  io.index_mask = 1u << _indexpin;
-  io.data_port = &sio_hw->gpio_in;
-  io.data_mask = 1u << _rddatapin;
-#endif
 
-  noInterrupts();
+  if (high_density) {
+    io.T2_5 = getSampleFrequency() * 5 / 2 / 1000000;
+    io.T3_5 = getSampleFrequency() * 7 / 2 / 1000000;
+  } else {
+    io.T2_5 = getSampleFrequency() * 5 / 1000000;
+    io.T3_5 = getSampleFrequency() * 7 / 1000000;
+  }
+  init_capture();
+  start_polled_capture();
   int result = read_track(io, n_sectors, sectors, sector_validity);
-  interrupts();
+  disable_capture();
 
   return result;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Get the sample rate that we read and emit pulses at, platform and
+   implementation-dependant
+    @return Sample frequency in Hz, or 0 if not known
+*/
+/**************************************************************************/
+uint32_t Adafruit_Floppy::getSampleFrequency(void) {
+#if defined(__SAMD51__)
+  return 48000000UL / g_timing_div;
+#endif
+#if defined(ARDUINO_ARCH_RP2040)
+  return 24000000UL;
+#endif
+  return 0;
 }
 
 /**************************************************************************/
@@ -355,13 +388,68 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
    index pulses
     @param  pulses A pointer to an array of memory we can use to store into
     @param  max_pulses The size of the allocated pulses array
+    @param  falling_index_offset Pointer to a uint32_t where we will store the
+    "flux index" where the second index pulse fell. usually we read 110-125% of
+    one track so there is an overlap of index pulse reads
+    @param  store_greaseweazle Pass in true to pack long pulses with two bytes
+    @param  capture_ms If not zero, we will capture at least one revolution and
+   extra time will be determined by this variable. e.g. 250ms means one
+   revolution plus about 50 ms post-index
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
-  unsigned pulse_count;
-  uint8_t *pulses_ptr = pulses;
-  uint8_t *pulses_end = pulses + max_pulses;
+uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
+                                        uint32_t max_pulses,
+                                        uint32_t *falling_index_offset,
+                                        bool store_greaseweazle,
+                                        uint32_t capture_ms) {
+  memset((void *)pulses, 0, max_pulses); // zero zem out
+
+#if defined(ARDUINO_ARCH_RP2040)
+  return rp2040_flux_capture(_indexpin, _rddatapin, pulses, pulses + max_pulses,
+                             falling_index_offset, store_greaseweazle,
+                             capture_ms * (getSampleFrequency() / 1000));
+#elif defined(__SAMD51__)
+  noInterrupts();
+  wait_for_index_pulse_low();
+
+  disable_capture();
+  // in case the timer was reused, we will re-init it each time!
+  init_capture();
+  // allow interrupts
+  interrupts();
+  int32_t start_time = millis();
+  // init global interrupt data
+  g_flux_pulses = pulses;
+  g_max_pulses = max_pulses;
+  g_num_pulses = 0;
+  g_store_greaseweazle = store_greaseweazle;
+  // enable capture
+  enable_capture();
+  // meanwhile... wait for *second* low pulse
+  wait_for_index_pulse_low();
+  // track when it happened for later...
+  *falling_index_offset = g_num_pulses;
+
+  if (!capture_ms) {
+    // wait another 50ms which is about 1/4 of a track
+    delay(50);
+  } else {
+    int32_t remaining = capture_ms - (millis() - start_time);
+    if (remaining > 0) {
+      debug_serial->printf("Delaying another %d ms post-index\n\r", remaining);
+      delay(remaining);
+    }
+  }
+  // ok we're done, clean up!
+  disable_capture();
+  deinit_capture();
+  return g_num_pulses;
+
+#else // bitbang it!
+
+  noInterrupts();
+  wait_for_index_pulse_low();
 
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *dataPort, *ledPort;
@@ -374,10 +462,9 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   (void)ledMask;
 #endif
 
-  memset(pulses, 0, max_pulses); // zero zem out
-
-  noInterrupts();
-  wait_for_index_pulse_low();
+  unsigned pulse_count;
+  volatile uint8_t *pulses_ptr = pulses;
+  volatile uint8_t *pulses_end = pulses + max_pulses;
 
   // wait for one clean flux pulse so we dont get cut off.
   // don't worry about losing this pulse, we'll get it on our
@@ -403,9 +490,13 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
     // ahh a L to H transition
     if (!last_index_state && index_state) {
       index_transitions++;
-      if (index_transitions ==
-          2) // and its the second one, so we're done with this track!
-        break;
+      if (index_transitions == 2)
+        break; // and its the second one, so we're done with this track!
+    }
+    // ooh a H to L transition, thats 1 revolution
+    else if (last_index_state && !index_state) {
+      // we'll keep track of when it happened
+      *falling_index_offset = (pulses_ptr - pulses);
     }
     last_index_state = index_state;
 
@@ -435,6 +526,112 @@ uint32_t Adafruit_Floppy::capture_track(uint8_t *pulses, uint32_t max_pulses) {
   // whew done
   interrupts();
   return pulses_ptr - pulses;
+#endif
+}
+
+/**************************************************************************/
+/*!
+    @brief  Write one track of flux pulse data, starting at the index pulse
+    @param  pulses An array of timer-count pulses
+    @param  num_pulses How many bytes are in the pulse array
+    @param  store_greaseweazle If true, long pulses are 'packed' in gw format
+*/
+/**************************************************************************/
+void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
+                                  bool store_greaseweazle) {
+#if defined(ARDUINO_ARCH_RP2040)
+  rp2040_flux_write(_indexpin, _wrgatepin, _wrdatapin, pulses,
+                    pulses + num_pulses, store_greaseweazle);
+#elif defined(__SAMD51__)
+
+  pinMode(_wrdatapin, OUTPUT);
+  digitalWrite(_wrdatapin, HIGH);
+
+  pinMode(_wrgatepin, OUTPUT);
+  digitalWrite(_wrgatepin, HIGH);
+
+  disable_generate();
+  // in case the timer was reused, we will re-init it each time!
+  init_generate();
+
+  // init global interrupt data
+  g_flux_pulses = pulses;
+  g_max_pulses = num_pulses;
+  g_num_pulses = 1; // Pulse 0 is config'd below...this is NEXT pulse index
+  g_store_greaseweazle = store_greaseweazle;
+  g_writing_pulses = true;
+
+  wait_for_index_pulse_low();
+  // start teh writin'
+  digitalWrite(_wrgatepin, LOW);
+  enable_generate();
+
+  bool last_index_state = read_index();
+  uint8_t index_transitions = 0;
+  while (g_writing_pulses) {
+    bool index_state = read_index();
+    // ahh a H to L transition, we have done one revolution
+    if (last_index_state && !index_state) {
+      break;
+    }
+    last_index_state = index_state;
+    yield();
+  }
+
+  // ok we're done, clean up!
+  digitalWrite(_wrgatepin, HIGH);
+  disable_generate();
+  deinit_generate();
+
+#else // bitbang it!
+  uint8_t *pulses_ptr = pulses;
+
+#ifdef BUSIO_USE_FAST_PINIO
+  BusIO_PortReg *writePort, *ledPort;
+  BusIO_PortMask writeMask, ledMask;
+  writePort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(_wrdatapin));
+  writeMask = digitalPinToBitMask(_wrdatapin);
+  ledPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(led_pin));
+  ledMask = digitalPinToBitMask(led_pin);
+  (void)ledPort;
+  (void)ledMask;
+#endif
+
+  pinMode(_wrdatapin, OUTPUT);
+  digitalWrite(_wrdatapin, HIGH);
+
+  pinMode(_wrgatepin, OUTPUT);
+  digitalWrite(_wrgatepin, HIGH);
+
+  noInterrupts();
+  wait_for_index_pulse_low();
+  digitalWrite(_wrgatepin, LOW);
+
+  // write track data
+  while (num_pulses--) {
+    uint8_t pulse_count = pulses_ptr[0];
+    pulses_ptr++;
+    // ?? lets bail
+    if (pulse_count == 0)
+      break;
+
+    clr_write();
+    pulse_count -= 11;
+    while (pulse_count--) {
+      asm("nop; nop; nop; nop; nop;");
+    }
+    set_write();
+    pulse_count = 8;
+    while (pulse_count--) {
+      asm("nop; nop; nop; nop; nop; nop; nop; nop; nop;");
+    }
+  }
+  // whew done
+  digitalWrite(_wrgatepin, HIGH);
+  digitalWrite(_wrdatapin, HIGH);
+  interrupts();
+#endif
+  return;
 }
 
 /**************************************************************************/
@@ -462,14 +659,28 @@ void Adafruit_Floppy::wait_for_index_pulse_low(void) {
     @brief  Pretty print the counts in a list of flux transitions
     @param  pulses A pointer to an array of memory containing pulse counts
     @param  num_pulses The size of the pulses in the array
+    @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
-void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses) {
+void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses,
+                                   bool is_gw_format) {
   if (!debug_serial)
     return;
 
+  uint16_t pulse_len;
   for (uint32_t i = 0; i < num_pulses; i++) {
-    debug_serial->print(pulses[i]);
+    uint8_t p = pulses[i];
+    if (p < 250 || !is_gw_format) {
+      pulse_len = p;
+    } else {
+      // Serial.printf("long pulse! %d and %d ->", p, pulses[i+1]);
+      pulse_len = 250 + ((uint16_t)p - 250) * 255;
+      i++;
+      pulse_len += pulses[i] - 1;
+      // Serial.printf(" %d \n\r", pulse_len);
+    }
+
+    debug_serial->print(pulse_len);
     debug_serial->print(", ");
   }
   debug_serial->println();
@@ -480,12 +691,14 @@ void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses) {
     @param  pulses A pointer to an array of memory containing pulse counts
     @param  num_pulses The size of the pulses in the array
     @param  max_bins The maximum number of histogram bins to use (default 64)
+    @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
 void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
-                                       uint8_t max_bins) {
+                                       uint8_t max_bins, bool is_gw_format) {
   if (!debug_serial)
     return;
+  uint32_t pulse_len = 0;
 
   // lets bin em!
   uint32_t bins[max_bins][2];
@@ -493,17 +706,26 @@ void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
   // we'll add each pulse to a bin so we can figure out the 3 buckets
   for (uint32_t i = 0; i < num_pulses; i++) {
     uint8_t p = pulses[i];
+    if (p < 250) {
+      pulse_len = p;
+    } else {
+      // Serial.printf("long pulse! %d and %d ->", p, pulses[i+1]);
+      pulse_len = 250 + ((uint16_t)p - 250) * 255;
+      i++;
+      pulse_len += pulses[i] - 1;
+      // Serial.printf(" %d \n\r", pulse_len);
+    }
     // find a bin for this pulse
     uint8_t bin = 0;
     for (bin = 0; bin < max_bins; bin++) {
       // bin already exists? increment the count!
-      if (bins[bin][0] == p) {
+      if (bins[bin][0] == pulse_len) {
         bins[bin][1]++;
         break;
       }
       if (bins[bin][0] == 0) {
         // ok we never found the bin, so lets make it this one!
-        bins[bin][0] = p;
+        bins[bin][0] = pulse_len;
         bins[bin][1] = 1;
         break;
       }
@@ -512,7 +734,7 @@ void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
       debug_serial->println("oof we ran out of bins but we'll keep going");
   }
   // this is a very lazy way to print the bins sorted
-  for (uint8_t pulse_w = 1; pulse_w < 255; pulse_w++) {
+  for (uint16_t pulse_w = 1; pulse_w < 512; pulse_w++) {
     for (uint8_t b = 0; b < max_bins; b++) {
       if (bins[b][0] == pulse_w) {
         debug_serial->print(bins[b][0]);
@@ -521,4 +743,34 @@ void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
       }
     }
   }
+}
+
+uint16_t mfm_io_sample_flux(bool *index);
+
+static inline mfm_io_symbol_t mfm_io_read_symbol(mfm_io_t *io) {
+  bool new_index_state;
+  uint16_t fluxval = mfm_io_sample_flux(&new_index_state);
+  if (io->index_state && !new_index_state) {
+    io->index_count++;
+  }
+  io->index_state = new_index_state;
+  if (fluxval > io->T3_5) {
+    return pulse_1000;
+  }
+  if (fluxval > io->T2_5) {
+    return pulse_100;
+  }
+  return pulse_10;
+}
+
+static inline void mfm_io_reset_sync_count(mfm_io_t *io) {
+  io->index_count = 0;
+}
+
+static inline int mfm_io_get_sync_count(mfm_io_t *io) {
+  return io->index_count;
+}
+
+uint16_t Adafruit_Floppy::sample_flux(bool &index) {
+  return ::mfm_io_sample_flux(&index);
 }

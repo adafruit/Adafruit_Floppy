@@ -15,20 +15,6 @@
 #define MFM_IBMPC360K_SECTORS_PER_TRACK 9
 #define MFM_BYTES_PER_SECTOR 512UL
 
-#ifdef BUSIO_USE_FAST_PINIO
-#define FLOPPYIO_SAMPLERATE (F_CPU * 11u / 90u) // empirical on SAM D51 @ 120MHz
-#endif
-
-#if defined(ARDUINO_ARCH_RP2040)
-#undef FLOPPYIO_SAMPLERATE
-#define FLOPPYIO_SAMPLERATE (F_CPU * 13u / 100u) // empirical on RP2040 @ 200MHz
-#endif
-
-#define T2_5_IBMPC_HD (FLOPPYIO_SAMPLERATE * 5 / 2 / 1000000)
-#define T3_5_IBMPC_HD (FLOPPYIO_SAMPLERATE * 7 / 2 / 1000000)
-#define T2_5_IBMPC_DD (T2_5_IBMPC_HD * 2)
-#define T3_5_IBMPC_DD (T3_5_IBMPC_HD * 2)
-
 #define STEP_OUT HIGH
 #define STEP_IN LOW
 #define MAX_FLUX_PULSE_PER_TRACK                                               \
@@ -55,7 +41,7 @@ public:
                   int8_t wrdatapin, int8_t wrgatepin, int8_t track0pin,
                   int8_t protectpin, int8_t rddatapin, int8_t sidepin,
                   int8_t readypin);
-  void begin(void);
+  bool begin(void);
   void soft_reset(void);
 
   void select(bool selected);
@@ -66,12 +52,20 @@ public:
   void step(bool dir, uint8_t times);
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
-                          uint8_t *sector_validity);
-  uint32_t capture_track(uint8_t *pulses, uint32_t max_pulses)
+                          uint8_t *sector_validity, bool high_density = true);
+  uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
+                         uint32_t *falling_index_offset,
+                         bool store_greaseweazle = false,
+                         uint32_t capture_ms = 0)
+      __attribute__((optimize("O3")));
+  void write_track(uint8_t *pulses, uint32_t num_pulses,
+                   bool store_greaseweazle = false)
       __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
-                        uint8_t max_bins = 64);
-  void print_pulses(uint8_t *pulses, uint32_t num_pulses);
+                        uint8_t max_bins = 64, bool is_gw_format = false);
+  void print_pulses(uint8_t *pulses, uint32_t num_pulses,
+                    bool is_gw_format = false);
+  uint32_t getSampleFrequency(void);
 
   int8_t led_pin = LED_BUILTIN; ///< Debug LED output for tracing
 
@@ -85,7 +79,27 @@ public:
 
   Stream *debug_serial = NULL; ///< optional debug stream for serial output
 
+#if defined(__SAMD51__)
+  void deinit_capture(void);
+  void enable_capture(void);
+
+  bool init_generate(void);
+  void deinit_generate(void);
+  void enable_generate(void);
+  void disable_generate(void);
+#endif
+
 private:
+  bool start_polled_capture(void);
+  void disable_capture(void);
+  uint16_t sample_flux(bool &new_index_state);
+  uint16_t sample_flux() {
+    bool unused;
+    return sample_flux(unused);
+  }
+
+  bool init_capture(void);
+  void enable_background_capture(void);
   void wait_for_index_pulse_low(void);
 
   // theres a lot of GPIO!
@@ -140,9 +154,13 @@ public:
   uint8_t track_validity[MFM_IBMPC1440K_SECTORS_PER_TRACK];
 
 private:
+#if defined(PICO_BOARD) || defined(__RP2040__) || defined(ARDUINO_ARCH_RP2040)
+  uint16_t _last;
+#endif
   uint8_t _sectors_per_track = 0;
   uint8_t _tracks_per_side = 0;
   int8_t _last_track_read = -1; // last cached track
+  bool _high_density = true;
   Adafruit_Floppy *_floppy = NULL;
   adafruit_floppy_disk_t _format = IBMPC1440K;
 };
