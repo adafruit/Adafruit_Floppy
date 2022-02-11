@@ -3,6 +3,7 @@
 
 #include "Arduino.h"
 #include <Adafruit_SPIDevice.h>
+#include <functional>
 // to implement SdFat Block Driver
 #include "SdFat.h"
 #include "SdFatConfig.h"
@@ -53,6 +54,12 @@ public:
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity, bool high_density = true);
+  bool stream_track(uint8_t *buf, size_t size, uint32_t revs,
+                    uint32_t capture_ticks, bool store_greaseweazle,
+                    void (*callback)(void *, uint8_t *, size_t), void *arg);
+  bool stream_track(uint8_t *buf, size_t size, uint32_t revs,
+                    uint32_t capture_ticks, bool store_greaseweazle,
+                    const std::function<void(uint8_t *, size_t)> &cb);
   uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
                          uint32_t *falling_index_offset,
                          bool store_greaseweazle = false,

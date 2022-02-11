@@ -384,6 +384,68 @@ uint32_t Adafruit_Floppy::getSampleFrequency(void) {
 
 /**************************************************************************/
 /*!
+    @brief  Stream one or more tracks worth of flux transitions
+    @param  buf A pointer to an array of memory we can use to store into
+    @param  size The size of the buffer in bytes
+    @param  revs The number of full revolutions to capture
+    @param  capture_ticks The number of ticks to capture of a final, partial
+   revolution
+    @param  store_greaseweazle Pass in true to pack long pulses with two bytes
+   and index pulses with 6 bytes
+    @param  callback A function pointer called with data as it becomes
+   available.  The second and third arguments give a pointer to the data and the
+   quantity of data. The max quantity of data is never more than half the size
+   of the input buffer, but can be less.
+    @param  arg A value passed to the callback function as its first argument.
+    @return true if the stream was successful, false if an overrun was detected
+   or the feature is unsupported
+*/
+bool Adafruit_Floppy::stream_track(uint8_t *buf, size_t size, uint32_t revs,
+                                   uint32_t capture_ticks,
+                                   bool store_greaseweazle,
+                                   void (*callback)(void *, uint8_t *, size_t),
+                                   void *arg) {
+#if defined(ARDUINO_ARCH_RP2040)
+  return rp2040_flux_stream(_indexpin, _rddatapin, buf, size, revs,
+                            capture_ticks, store_greaseweazle, callback, arg);
+#else
+  return false;
+#endif
+}
+
+/**************************************************************************/
+/*!
+    @brief  Stream one or more tracks worth of flux transitions
+    @param  buf A pointer to an array of memory we can use to store into
+    @param  size The size of the buffer in bytes
+    @param  revs The number of full revolutions to capture
+    @param  capture_ticks The number of ticks to capture of a final, partial
+   revolution
+    @param  store_greaseweazle Pass in true to pack long pulses with two bytes
+   and index pulses with 6 bytes
+    @param  callback A std::function or lambda called with data as it becomes
+   available.  The first and second arguments give a pointer to the data and the
+   quantity of data. The max quantity of data is never more than half the size
+   of the input buffer, but can be less.
+    @return true if the stream was successful, false if an overrun was detected
+   or the feature is unsupported
+*/
+bool Adafruit_Floppy::stream_track(
+    uint8_t *buf, size_t size, uint32_t revs, uint32_t capture_ticks,
+    bool store_greaseweazle, const std::function<void(uint8_t *, size_t)> &cb) {
+  return stream_track(
+      buf, size, revs, capture_ticks, store_greaseweazle,
+      [](void *arg, uint8_t *data, size_t len) {
+        auto *cb_ptr =
+            reinterpret_cast<const std::function<void(uint8_t *, size_t)> *>(
+                arg);
+        (*cb_ptr)(data, len);
+      },
+      (void *)&cb);
+}
+
+/**************************************************************************/
+/*!
     @brief  Capture one track's worth of flux transitions, between two falling
    index pulses
     @param  pulses A pointer to an array of memory we can use to store into

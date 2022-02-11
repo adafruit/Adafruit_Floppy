@@ -394,5 +394,132 @@ void rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
   free_write();
 }
 
+enum { DONE = 0, OVERFLOW = -1 };
+struct queue_entry {
+  int len;
+  uint8_t bufno;
+};
+
+struct {
+  bool store_greaseweazle;
+  uint32_t bufsize;
+  uint32_t revs, capture_counts;
+  uint8_t *buf[2];
+  queue_t queue;
+} stream_data;
+
+void streamer_core1(void) {
+  start_common();
+  pio_sm_clear_fifos(g_reader.pio, g_reader.sm);
+  pio_sm_set_enabled(g_reader.pio, g_reader.sm, true);
+  int last = read_fifo();
+  int bufno = 0;
+
+  bool store_greaseweazle = stream_data.store_greaseweazle;
+  uint32_t bufsize = stream_data.bufsize;
+  uint32_t revs = stream_data.revs, capture_counts = stream_data.capture_counts;
+  uint8_t *bufs[2] = {stream_data.buf[0], stream_data.buf[1]};
+  queue_t *queue = &stream_data.queue;
+
+  while (revs || capture_counts) {
+    uint8_t *buf = bufs[bufno], *ptr = buf, *end = ptr + bufsize,
+            *softend = end - 8;
+
+    while (ptr < softend) {
+      int data = read_fifo();
+      int delta = last - data;
+      if (delta < 0)
+        delta += 65536;
+      delta /= 2;
+
+      // cap delta at the 2-byte limit and pack it in
+      delta = std::min(1524, delta);
+      ptr = greasepack(ptr, end, delta);
+
+      // record index if it occurred
+      if (!(data & 1) && (last & 1)) {
+        *ptr++ = 255; // escape code
+        *ptr++ = 1;   // index opcode
+        *ptr++ = 1;   // "just before now"
+        *ptr++ = 1;
+        *ptr++ = 1;
+        *ptr++ = 1;
+        if (revs)
+          revs--;
+      }
+
+      last = data;
+
+      if (revs == 0 && delta > capture_counts) {
+        capture_counts = 0;
+        break;
+      }
+      if (!revs) {
+        capture_counts -= delta;
+      }
+
+      if (ptr >= softend) {
+        break;
+      }
+    }
+
+    if (ptr != buf) {
+      queue_entry ent = {(ptr - buf), (uint8_t)bufno};
+      if (!queue_try_add(queue, &ent)) {
+        queue_entry ent = {OVERFLOW, 0};
+        queue_add_blocking(queue, &ent);
+        while (true)
+          tight_loop_contents();
+      }
+    }
+    bufno = 1 - bufno;
+  }
+
+  queue_entry ent = {DONE, 0};
+  queue_add_blocking(queue, &ent);
+  while (true)
+    tight_loop_contents();
+}
+
+#define BARRIER __asm__ volatile("" : : : "memory")
+
+bool rp2040_flux_stream(int indexpin, int rdpin, uint8_t *buf, size_t size,
+                        uint32_t revs, uint32_t capture_counts,
+                        bool store_greaseweazle,
+                        void (*callback)(void *, uint8_t *, size_t),
+                        void *arg) {
+  if (!init_capture(indexpin, rdpin)) {
+    return false;
+  }
+
+  size_t bufsize = min(size / 2, 4096);
+  stream_data.buf[0] = buf;
+  stream_data.buf[1] = buf + bufsize;
+  stream_data.bufsize = bufsize;
+  stream_data.revs = revs;
+  stream_data.capture_counts = capture_counts;
+  stream_data.store_greaseweazle = store_greaseweazle;
+
+  bool result = true;
+  queue_init(&stream_data.queue, sizeof(queue_entry), 1);
+  multicore_launch_core1(streamer_core1);
+  while (true) {
+    queue_entry ent;
+    queue_remove_blocking(&stream_data.queue, &ent);
+    BARRIER;
+    if (ent.len == DONE)
+      break;
+    if (ent.len == OVERFLOW) {
+      result = false;
+      break;
+    }
+    callback(arg, stream_data.buf[ent.bufno], ent.len);
+  }
+  free_capture();
+  queue_free(&stream_data.queue);
+  multicore_reset_core1();
+  return result;
+}
+
 #endif
 #endif

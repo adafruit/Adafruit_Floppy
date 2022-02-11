@@ -323,81 +323,22 @@ void loop() {
     revs = cmd_buffer[7];
     revs <<= 8;
     revs |= cmd_buffer[6];
-    if (revs) {
-      revs -= 1;
-    }
 
     if (floppy.track() == -1) {
       floppy.goto_track(0);
     }
 
-    Serial1.printf("Reading flux0rs on track %d: %u ticks and %d revs\n\r", floppy.track(), flux_ticks, revs);
-    uint16_t capture_ms = 0;
-    uint16_t capture_revs = 0;
-    if (flux_ticks) {
-      // we'll back calculate the revolutions
-      capture_ms = 1000.0 * (float)flux_ticks / (float)floppy.getSampleFrequency();
-      revs = 1;
-    } else {
-      capture_revs = revs;
-      capture_ms = 0;
-    }
+    Serial1.printf("Reading flux0rs on track %d: %d revs + %fms\n\r", floppy.track(), revs, flux_ticks * (1000. / floppy.getSampleFrequency()), revs);
 
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
-    while (revs--) {
-      uint32_t index_offset;
-      // read in greaseweazle mode (long pulses encoded with 250's)
-      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions),
-                                             &index_offset, true, capture_ms);
-      Serial1.printf("Rev #%d captured %u pulses, second index fall @ %d\n\r",
-                     revs, captured_pulses, index_offset);
-      //floppy.print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
-      // Send the index falling signal opcode, which was right
-      // at the start of this data xfer (we wait for index to fall
-      // before we start reading
-      reply_buffer[0] = 0xFF; // FLUXOP INDEX
-      reply_buffer[1] = 1; // index opcode
-      reply_buffer[2] = 0x1;  // 0 are special, so we send 1's to == 0
-      reply_buffer[3] = 0x1;  // ""
-      reply_buffer[4] = 0x1;  // ""
-      reply_buffer[5] = 0x1;  // ""
-      Serial.write(reply_buffer, 6);
 
-      uint8_t *flux_ptr = flux_transitions;
-      // send all data until the flux transition
-      while (index_offset) {
-        uint32_t to_send = min(index_offset, (uint32_t)256);
-        Serial.write(flux_ptr, to_send);
-        //Serial1.println(to_send);
-        flux_ptr += to_send;
-        captured_pulses -= to_send;
-        index_offset -= to_send;
-      }
-
-      // there's more flux to follow this, so we need an index fluxop
-      if (!revs || capture_ms) {
-        // we interrupt this broadcast for a flux op index
-        reply_buffer[0] = 0xFF; // FLUXOP INDEX
-        reply_buffer[1] = 1; // index opcode
-        reply_buffer[2] = 0x1;  // 0 are special, so we send 1's to == 0
-        reply_buffer[3] = 0x1;  // ""
-        reply_buffer[4] = 0x1;  // ""
-        reply_buffer[5] = 0x1;  // ""
-        Serial.write(reply_buffer, 6);
-      }
-
-      // send remaining data until the flux transition
-      if (capture_ms) {
-        while (captured_pulses) {
-          uint32_t to_send = min(captured_pulses, (uint32_t)256);
-          Serial.write(flux_ptr, to_send);
-          //Serial1.println(to_send);
-          flux_ptr += to_send;
-          captured_pulses -= to_send;
-        }
-      }
+    // read in greaseweazle mode (long pulses encoded with 250's)
+    if (!floppy.stream_track(flux_transitions, sizeof(flux_transitions), revs, flux_ticks, true,
+            [&](uint8_t *ptr, size_t size) { Serial.write(ptr, size); })) {
+        Serial1.println("Overflow while capturing flux");
     }
+
     // flush input, to account for fluxengine bug
     while (Serial.available()) Serial.read();
 
