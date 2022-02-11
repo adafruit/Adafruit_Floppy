@@ -375,22 +375,27 @@ void loop() {
         index_offset -= to_send;
       }
 
-      // we interrupt this broadcast for a flux op index
-      reply_buffer[0] = 0xFF; // FLUXOP INDEX
-      reply_buffer[1] = 1; // index opcode
-      reply_buffer[2] = 0x1;  // 0 are special, so we send 1's to == 0
-      reply_buffer[3] = 0x1;  // ""
-      reply_buffer[4] = 0x1;  // ""
-      reply_buffer[5] = 0x1;  // ""
-      Serial.write(reply_buffer, 6);
-      
+      // there's more flux to follow this, so we need an index fluxop
+      if(!revs || capture_ms) {
+        // we interrupt this broadcast for a flux op index
+        reply_buffer[0] = 0xFF; // FLUXOP INDEX
+        reply_buffer[1] = 1; // index opcode
+        reply_buffer[2] = 0x1;  // 0 are special, so we send 1's to == 0
+        reply_buffer[3] = 0x1;  // ""
+        reply_buffer[4] = 0x1;  // ""
+        reply_buffer[5] = 0x1;  // ""
+        Serial.write(reply_buffer, 6);
+      }
+
       // send remaining data until the flux transition
-      while (captured_pulses) {
-        uint32_t to_send = min(captured_pulses, (uint32_t)256);
-        Serial.write(flux_ptr, to_send);
-        //Serial1.println(to_send);
-        flux_ptr += to_send;
-        captured_pulses -= to_send;
+      if(capture_ms) {
+        while (captured_pulses) {
+          uint32_t to_send = min(captured_pulses, (uint32_t)256);
+          Serial.write(flux_ptr, to_send);
+          //Serial1.println(to_send);
+          flux_ptr += to_send;
+          captured_pulses -= to_send;
+        }
       }
     }
     // flush input, to account for fluxengine bug
