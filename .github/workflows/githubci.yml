@@ -18,6 +18,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
          repository: adafruit/ci-arduino
+         path: ci
 
     - name: pre-install
       run: bash ci/actions_install.sh
