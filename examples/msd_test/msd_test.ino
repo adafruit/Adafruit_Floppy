@@ -8,47 +8,47 @@ Adafruit_USBD_MSC usb_msc;
 
 // If using SAMD51, turn on TINYUSB USB stack
 #if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
-  #define DENSITY_PIN  A0    // IDC 2
-  #define INDEX_PIN    A1    // IDC 8
-  #define SELECT_PIN   A2    // IDC 12
-  #define MOTOR_PIN    A3    // IDC 16
-  #define DIR_PIN      A4    // IDC 18
-  #define STEP_PIN     A5    // IDC 20
-  #define WRDATA_PIN   13    // IDC 22 (not used during read)
-  #define WRGATE_PIN   12    // IDC 24 (not used during read)
-  #define TRK0_PIN     11    // IDC 26
-  #define PROT_PIN     10    // IDC 28
-  #define READ_PIN      9    // IDC 30
-  #define SIDE_PIN      6    // IDC 32
-  #define READY_PIN     5    // IDC 34
+#define DENSITY_PIN  A0    // IDC 2
+#define INDEX_PIN    A1    // IDC 8
+#define SELECT_PIN   A2    // IDC 12
+#define MOTOR_PIN    A3    // IDC 16
+#define DIR_PIN      A4    // IDC 18
+#define STEP_PIN     A5    // IDC 20
+#define WRDATA_PIN   13    // IDC 22 (not used during read)
+#define WRGATE_PIN   12    // IDC 24 (not used during read)
+#define TRK0_PIN     11    // IDC 26
+#define PROT_PIN     10    // IDC 28
+#define READ_PIN      9    // IDC 30
+#define SIDE_PIN      6    // IDC 32
+#define READY_PIN     5    // IDC 34
 #elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
-  #define DENSITY_PIN  A0    // IDC 2
-  #define INDEX_PIN    A1    // IDC 8
-  #define SELECT_PIN   A2    // IDC 12
-  #define MOTOR_PIN    A3    // IDC 16
-  #define DIR_PIN      24    // IDC 18
-  #define STEP_PIN     25    // IDC 20
-  #define WRDATA_PIN   13    // IDC 22 (not used during read)
-  #define WRGATE_PIN   12    // IDC 24 (not used during read)
-  #define TRK0_PIN     11    // IDC 26
-  #define PROT_PIN     10    // IDC 28
-  #define READ_PIN      9    // IDC 30
-  #define SIDE_PIN      8    // IDC 32
-  #define READY_PIN     7    // IDC 34
+#define DENSITY_PIN  A0    // IDC 2
+#define INDEX_PIN    A1    // IDC 8
+#define SELECT_PIN   A2    // IDC 12
+#define MOTOR_PIN    A3    // IDC 16
+#define DIR_PIN      24    // IDC 18
+#define STEP_PIN     25    // IDC 20
+#define WRDATA_PIN   13    // IDC 22 (not used during read)
+#define WRGATE_PIN   12    // IDC 24 (not used during read)
+#define TRK0_PIN     11    // IDC 26
+#define PROT_PIN     10    // IDC 28
+#define READ_PIN      9    // IDC 30
+#define SIDE_PIN      8    // IDC 32
+#define READY_PIN     7    // IDC 34
 #elif defined (ARDUINO_RASPBERRY_PI_PICO)
-  #define DENSITY_PIN  2     // IDC 2
-  #define INDEX_PIN    3     // IDC 8
-  #define SELECT_PIN   4     // IDC 12
-  #define MOTOR_PIN    5     // IDC 16
-  #define DIR_PIN      6     // IDC 18
-  #define STEP_PIN     7     // IDC 20
-  #define WRDATA_PIN   8     // IDC 22 (not used during read)
-  #define WRGATE_PIN   9     // IDC 24 (not used during read)
-  #define TRK0_PIN    10     // IDC 26
-  #define PROT_PIN    11     // IDC 28
-  #define READ_PIN    12     // IDC 30
-  #define SIDE_PIN    13     // IDC 32
-  #define READY_PIN   14     // IDC 34
+#define DENSITY_PIN  2     // IDC 2
+#define INDEX_PIN    3     // IDC 8
+#define SELECT_PIN   4     // IDC 12
+#define MOTOR_PIN    5     // IDC 16
+#define DIR_PIN      6     // IDC 18
+#define STEP_PIN     7     // IDC 20
+#define WRDATA_PIN   8     // IDC 22 (not used during read)
+#define WRGATE_PIN   9     // IDC 24 (not used during read)
+#define TRK0_PIN    10     // IDC 26
+#define PROT_PIN    11     // IDC 28
+#define READ_PIN    12     // IDC 30
+#define SIDE_PIN    13     // IDC 32
+#define READY_PIN   14     // IDC 34
 #else
 #error "Please set up pin definitions!"
 #endif
@@ -67,7 +67,7 @@ int8_t last_track_read = -1;  // last cached track
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
-  Serial.begin(115200);      
+  Serial.begin(115200);
 
 #if defined(ARDUINO_ARCH_MBED) && defined(ARDUINO_ARCH_RP2040)
   // Manual begin() is required on core without built-in support for TinyUSB such as
@@ -78,7 +78,7 @@ void setup() {
   // Set disk vendor id, product id and revision with string up to 8, 16, 4 characters respectively
   usb_msc.setID("Adafruit", "Floppy Mass Storage", "1.0");
 
-    // Set disk size
+  // Set disk size
   usb_msc.setCapacity(mfm_floppy.sectors_per_track() * mfm_floppy.tracks_per_side() * FLOPPY_HEADS, SECTOR_SIZE);
 
   // Set callback
@@ -115,11 +115,11 @@ int32_t msc_read_callback (uint32_t lba, void* buffer, uint32_t bufsize)
 
   uint8_t retries = 5;
 
-  for (int retry=0; retry<retries; retry++) {
+  for (int retry = 0; retry < retries; retry++) {
     if (((track * 2 + head) == last_track_read) && mfm_floppy.track_validity[subsector]) {
       // aah we've got it and its valid!
       Serial.println("OK!");
-      memcpy(buffer, mfm_floppy.track_data+(subsector * SECTOR_SIZE), SECTOR_SIZE);
+      memcpy(buffer, mfm_floppy.track_data + (subsector * SECTOR_SIZE), SECTOR_SIZE);
       return SECTOR_SIZE;
     }
     // ok so either its not valid, or we didn't read this track yet...
