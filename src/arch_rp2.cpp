@@ -132,6 +132,10 @@ static void start_common() {
   pio_sm_restart(g_reader.pio, g_reader.sm);
 }
 
+static bool data_available() {
+  return g_reader.half || !pio_sm_is_rx_fifo_empty(g_reader.pio, g_reader.sm);
+}
+
 static uint16_t read_fifo() {
   if (g_reader.half) {
     uint16_t result = g_reader.half;
@@ -162,6 +166,7 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
                                    uint32_t *falling_index_offset,
                                    bool store_greaseweazle,
                                    uint32_t capture_counts) {
+  uint8_t *ptr = start;
   if (falling_index_offset) {
     *falling_index_offset = ~0u;
   }
@@ -179,28 +184,37 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
   pio_sm_clear_fifos(g_reader.pio, g_reader.sm);
   pio_sm_set_enabled(g_reader.pio, g_reader.sm, true);
   int last = read_fifo();
-  int i = 0;
-  while (start != end) {
+  bool last_index = gpio_get(index_pin);
+  while (ptr != end) {
+    /* Handle index */
+    bool now_index = gpio_get(index_pin);
+
+    if (!now_index && last_index) {
+      if (falling_index_offset) {
+        *falling_index_offset = ptr - start;
+        if (!capture_counts) {
+          break;
+        }
+      }
+    }
+    last_index = now_index;
+
+    if (!data_available) {
+      continue;
+    }
+
     int data = read_fifo();
     int delta = last - data;
     if (delta < 0)
       delta += 65536;
     delta /= 2;
-    if (!(data & 1) && (last & 1)) {
-      if (falling_index_offset) {
-        *falling_index_offset = i;
-        falling_index_offset = NULL;
-        if (!capture_counts)
-          capture_counts = total_counts + 1200000; // capture 50ms post-index
-      }
-    }
-    i++;
+
     last = data;
     total_counts += delta;
     if (store_greaseweazle) {
-      start = greasepack(start, end, delta);
+      ptr = greasepack(ptr, end, delta);
     } else {
-      *start++ = delta > 255 ? 255 : delta;
+      *ptr++ = delta > 255 ? 255 : delta;
     }
     if (capture_counts != 0 && total_counts >= capture_counts) {
       break;
