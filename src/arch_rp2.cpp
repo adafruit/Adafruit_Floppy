@@ -355,12 +355,12 @@ uint32_t rp2040_flux_capture(int index_pin, int rdpin, volatile uint8_t *pulses,
 }
 
 unsigned _last = ~0u;
-bool Adafruit_Floppy::init_capture(void) {
+bool Adafruit_FloppyBase::init_capture(void) {
   _last = ~0u;
   return ::init_capture(_indexpin, _rddatapin);
 }
 
-bool Adafruit_Floppy::start_polled_capture(void) {
+bool Adafruit_FloppyBase::start_polled_capture(void) {
   if (!init_capture())
     return false;
   start_common();
@@ -368,7 +368,7 @@ bool Adafruit_Floppy::start_polled_capture(void) {
   return true;
 }
 
-void Adafruit_Floppy::disable_capture(void) { ::disable_capture(); }
+void Adafruit_FloppyBase::disable_capture(void) { ::disable_capture(); }
 
 uint16_t mfm_io_sample_flux(bool *index) {
   if (_last == ~0u) {

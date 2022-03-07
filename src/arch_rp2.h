@@ -1,6 +1,6 @@
 #pragma once
 #if defined(ARDUINO_ARCH_RP2040)
-#define read_index() gpio_get(_indexpin)
+#define read_index_fast() gpio_get(_indexpin)
 #define read_data() gpio_get(_rddatapin)
 #define set_debug_led() gpio_put(led_pin, 1)
 #define clr_debug_led() gpio_put(led_pin, 0)

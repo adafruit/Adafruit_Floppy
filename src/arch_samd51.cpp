@@ -369,11 +369,11 @@ static void enable_generate_timer(void) {
 
 #ifdef __cplusplus
 
-bool Adafruit_Floppy::init_capture(void) {
+bool Adafruit_FloppyBase::init_capture(void) {
   return init_capture_timer(_rddatapin, debug_serial);
 }
 
-void Adafruit_Floppy::deinit_capture(void) {
+void Adafruit_FloppyBase::deinit_capture(void) {
   if (!theReadTimer)
     return;
 
@@ -384,20 +384,20 @@ void Adafruit_Floppy::deinit_capture(void) {
   theReadTimer = NULL;
 }
 
-void Adafruit_Floppy::enable_capture(void) { enable_capture_timer(true); }
+void Adafruit_FloppyBase::enable_capture(void) { enable_capture_timer(true); }
 
-void Adafruit_Floppy::disable_capture(void) {
+void Adafruit_FloppyBase::disable_capture(void) {
   if (!theReadTimer)
     return;
 
   theReadTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
 }
 
-bool Adafruit_Floppy::init_generate(void) {
+bool Adafruit_FloppyBase::init_generate(void) {
   return init_generate_timer(_wrdatapin, debug_serial);
 }
 
-void Adafruit_Floppy::deinit_generate(void) {
+void Adafruit_FloppyBase::deinit_generate(void) {
   if (!theWriteTimer)
     return;
 
@@ -408,16 +408,16 @@ void Adafruit_Floppy::deinit_generate(void) {
   theWriteTimer = NULL;
 }
 
-void Adafruit_Floppy::enable_generate(void) { enable_generate_timer(); }
+void Adafruit_FloppyBase::enable_generate(void) { enable_generate_timer(); }
 
-void Adafruit_Floppy::disable_generate(void) {
+void Adafruit_FloppyBase::disable_generate(void) {
   if (!theWriteTimer)
     return;
 
   theWriteTimer->COUNT16.CTRLA.bit.ENABLE = 0; // disable the TC timer
 }
 
-bool Adafruit_Floppy::start_polled_capture(void) {
+bool Adafruit_FloppyBase::start_polled_capture(void) {
   ::enable_capture_timer(false);
   return true;
 }

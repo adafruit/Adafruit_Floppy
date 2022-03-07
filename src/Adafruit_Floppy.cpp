@@ -5,7 +5,7 @@
 // We need to read and write some pins at optimized speeds - use raw registers
 // or native SDK API!
 #ifdef BUSIO_USE_FAST_PINIO
-#define read_index() (*indexPort & indexMask)
+#define read_index_fast() (*indexPort & indexMask)
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
@@ -60,6 +60,29 @@ extern volatile bool g_writing_pulses;
 
 */
 /**************************************************************************/
+Adafruit_FloppyBase::Adafruit_FloppyBase(int indexpin, int wrdatapin, int wrgatepin, int rddatapin)
+    : _indexpin(indexpin), _wrdatapin(wrdatapin), _wrgatepin(wrgatepin), _rddatapin(rddatapin) {}
+
+
+/**************************************************************************/
+/*!
+    @brief  Create a hardware interface to a floppy drive
+    @param  densitypin A pin connected to the floppy Density Select input
+    @param  indexpin A pin connected to the floppy Index Sensor output
+    @param  selectpin A pin connected to the floppy Drive Select input
+    @param  motorpin A pin connected to the floppy Motor Enable input
+    @param  directionpin A pin connected to the floppy Stepper Direction input
+    @param  steppin A pin connected to the floppy Stepper input
+    @param  wrdatapin A pin connected to the floppy Write Data input
+    @param  wrgatepin A pin connected to the floppy Write Gate input
+    @param  track0pin A pin connected to the floppy Track 00 Sensor output
+    @param  protectpin A pin connected to the floppy Write Protect Sensor output
+    @param  rddatapin A pin connected to the floppy Read Data output
+    @param  sidepin A pin connected to the floppy Side Select input
+    @param  readypin A pin connected to the floppy Ready/Disk Change output
+
+*/
+/**************************************************************************/
 
 Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
                                  int8_t selectpin, int8_t motorpin,
@@ -67,18 +90,15 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
                                  int8_t wrdatapin, int8_t wrgatepin,
                                  int8_t track0pin, int8_t protectpin,
                                  int8_t rddatapin, int8_t sidepin,
-                                 int8_t readypin) {
+                                 int8_t readypin) :
+Adafruit_FloppyBase{indexpin, wrdatapin, wrgatepin, rddatapin} {
   _densitypin = densitypin;
-  _indexpin = indexpin;
   _selectpin = selectpin;
   _motorpin = motorpin;
   _directionpin = directionpin;
   _steppin = steppin;
-  _wrdatapin = wrdatapin;
-  _wrgatepin = wrgatepin;
   _track0pin = track0pin;
   _protectpin = protectpin;
-  _rddatapin = rddatapin;
   _sidepin = sidepin;
   _readypin = readypin;
 }
@@ -89,7 +109,7 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
     @returns True if able to set up all pins and capture/waveform peripherals
 */
 /**************************************************************************/
-bool Adafruit_Floppy::begin(void) {
+bool Adafruit_FloppyBase::begin(void) {
   soft_reset();
 #if defined(__SAMD51__)
   if (!init_capture()) {
@@ -104,12 +124,68 @@ bool Adafruit_Floppy::begin(void) {
   return true;
 }
 
+void Adafruit_FloppyBase::soft_reset(void) {
+  if (_indexpin >= 0) {
+    pinMode(_indexpin, INPUT_PULLUP);
+#ifdef BUSIO_USE_FAST_PINIO
+    indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
+    indexMask = digitalPinToBitMask(_indexpin);
+#endif
+  } else {
+#ifdef BUSIO_USE_FAST_PINIO
+    indexPort = &dummyPort;
+    indexMask = 0;
+#endif
+  }
+
+  // set write OFF
+  if (_wrdatapin >= 0) {
+    pinMode(_wrdatapin, OUTPUT);
+    digitalWrite(_wrdatapin, HIGH);
+  }
+  if (_wrgatepin >= 0) {
+    pinMode(_wrgatepin, INPUT_PULLUP);
+  }
+
+  select_delay_us = 10;
+  step_delay_us = 10000;
+  settle_delay_ms = 15;
+  motor_delay_ms = 1000;
+  watchdog_delay_ms = 1000;
+  bus_type = BUSTYPE_IBMPC;
+
+  if (led_pin >= 0) {
+    pinMode(led_pin, OUTPUT);
+    digitalWrite(led_pin, LOW);
+  }
+}
+
+/**************************************************************************/
+/*!
+    @brief Disables floppy communication, allowing pins to be used for general input and output
+*/
+void Adafruit_FloppyBase::end(void) {
+  pinMode(_rddatapin, INPUT);
+  // set write OFF
+  if (_wrdatapin >= 0) {
+    pinMode(_wrdatapin, INPUT);
+  }
+  if (_wrgatepin >= 0) {
+    pinMode(_wrgatepin, INPUT);
+  }
+  if (_indexpin >= 0) {
+    pinMode(_indexpin, INPUT);
+  }
+}
+
 /**************************************************************************/
 /*!
     @brief  Set back the object and pins to initial state
 */
 /**************************************************************************/
 void Adafruit_Floppy::soft_reset(void) {
+  Adafruit_FloppyBase::soft_reset();
+
   // deselect drive
   pinMode(_selectpin, OUTPUT);
   digitalWrite(_selectpin, HIGH);
@@ -130,42 +206,45 @@ void Adafruit_Floppy::soft_reset(void) {
   pinMode(_sidepin, OUTPUT);
   digitalWrite(_sidepin, HIGH); // side 0 to start
 
-  pinMode(_indexpin, INPUT_PULLUP);
   pinMode(_track0pin, INPUT_PULLUP);
   pinMode(_protectpin, INPUT_PULLUP);
   pinMode(_readypin, INPUT_PULLUP);
-  pinMode(_rddatapin, INPUT_PULLUP);
 
   // set low density
   pinMode(_densitypin, OUTPUT);
   digitalWrite(_densitypin, LOW);
 
-  // set write OFF
-  if (_wrdatapin >= 0) {
-    pinMode(_wrdatapin, OUTPUT);
-    digitalWrite(_wrdatapin, HIGH);
-  }
-  if (_wrgatepin >= 0) {
-    pinMode(_wrgatepin, INPUT_PULLUP);
-  }
-
-#ifdef BUSIO_USE_FAST_PINIO
-  indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
-  indexMask = digitalPinToBitMask(_indexpin);
-#endif
-
-  select_delay_us = 10;
-  step_delay_us = 10000;
-  settle_delay_ms = 15;
-  motor_delay_ms = 1000;
-  watchdog_delay_ms = 1000;
-  bus_type = BUSTYPE_IBMPC;
-
-  if (led_pin >= 0) {
-    pinMode(led_pin, OUTPUT);
-    digitalWrite(led_pin, LOW);
-  }
 }
+
+bool Adafruit_FloppyBase::read_index() {
+#ifdef BUSIO_USE_FAST_PINIO
+    return read_index_fast();
+#else
+    if (_indexpin >= 0) {
+        return digitalRead(_indexpin);
+    } else {
+        return true;
+    }
+#endif
+}
+
+/**************************************************************************/
+/*!
+    @brief Disables floppy communication, allowing pins to be used for general input and output
+*/
+void Adafruit_Floppy::end(void) {
+  pinMode(_selectpin, INPUT);
+  pinMode(_motorpin, INPUT);
+  pinMode(_directionpin, INPUT);
+  pinMode(_steppin, INPUT);
+  pinMode(_sidepin, INPUT);
+  pinMode(_track0pin, INPUT);
+  pinMode(_protectpin, INPUT);
+  pinMode(_readypin, INPUT);
+  pinMode(_densitypin, INPUT);
+  Adafruit_FloppyBase::end();
+}
+
 
 /**************************************************************************/
 /*!
@@ -210,7 +289,7 @@ bool Adafruit_Floppy::spin_motor(bool motor_on) {
   if (debug_serial)
     debug_serial->print("Waiting for index pulse...");
 
-  while (digitalRead(_indexpin)) {
+  while (read_index()) {
     if ((millis() - index_stamp) > 10000) {
       timedout = true; // its been 10 seconds?
       break;
@@ -345,7 +424,7 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
+uint32_t Adafruit_FloppyBase::read_track_mfm(uint8_t *sectors, size_t n_sectors,
                                          uint8_t *sector_validity,
                                          bool high_density) {
   mfm_io_t io;
@@ -372,7 +451,7 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
     @return Sample frequency in Hz, or 0 if not known
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::getSampleFrequency(void) {
+uint32_t Adafruit_FloppyBase::getSampleFrequency(void) {
 #if defined(__SAMD51__)
   return 48000000UL / g_timing_div;
 #endif
@@ -398,7 +477,7 @@ uint32_t Adafruit_Floppy::getSampleFrequency(void) {
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
+uint32_t Adafruit_FloppyBase::capture_track(volatile uint8_t *pulses,
                                         uint32_t max_pulses,
                                         uint32_t *falling_index_offset,
                                         bool store_greaseweazle,
@@ -537,7 +616,7 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
 */
 /**************************************************************************/
-void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
+void Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
                                   bool store_greaseweazle) {
 #if defined(ARDUINO_ARCH_RP2040)
   rp2040_flux_write(_indexpin, _wrgatepin, _wrdatapin, pulses,
@@ -639,7 +718,7 @@ void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
     @brief  Busy wait until the index line goes from high to low
 */
 /**************************************************************************/
-void Adafruit_Floppy::wait_for_index_pulse_low(void) {
+void Adafruit_FloppyBase::wait_for_index_pulse_low(void) {
   // initial state
   bool index_state = read_index();
   bool last_index_state = index_state;
@@ -662,7 +741,7 @@ void Adafruit_Floppy::wait_for_index_pulse_low(void) {
     @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
-void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses,
+void Adafruit_FloppyBase::print_pulses(uint8_t *pulses, uint32_t num_pulses,
                                    bool is_gw_format) {
   if (!debug_serial)
     return;
@@ -694,7 +773,7 @@ void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses,
     @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
-void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
+void Adafruit_FloppyBase::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                                        uint8_t max_bins, bool is_gw_format) {
   if (!debug_serial)
     return;
@@ -771,6 +850,6 @@ static inline int mfm_io_get_sync_count(mfm_io_t *io) {
   return io->index_count;
 }
 
-uint16_t Adafruit_Floppy::sample_flux(bool &index) {
+uint16_t Adafruit_FloppyBase::sample_flux(bool &index) {
   return ::mfm_io_sample_flux(&index);
 }
