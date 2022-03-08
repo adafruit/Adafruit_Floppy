@@ -853,3 +853,137 @@ static inline int mfm_io_get_sync_count(mfm_io_t *io) {
 uint16_t Adafruit_FloppyBase::sample_flux(bool &index) {
   return ::mfm_io_sample_flux(&index);
 }
+
+Adafruit_Apple2Floppy::Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin,
+                  int8_t phase1pin, int8_t phase2pin, int8_t phase3pin, int8_t phase4pin,
+                  int8_t wrdatapin, int8_t wrgatepin,
+                  int8_t protectpin, int8_t rddatapin) :
+    Adafruit_FloppyBase{indexpin, wrdatapin, wrgatepin, rddatapin},
+    _selectpin{selectpin}, _phase1pin{phase1pin},
+    _phase2pin{phase2pin},
+    _phase3pin{phase3pin},
+    _phase4pin{phase4pin},
+    _protectpin{protectpin}
+{
+}
+
+void Adafruit_Apple2Floppy::end() {
+  pinMode(_selectpin, INPUT);
+  pinMode(_phase1pin, INPUT);
+  pinMode(_phase2pin, INPUT);
+  pinMode(_phase3pin, INPUT);
+  pinMode(_phase4pin, INPUT);
+  Adafruit_FloppyBase::end();
+}
+
+void Adafruit_Apple2Floppy::soft_reset() {
+    // deselect drive
+    pinMode(_selectpin, OUTPUT);
+    digitalWrite(_selectpin, HIGH);
+
+    // Turn off stepper motors
+    pinMode(_phase1pin, OUTPUT);
+    digitalWrite(_phase1pin, LOW);
+
+    pinMode(_phase2pin, OUTPUT);
+    digitalWrite(_phase2pin, LOW);
+
+    pinMode(_phase3pin, OUTPUT);
+    digitalWrite(_phase3pin, LOW);
+
+    pinMode(_phase4pin, OUTPUT);
+    digitalWrite(_phase4pin, LOW);
+}
+
+void Adafruit_Apple2Floppy::select(bool selected) {
+    digitalWrite(_selectpin, !selected);
+}
+
+bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
+    if(motor_on) { delayMicroseconds(motor_delay_ms); }
+    return true;
+}
+
+// stepping FORWARD through phases steps OUT towards SMALLER track numbers
+// stepping BACKWARD through phases steps IN towards BIGGER track numbers
+const uint8_t phases[] = {
+    0b1000,
+    0b1100,
+    0b0100,
+    0b0110,
+    0b0010,
+    0b0011,
+    0b0001,
+    0b1001,
+};
+
+
+enum {
+STEP_OUT_QUARTER = -1,
+STEP_OUT_HALF = -2,
+STEP_IN_HALF = 2,
+STEP_IN_QUARTER = 1,
+};
+
+bool Adafruit_Apple2Floppy::goto_track(uint8_t track) {
+    if (track < 0 || track > 160) {
+        return false;
+    }
+    if(_quartertrack == -1) {
+        _quartertrack = 160;
+        goto_track(0);
+    }
+
+    auto quartertrack = track * 4;
+    auto diff = quartertrack - this->_quartertrack;
+    
+    if(diff < 0) {
+            // step OUT to SMALLER track numbers
+            _step(STEP_OUT_QUARTER, -diff);
+    } else {
+            // step IN to LARGER track numbers
+            _step(STEP_IN_QUARTER, diff);
+    }
+    delay(settle_delay_ms);
+
+    // according to legend, Apple DOS always disables all phases after settling
+    digitalWrite(_phase1pin, 0);
+    digitalWrite(_phase2pin, 0);
+    digitalWrite(_phase3pin, 0);
+    digitalWrite(_phase4pin, 0);
+    return true;
+}
+
+void Adafruit_Apple2Floppy::_step(int direction, int count) {
+    Serial.printf("Step by %d x %d\n", direction, count);
+    for(;count--;) {
+        _quartertrack += direction;
+        auto phase = _quartertrack % std::size(phases);
+        Serial.printf("Set phases to %d%d%d%d", phases[phase] & 8, phases[phase] & 4, phases[phase] & 2, phases[phase] & 1);
+
+        digitalWrite(_phase1pin, phases[phase] & 8);
+        digitalWrite(_phase2pin, phases[phase] & 4);
+        digitalWrite(_phase3pin, phases[phase] & 2);
+        digitalWrite(_phase4pin, phases[phase] & 1);
+        delay((step_delay_us / 1000UL) + 1); // round up to at least 1ms
+    }
+}
+
+void Adafruit_Apple2Floppy::side(uint8_t head) {}
+
+int8_t Adafruit_Apple2Floppy::track(void) {
+    return _quartertrack / 4;
+}
+
+// The write protect circuit in the Apple II floppy drive is "interesting".
+// Because of how it was read by the Apple II Disk Interface Card, the protect
+// output is only active when the "phase 1" winding is energized;
+// having the "phase 1" winding active also prevents writing, but at the Disk
+// Interface Card, not at the drive. So, it's necessary for us to check write_protected in software!
+bool Adafruit_Apple2Floppy::write_protected(void) {
+    digitalWrite(_phase1pin, 1);
+    bool result = !digitalRead(_protectpin);
+    digitalWrite(_phase1pin, 0);
+    delay(settle_delay_ms);
+    return result;
+}

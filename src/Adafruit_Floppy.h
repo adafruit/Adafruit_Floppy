@@ -39,7 +39,7 @@ protected:
   Adafruit_FloppyBase(int indexpin, int wrdatapin, int wrgatepin, int rddatapin);
 
 public:
-  virtual bool begin(void);
+  bool begin(void);
   virtual void end();
 
   virtual void soft_reset(void);
@@ -49,7 +49,6 @@ public:
   virtual bool goto_track(uint8_t track) = 0;
   virtual void side(uint8_t head) = 0;
   virtual int8_t track(void) = 0;
-  virtual void step(bool dir, uint8_t times) = 0;
     
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity, bool high_density = true);
@@ -135,7 +134,7 @@ public:
   bool goto_track(uint8_t track) override;
   void side(uint8_t head) override;
   int8_t track(void) override;
-  void step(bool dir, uint8_t times) override;
+  void step(bool dir, uint8_t times);
 
   // theres a lot of GPIO!
   int8_t _densitypin, _selectpin, _motorpin, _directionpin, _steppin,
@@ -143,6 +142,33 @@ public:
 
 private:
   int8_t _track = -1;
+};
+
+/**************************************************************************/
+/*!
+    @brief A helper class for chattin with Apple 2 floppy drives
+*/
+/**************************************************************************/
+class Adafruit_Apple2Floppy : public Adafruit_FloppyBase {
+  Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin,
+                  int8_t phase1pin, int8_t phase2pin, int8_t phase3pin, int8_t phase4pin,
+                  int8_t wrdatapin, int8_t wrgatepin,
+                  int8_t protectpin, int8_t rddatapin);
+  void end() override;
+  void soft_reset(void) override;
+
+  void select(bool selected) override;
+  bool spin_motor(bool motor_on) override;
+  bool goto_track(uint8_t track) override;
+  void side(uint8_t head) override;
+  int8_t track(void) override;
+  bool write_protected(void);
+
+private:
+  // theres not much GPIO!
+  int8_t _selectpin, _phase1pin, _phase2pin, _phase3pin, _phase4pin, _protectpin;
+  int8_t _quartertrack = -1;
+  void _step(int dir, int times);
 };
 
 /**************************************************************************/
