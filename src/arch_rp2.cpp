@@ -224,7 +224,7 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
 
   disable_capture();
 
-  return start;
+  return ptr;
 }
 
 static void enable_capture_fifo() { start_common(); }
