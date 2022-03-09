@@ -36,7 +36,8 @@ typedef enum {
 /**************************************************************************/
 class Adafruit_FloppyBase {
 protected:
-  Adafruit_FloppyBase(int indexpin, int wrdatapin, int wrgatepin, int rddatapin);
+  Adafruit_FloppyBase(int indexpin, int wrdatapin, int wrgatepin,
+                      int rddatapin);
 
 public:
   bool begin(void);
@@ -49,7 +50,7 @@ public:
   virtual bool goto_track(uint8_t track) = 0;
   virtual void side(uint8_t head) = 0;
   virtual int8_t track(void) = 0;
-    
+
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity, bool high_density = true);
   uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
@@ -110,7 +111,7 @@ private:
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *indexPort;
   BusIO_PortMask indexMask;
-  uint32_t dummyPort=0;
+  uint32_t dummyPort = 0;
 #endif
 };
 
@@ -150,10 +151,11 @@ private:
 */
 /**************************************************************************/
 class Adafruit_Apple2Floppy : public Adafruit_FloppyBase {
-  Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin,
-                  int8_t phase1pin, int8_t phase2pin, int8_t phase3pin, int8_t phase4pin,
-                  int8_t wrdatapin, int8_t wrgatepin,
-                  int8_t protectpin, int8_t rddatapin);
+public:
+  Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin, int8_t phase1pin,
+                        int8_t phase2pin, int8_t phase3pin, int8_t phase4pin,
+                        int8_t wrdatapin, int8_t wrgatepin, int8_t protectpin,
+                        int8_t rddatapin);
   void end() override;
   void soft_reset(void) override;
 
@@ -166,7 +168,8 @@ class Adafruit_Apple2Floppy : public Adafruit_FloppyBase {
 
 private:
   // theres not much GPIO!
-  int8_t _selectpin, _phase1pin, _phase2pin, _phase3pin, _phase4pin, _protectpin;
+  int8_t _selectpin, _phase1pin, _phase2pin, _phase3pin, _phase4pin,
+      _protectpin;
   int8_t _quartertrack = -1;
   void _step(int dir, int times);
 };
