@@ -44,19 +44,10 @@ extern volatile bool g_writing_pulses;
 /**************************************************************************/
 /*!
     @brief  Create a hardware interface to a floppy drive
-    @param  densitypin A pin connected to the floppy Density Select input
     @param  indexpin A pin connected to the floppy Index Sensor output
-    @param  selectpin A pin connected to the floppy Drive Select input
-    @param  motorpin A pin connected to the floppy Motor Enable input
-    @param  directionpin A pin connected to the floppy Stepper Direction input
-    @param  steppin A pin connected to the floppy Stepper input
     @param  wrdatapin A pin connected to the floppy Write Data input
     @param  wrgatepin A pin connected to the floppy Write Gate input
-    @param  track0pin A pin connected to the floppy Track 00 Sensor output
-    @param  protectpin A pin connected to the floppy Write Protect Sensor output
     @param  rddatapin A pin connected to the floppy Read Data output
-    @param  sidepin A pin connected to the floppy Side Select input
-    @param  readypin A pin connected to the floppy Ready/Disk Change output
 
 */
 /**************************************************************************/
@@ -125,6 +116,11 @@ bool Adafruit_FloppyBase::begin(void) {
   return true;
 }
 
+/**************************************************************************/
+/*!
+    @brief  Initializes the GPIO pins but do not start the motor or anything
+*/
+/**************************************************************************/
 void Adafruit_FloppyBase::soft_reset(void) {
   if (_indexpin >= 0) {
     pinMode(_indexpin, INPUT_PULLUP);
@@ -217,6 +213,12 @@ void Adafruit_Floppy::soft_reset(void) {
   digitalWrite(_densitypin, LOW);
 }
 
+/**************************************************************************/
+/*!
+    @brief  Poll the status of the index pulse
+    @returns the status of the index pulse
+*/
+/**************************************************************************/
 bool Adafruit_FloppyBase::read_index() {
 #ifdef BUSIO_USE_FAST_PINIO
   return read_index_fast();
@@ -856,6 +858,22 @@ uint16_t Adafruit_FloppyBase::sample_flux(bool &index) {
   return ::mfm_io_sample_flux(&index);
 }
 
+/**************************************************************************/
+/*!
+    @brief  Create a hardware interface to a floppy drive
+    @param  indexpin A pin connected to the floppy Index Sensor output
+    @param  selectpin A pin connected to the floppy Drive Select input
+    @param  phase1pin A pin connected to the floppy "phase 1" output
+    @param  phase2pin A pin connected to the floppy "phase 2" output
+    @param  phase3pin A pin connected to the floppy "phase 3" output
+    @param  phase4pin A pin connected to the floppy "phase 4" output
+    @param  wrdatapin A pin connected to the floppy Write Data input
+    @param  wrgatepin A pin connected to the floppy Write Gate input
+    @param  protectpin A pin connected to the floppy Write Protect Sensor output
+    @param  rddatapin A pin connected to the floppy Read Data output
+*/
+/**************************************************************************/
+
 Adafruit_Apple2Floppy::Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin,
                                              int8_t phase1pin, int8_t phase2pin,
                                              int8_t phase3pin, int8_t phase4pin,
@@ -875,6 +893,11 @@ void Adafruit_Apple2Floppy::end() {
   Adafruit_FloppyBase::end();
 }
 
+/**************************************************************************/
+/*!
+    @brief  Initializes the GPIO pins but do not start the motor or anything
+*/
+/**************************************************************************/
 void Adafruit_Apple2Floppy::soft_reset() {
   Adafruit_FloppyBase::soft_reset();
 
@@ -896,11 +919,27 @@ void Adafruit_Apple2Floppy::soft_reset() {
   digitalWrite(_phase4pin, LOW);
 }
 
+/**************************************************************************/
+/*!
+    @brief Whether to select this drive
+    @param selected True to select/enable
+*/
+/**************************************************************************/
 void Adafruit_Apple2Floppy::select(bool selected) {
   digitalWrite(_selectpin, !selected);
   Serial.printf("set selectpin %d to %d\n", _selectpin, !selected);
 }
 
+/**************************************************************************/
+/*!
+    @brief  Wait for index pulse
+    @param motor_on True to wait for index pulse, false to do nothing
+    @returns False if turning motor on and no index pulse found, true otherwise
+
+    @note The Apple II floppy has a single "select/enable" pin which selects the
+   drive and turns on the spindle.
+*/
+/**************************************************************************/
 bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
   if (motor_on) {
     delay(motor_delay_ms); // Main motor turn on
@@ -938,7 +977,7 @@ bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
 
 // stepping FORWARD through phases steps OUT towards SMALLER track numbers
 // stepping BACKWARD through phases steps IN towards BIGGER track numbers
-const uint8_t phases[] = {
+static const uint8_t phases[] = {
     0b1000, 0b1100, 0b0100, 0b0110, 0b0010, 0b0011, 0b0001, 0b1001,
 };
 
@@ -949,8 +988,15 @@ enum {
   STEP_IN_QUARTER = 1,
 };
 
-bool Adafruit_Apple2Floppy::goto_track(uint8_t track) {
-  if (track < 0 || track > 160) {
+/**************************************************************************/
+/*!
+    @brief  Seek to the desired track, requires the motor to be spun up!
+    @param  track_num The track to step to
+    @return True If we were able to get to the track location
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::goto_track(uint8_t track_num) {
+  if (track_num < 0 || track_num > 160) {
     return false;
   }
   if (_quartertrack == -1) {
@@ -958,15 +1004,15 @@ bool Adafruit_Apple2Floppy::goto_track(uint8_t track) {
     goto_track(0);
   }
 
-  int quartertrack = track * 4;
+  int quartertrack = track_num * 4;
   int diff = quartertrack - this->_quartertrack;
 
   if (diff != 0) {
     if (diff < 0) {
-      // step OUT to SMALLER track numbers
+      // step OUT to SMALLER track_num numbers
       _step(STEP_OUT_QUARTER, -diff);
     } else {
-      // step IN to LARGER track numbers
+      // step IN to LARGER track_num numbers
       _step(STEP_IN_QUARTER, diff);
     }
     delay(settle_delay_ms);
@@ -995,20 +1041,46 @@ void Adafruit_Apple2Floppy::_step(int direction, int count) {
   }
 }
 
+/**************************************************************************/
+/*!
+    @brief Which head/side to read from
+    @param head Head 0
+    @note Apple II floppy drives only have a single side
+*/
+/**************************************************************************/
 void Adafruit_Apple2Floppy::side(uint8_t head) {}
 
+/**************************************************************************/
+/*!
+    @brief  The current track location, based on internal caching
+    @return The cached track location
+*/
+/**************************************************************************/
 int8_t Adafruit_Apple2Floppy::track(void) { return _quartertrack / 4; }
 
-// The write protect circuit in the Apple II floppy drive is "interesting".
-// Because of how it was read by the Apple II Disk Interface Card, the protect
-// output is only active when the "phase 1" winding is energized;
-// having the "phase 1" winding active also prevents writing, but at the Disk
-// Interface Card, not at the drive. So, it's necessary for us to check
-// write_protected in software!
+/**************************************************************************/
+/*!
+    @brief  Check the write protect status of the floppy
+    @return true if the floppy is write protected, false otherwise
+
+    @note The write protect circuit in the Apple II floppy drive is
+    "interesting".  Because of how it was read by the Apple II Disk Interface
+   Card, the protect output is only active when the "phase 1" winding is
+   energized; having the "phase 1" winding active also prevents writing, but at
+   the Disk Interface Card, not at the drive. So, it's necessary for us to check
+    write_protected in software!
+*/
+/**************************************************************************/
 bool Adafruit_Apple2Floppy::write_protected(void) {
+  auto t = track();
+  if (t & 1) {
+    goto_track(t & ~1);
+  }
   digitalWrite(_phase1pin, 1);
   bool result = !digitalRead(_protectpin);
   digitalWrite(_phase1pin, 0);
   delay(settle_delay_ms);
+  goto_track(t);
+
   return result;
 }

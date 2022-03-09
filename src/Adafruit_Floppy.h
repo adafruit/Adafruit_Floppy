@@ -45,10 +45,44 @@ public:
 
   virtual void soft_reset(void);
 
+  /**************************************************************************/
+  /*!
+      @brief Whether to select this drive
+      @param selected True to select/enable
+  */
+  /**************************************************************************/
   virtual void select(bool selected) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  Turn on or off the floppy motor, if on we wait till we get an
+     index pulse!
+      @param motor_on True to turn on motor, False to turn it off
+      @returns False if turning motor on and no index pulse found, true
+     otherwise
+  */
+  /**************************************************************************/
   virtual bool spin_motor(bool motor_on) = 0;
-  virtual bool goto_track(uint8_t track) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  Seek to the desired track, requires the motor to be spun up!
+      @param  track_num The track to step to
+      @return True If we were able to get to the track location
+  */
+  /**************************************************************************/
+  virtual bool goto_track(uint8_t track_num) = 0;
+  /**************************************************************************/
+  /*!
+      @brief Which head/side to read from
+      @param head Head 0 or 1
+  */
+  /**************************************************************************/
   virtual void side(uint8_t head) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  The current track location, based on internal caching
+      @return The cached track location
+  */
+  /**************************************************************************/
   virtual int8_t track(void) = 0;
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
@@ -137,11 +171,11 @@ public:
   int8_t track(void) override;
   void step(bool dir, uint8_t times);
 
+private:
   // theres a lot of GPIO!
   int8_t _densitypin, _selectpin, _motorpin, _directionpin, _steppin,
       _track0pin, _protectpin, _sidepin, _readypin;
 
-private:
   int8_t _track = -1;
 };
 
