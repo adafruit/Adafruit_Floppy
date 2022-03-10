@@ -1161,7 +1161,8 @@ bool Adafruit_Apple2Floppy::get_write_protect(void) {
 /**************************************************************************/
 /*!
     @brief  Set the density for flux reading and writing
-    @param high_density true to select high density, false to select low density.
+    @param high_density true to select high density, false to select low
+   density.
     @return true if low density mode is selected, false if high density is
    selected
     @note The drive hardware is only capable of single density operation
