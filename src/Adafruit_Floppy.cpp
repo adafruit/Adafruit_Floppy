@@ -1082,7 +1082,7 @@ void Adafruit_Apple2Floppy::_step(int direction, int count) {
     debug_serial->printf("Step by %d x %d\n", direction, count);
   for (; count--;) {
     _quartertrack += direction;
-    auto phase = _quartertrack % std::size(phases);
+    auto phase = _quartertrack % 8;
 
     digitalWrite(_phase1pin, phases[phase] & 8);
     digitalWrite(_phase2pin, phases[phase] & 4);
