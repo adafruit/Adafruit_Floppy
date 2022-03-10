@@ -74,16 +74,44 @@ public:
   /*!
       @brief Which head/side to read from
       @param head Head 0 or 1
+      @return true if the head exists, false otherwise
   */
   /**************************************************************************/
-  virtual void side(uint8_t head) = 0;
+  virtual bool side(uint8_t head) = 0;
   /**************************************************************************/
   /*!
       @brief  The current track location, based on internal caching
       @return The cached track location
+      @note Returns -1 if the track is not known.
   */
   /**************************************************************************/
   virtual int8_t track(void) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  Check whether the floppy in the drive is write protected
+      @returns False if the floppy is writable, true otherwise
+  */
+  /**************************************************************************/
+  virtual bool get_write_protect() = 0;
+
+  /**************************************************************************/
+  /*!
+      @brief  Check whether the track0 sensor is active
+      @returns True if the track0 sensor is active, false otherwise
+      @note On devices without a track0 sensor, this returns true when
+     track()==0
+  */
+  /**************************************************************************/
+  virtual bool get_track0_sense() = 0;
+
+  /**************************************************************************/
+  /*!
+      @brief  Set the density for flux reading and writing
+      @param high_density false for low density, true for high density
+      @returns True if the drive interface supports the given density.
+  */
+  /**************************************************************************/
+  virtual bool set_density(bool high_density) = 0;
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity, bool high_density = true);
@@ -167,9 +195,12 @@ public:
   void select(bool selected) override;
   bool spin_motor(bool motor_on) override;
   bool goto_track(uint8_t track) override;
-  void side(uint8_t head) override;
+  bool side(uint8_t head) override;
   int8_t track(void) override;
   void step(bool dir, uint8_t times);
+  bool set_density(bool high_density) override;
+  bool get_write_protect() override;
+  bool get_track0_sense() override;
 
 private:
   // theres a lot of GPIO!
@@ -186,6 +217,12 @@ private:
 /**************************************************************************/
 class Adafruit_Apple2Floppy : public Adafruit_FloppyBase {
 public:
+  enum StepMode {
+    STEP_MODE_WHOLE,
+    STEP_MODE_HALF,
+    STEP_MODE_QUARTER,
+  };
+
   Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin, int8_t phase1pin,
                         int8_t phase2pin, int8_t phase3pin, int8_t phase4pin,
                         int8_t wrdatapin, int8_t wrgatepin, int8_t protectpin,
@@ -196,15 +233,23 @@ public:
   void select(bool selected) override;
   bool spin_motor(bool motor_on) override;
   bool goto_track(uint8_t track) override;
-  void side(uint8_t head) override;
+  bool side(uint8_t head) override;
   int8_t track(void) override;
-  bool write_protected(void);
+  bool set_density(bool high_density) override;
+  bool get_write_protect() override;
+  bool get_track0_sense() override;
+
+  int8_t quartertrack();
+  bool goto_quartertrack(int);
+  void step_mode(StepMode mode);
 
 private:
+  int _step_multiplier() const;
   // theres not much GPIO!
   int8_t _selectpin, _phase1pin, _phase2pin, _phase3pin, _phase4pin,
       _protectpin;
-  int8_t _quartertrack = -1;
+  int _quartertrack = -1;
+  StepMode _step_mode = STEP_MODE_HALF;
   void _step(int dir, int times);
 };
 

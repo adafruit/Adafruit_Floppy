@@ -28,6 +28,19 @@
 #define READ_PIN      9    // IDC 30
 #define SIDE_PIN      8    // IDC 32
 #define READY_PIN     7    // IDC 34
+
+// jepler's prototype board, subject to change
+#define APPLE2_ENABLE_PIN (8)  // D6
+#define APPLE2_PHASE1_PIN (A2)
+#define APPLE2_PHASE2_PIN (13)
+#define APPLE2_PHASE3_PIN (12)
+#define APPLE2_PHASE4_PIN (11)
+#define APPLE2_RDDATA_PIN (7)  // D5
+#define APPLE2_WRDATA_PIN (-1)
+#define APPLE2_WRGATE_PIN (-1)
+#define APPLE2_PROTECT_PIN (-1)
+#define APPLE2_INDEX_PIN  (A3)
+
 #ifndef USE_TINYUSB
 #error "Please set Adafruit TinyUSB under Tools > USB Stack"
 #endif
@@ -52,10 +65,23 @@
 #error "Please set up pin definitions!"
 #endif
 
-Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
-                       MOTOR_PIN, DIR_PIN, STEP_PIN,
-                       WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
-                       PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
+#ifdef READ_PIN
+Adafruit_Floppy pcfloppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
+                         MOTOR_PIN, DIR_PIN, STEP_PIN,
+                         WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
+                         PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
+#else
+#warning "This firmware will not support PC/Shugart drives"
+#endif
+#ifdef APPLE2_RDDATA_PIN
+Adafruit_Apple2Floppy apple2floppy(APPLE2_INDEX_PIN, APPLE2_ENABLE_PIN,
+                                   APPLE2_PHASE1_PIN, APPLE2_PHASE2_PIN, APPLE2_PHASE3_PIN, APPLE2_PHASE4_PIN,
+                                   APPLE2_WRDATA_PIN, APPLE2_WRGATE_PIN, APPLE2_PROTECT_PIN, APPLE2_RDDATA_PIN);
+#else
+#warning "This firmware will not support Apple ][ drives"
+#endif
+
+Adafruit_FloppyBase *floppy;
 
 uint32_t time_stamp = 0;
 
@@ -86,19 +112,58 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_SETBUSTYPE 14
 #define GW_CMD_SETBUSTYPE_IBM 1
 #define GW_CMD_SETBUSTYPE_SHUGART 2
+#define GW_CMD_SETBUSTYPE_APPLE2 3
+#define GW_CMD_SETBUSTYPE_APPLE2_QUARTERTRACK 4
 #define GW_CMD_SETPIN    15
+#define GW_CMD_SETPIN_DENSITY 2
 #define GW_CMD_RESET     16
 #define GW_CMD_SOURCEBYTES 18
 #define GW_CMD_SINKBYTES 19
 #define GW_CMD_GETPIN 20
-
+#define GW_CMD_GETPIN_TRACK0 26
 #define GW_ACK_OK (byte)0
 #define GW_ACK_BADCMD 1
 #define GW_ACK_NOINDEX 2
 #define GW_ACK_NOTRACK0 3
+#define GW_ACK_WRPROT 6
 #define GW_ACK_NOUNIT 7
+#define GW_ACK_BADPIN 10
 
 uint32_t timestamp = 0;
+
+bool setbustype(int bustype) {
+  if (floppy) {
+    floppy->end();
+  }
+  floppy = nullptr;
+  switch (bustype) {
+    case -1:
+#ifdef READ_PIN
+    case GW_CMD_SETBUSTYPE_IBM:
+    case GW_CMD_SETBUSTYPE_SHUGART:
+      // TODO: whats the diff???
+      floppy = &pcfloppy;
+      break;
+#endif
+#ifdef APPLE2_RDDATA_PIN
+    case GW_CMD_SETBUSTYPE_APPLE2:
+      floppy = &apple2floppy;
+      apple2floppy.step_mode(Adafruit_Apple2Floppy::STEP_MODE_HALF);
+      break;
+    case GW_CMD_SETBUSTYPE_APPLE2_QUARTERTRACK:
+      apple2floppy.step_mode(Adafruit_Apple2Floppy::STEP_MODE_QUARTER);
+      floppy = &apple2floppy;
+      break;
+#endif
+    default:
+      Serial1.printf("Unsupported bus type %d\n", bustype);
+      return false;
+  }
+  floppy->debug_serial = &Serial1;
+  auto result = floppy->begin();
+  Serial1.printf("setbustype() floppy = %p result=%d\n", floppy, result);
+  return result;
+}
 
 void setup() {
   Serial.begin(115200);
@@ -106,12 +171,8 @@ void setup() {
   //while (!Serial) delay(100);
   Serial1.println("GrizzlyWizzly");
 
-  floppy.debug_serial = &Serial1;
-  if (!floppy.begin()) {
-    Serial1.println("Failed to initialize floppy interface");
-    while (1) yield();
-  }
   timestamp = millis();
+
 }
 
 uint8_t get_cmd(uint8_t *buff, uint8_t maxbuff) {
@@ -145,15 +206,22 @@ void loop() {
   if (!cmd_len) {
     if ((millis() > timestamp) && ((millis() - timestamp) > 10000)) {
       Serial1.println("Timed out waiting for command, resetting motor");
-      floppy.goto_track(0);
-      floppy.spin_motor(false);
+      if (floppy) {
+        Serial1.println("goto track 0");
+        floppy->goto_track(0);
+        Serial1.println("stop motor");
+        floppy->spin_motor(false);
+        Serial1.println("deselect");
+        floppy->select(false);
+      }
+      Serial1.println("motor reset");
       motor_state = false;
-      floppy.select(false);
       timestamp = millis();
     }
     return;
   }
   timestamp = millis();
+
 
   int i = 0;
   uint8_t cmd = cmd_buffer[0];
@@ -161,6 +229,7 @@ void loop() {
   reply_buffer[i++] = cmd;  // echo back the cmd itself
 
   Serial1.printf("Got command 0x%02x of length %d\n\r", cmd, cmd_buffer[1]);
+
 
   if (cmd == GW_CMD_GETINFO) {
     Serial1.println("Get info");
@@ -171,7 +240,7 @@ void loop() {
       reply_buffer[i++] = GW_FIRMVER_MINOR; // 1 byte
       reply_buffer[i++] = 1; // is main firm
       reply_buffer[i++] = GW_MAXCMD;
-      uint32_t samplefreq = floppy.getSampleFrequency();
+      uint32_t samplefreq = floppy->getSampleFrequency();
       reply_buffer[i++] = samplefreq & 0xFF;
       reply_buffer[i++] = (samplefreq >> 8) & 0xFF;
       reply_buffer[i++] = (samplefreq >> 16) & 0xFF;
@@ -216,47 +285,47 @@ void loop() {
     uint8_t sub_cmd = cmd_buffer[2];
     if (sub_cmd == GW_CMD_GETPARAMS_DELAYS) {
       reply_buffer[i++] = GW_ACK_OK;
-      reply_buffer[i++] = floppy.select_delay_us & 0xFF;
-      reply_buffer[i++] = floppy.select_delay_us >> 8;
-      reply_buffer[i++] = floppy.step_delay_us & 0xFF;
-      reply_buffer[i++] = floppy.step_delay_us >> 8;
-      reply_buffer[i++] = floppy.settle_delay_ms & 0xFF;
-      reply_buffer[i++] = floppy.settle_delay_ms >> 8;
-      reply_buffer[i++] = floppy.motor_delay_ms & 0xFF;
-      reply_buffer[i++] = floppy.motor_delay_ms >> 8;
-      reply_buffer[i++] = floppy.watchdog_delay_ms & 0xFF;
-      reply_buffer[i++] = floppy.watchdog_delay_ms >> 8;
+      reply_buffer[i++] = floppy->select_delay_us & 0xFF;
+      reply_buffer[i++] = floppy->select_delay_us >> 8;
+      reply_buffer[i++] = floppy->step_delay_us & 0xFF;
+      reply_buffer[i++] = floppy->step_delay_us >> 8;
+      reply_buffer[i++] = floppy->settle_delay_ms & 0xFF;
+      reply_buffer[i++] = floppy->settle_delay_ms >> 8;
+      reply_buffer[i++] = floppy->motor_delay_ms & 0xFF;
+      reply_buffer[i++] = floppy->motor_delay_ms >> 8;
+      reply_buffer[i++] = floppy->watchdog_delay_ms & 0xFF;
+      reply_buffer[i++] = floppy->watchdog_delay_ms >> 8;
       Serial.write(reply_buffer, 12);
     }
   }
 
   else if (cmd == GW_CMD_RESET) {
     Serial1.println("Soft reset");
-    floppy.soft_reset();
+    if (floppy)
+      floppy->soft_reset();
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
 
   else if (cmd == GW_CMD_SETBUSTYPE) {
     uint8_t bustype = cmd_buffer[2];
-    Serial1.printf("Set bus type %d\n\r", bustype);
-    // TODO: whats the diff???
-    if (bustype == GW_CMD_SETBUSTYPE_IBM) {
-      reply_buffer[i++] = GW_ACK_OK;
-    }
-    else if (bustype == GW_CMD_SETBUSTYPE_SHUGART) {
-      floppy.bus_type = BUSTYPE_SHUGART;
+    auto result = setbustype(bustype);
+    Serial1.printf("Set bus type %d -> %d\n\r", bustype, result);
+    if (result) {
       reply_buffer[i++] = GW_ACK_OK;
     } else {
       reply_buffer[i++] = GW_ACK_BADCMD;
     }
+    motor_state = false;
     Serial.write(reply_buffer, 2);
   }
 
   else if (cmd == GW_CMD_SEEK) {
+    if (!floppy) goto needfloppy;
+
     uint8_t track = cmd_buffer[2];
     Serial1.printf("Seek track %d\n\r", track);
-    bool r = floppy.goto_track(track);
+    bool r = floppy->goto_track(track);
     if (r) {
       reply_buffer[i++] = GW_ACK_OK;
     } else {
@@ -266,19 +335,23 @@ void loop() {
   }
 
   else if (cmd == GW_CMD_HEAD) {
+    if (!floppy) goto needfloppy;
+
     uint8_t head = cmd_buffer[2];
     Serial1.printf("Seek head %d\n\r", head);
-    floppy.side(head);
+    floppy->side(head);
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
 
   else if (cmd == GW_CMD_MOTOR) {
+    if (!floppy) goto needfloppy;
+
     uint8_t unit = cmd_buffer[2];
     uint8_t state = cmd_buffer[3];
     Serial1.printf("Turn motor %d %s\n\r", unit, state ? "on" : "off");
     if (motor_state != state) { // we're in the opposite state
-      if (! floppy.spin_motor(state)) {
+      if (! floppy->spin_motor(state)) {
         reply_buffer[i++] = GW_ACK_NOINDEX;
       } else {
         reply_buffer[i++] = GW_ACK_OK;
@@ -292,25 +365,32 @@ void loop() {
   }
 
   else if (cmd == GW_CMD_SELECT) {
+    if (!floppy) goto needfloppy;
+
     uint8_t sub_cmd = cmd_buffer[2];
     Serial1.printf("Select drive %d\n\r", sub_cmd);
     if (sub_cmd == 0) {
-      floppy.select(true);
+      floppy->select(true);
       reply_buffer[i++] = GW_ACK_OK;
     } else {
       reply_buffer[i++] = GW_ACK_NOUNIT;
     }
+    Serial1.printf("Reply buffer = %d %d\n", reply_buffer[0], reply_buffer[1]);
     Serial.write(reply_buffer, 2);
   }
 
   else if (cmd == GW_CMD_DESELECT) {
+    if (!floppy) goto needfloppy;
+
     Serial1.printf("Deselect drive\n\r");
-    floppy.select(false);
+    floppy->select(false);
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
 
   else if (cmd == GW_CMD_READFLUX) {
+    if (!floppy) goto needfloppy;
+
     uint32_t flux_ticks;
     uint16_t revs;
     flux_ticks = cmd_buffer[5];
@@ -327,16 +407,16 @@ void loop() {
       revs -= 1;
     }
 
-    if (floppy.track() == -1) {
-      floppy.goto_track(0);
+    if (floppy->track() == -1) {
+      floppy->goto_track(0);
     }
 
-    Serial1.printf("Reading flux0rs on track %d: %u ticks and %d revs\n\r", floppy.track(), flux_ticks, revs);
+    Serial1.printf("Reading flux0rs on track %d: %u ticks and %d revs\n\r", floppy->track(), flux_ticks, revs);
     uint16_t capture_ms = 0;
     uint16_t capture_revs = 0;
     if (flux_ticks) {
       // we'll back calculate the revolutions
-      capture_ms = 1000.0 * (float)flux_ticks / (float)floppy.getSampleFrequency();
+      capture_ms = 1000.0 * (float)flux_ticks / (float)floppy->getSampleFrequency();
       revs = 1;
     } else {
       capture_revs = revs;
@@ -348,11 +428,11 @@ void loop() {
     while (revs--) {
       uint32_t index_offset;
       // read in greaseweazle mode (long pulses encoded with 250's)
-      captured_pulses = floppy.capture_track(flux_transitions, sizeof(flux_transitions),
-                                             &index_offset, true, capture_ms);
+      captured_pulses = floppy->capture_track(flux_transitions, sizeof(flux_transitions),
+                                              &index_offset, true, capture_ms);
       Serial1.printf("Rev #%d captured %u pulses, second index fall @ %d\n\r",
                      revs, captured_pulses, index_offset);
-      //floppy.print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
+      //floppy->print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
       // Send the index falling signal opcode, which was right
       // at the start of this data xfer (we wait for index to fall
       // before we start reading
@@ -405,27 +485,35 @@ void loop() {
     Serial.write((byte)0);
   }
   else if (cmd == GW_CMD_WRITEFLUX) {
+    if (!floppy) goto needfloppy;
+
     Serial1.println("write flux");
 
-    //uint8_t cue_at_index = cmd_buffer[2];
-    //uint8_t terminate_at_index = cmd_buffer[3];
-    reply_buffer[i++] = GW_ACK_OK;
-    Serial.write(reply_buffer, 2);
+    if (floppy->get_write_protect()) {
+      reply_buffer[i++] = GW_ACK_WRPROT;
+      Serial.write(reply_buffer, 2);
 
-    uint32_t fluxors = 0;
-    uint8_t flux = 0xFF;
-    while (flux && (fluxors < MAX_FLUX_PULSE_PER_TRACK)) {
-      while (!Serial.available()) yield();
-      flux = Serial.read();
-      flux_transitions[fluxors++] = flux;
+    } else {
+      //uint8_t cue_at_index = cmd_buffer[2];
+      //uint8_t terminate_at_index = cmd_buffer[3];
+      reply_buffer[i++] = GW_ACK_OK;
+      Serial.write(reply_buffer, 2);
+
+      uint32_t fluxors = 0;
+      uint8_t flux = 0xFF;
+      while (flux && (fluxors < MAX_FLUX_PULSE_PER_TRACK)) {
+        while (!Serial.available()) yield();
+        flux = Serial.read();
+        flux_transitions[fluxors++] = flux;
+      }
+      if (fluxors == MAX_FLUX_PULSE_PER_TRACK) {
+        Serial1.println("*** FLUX OVERRUN ***");
+        while (1) yield();
+      }
+      floppy->write_track(flux_transitions, fluxors - 7, true);
+      Serial1.println("wrote fluxors");
+      Serial.write((byte)0);
     }
-    if (fluxors == MAX_FLUX_PULSE_PER_TRACK) {
-      Serial1.println("*** FLUX OVERRUN ***");
-      while (1) yield();
-    }
-    floppy.write_track(flux_transitions, fluxors - 7, true);
-    Serial1.println("wrote fluxors");
-    Serial.write((byte)0);
   }
   else if (cmd == GW_CMD_GETFLUXSTATUS) {
     Serial1.println("get flux status");
@@ -537,32 +625,36 @@ void loop() {
     Serial1.printf("getpin %d\n\r", pin);
 
     switch (pin) {
-      case 26:
+      case GW_CMD_GETPIN_TRACK0:
         reply_buffer[i++] = GW_ACK_OK;
-        reply_buffer[i++] = digitalRead(TRK0_PIN);
+        reply_buffer[i++] = floppy->get_track0_sense();
         break;
 
       default:
         // unknown pin, don't pretend we did it right
-        reply_buffer[i++] = GW_ACK_BADCMD;
+        reply_buffer[i++] = GW_ACK_BADPIN;
         reply_buffer[i++] = 0;
     }
     Serial.write(reply_buffer, i);
   } else if (cmd == GW_CMD_SETPIN) {
+    if (!floppy) goto needfloppy;
+
     uint32_t pin = cmd_buffer[2];
     bool value = cmd_buffer[3];
-    Serial1.printf("setpin %d to \n\r", pin, value);
+    Serial1.printf("setpin %d to %d\n", pin, value);
 
     switch (pin) {
-      case 2:
-        pinMode(DENSITY_PIN, OUTPUT);
-        digitalWrite(DENSITY_PIN, value);
-        reply_buffer[i++] = GW_ACK_OK;
+      case GW_CMD_SETPIN_DENSITY:
+        if (floppy->set_density(value)) {
+          reply_buffer[i++] = GW_ACK_OK;
+        } else {
+          reply_buffer[i++] = GW_ACK_BADCMD;
+        }
         break;
 
       default:
         // unknown pin, don't pretend we did it right
-        reply_buffer[i++] = GW_ACK_BADCMD;
+        reply_buffer[i++] = GW_ACK_BADPIN;
     }
 
     Serial.write(reply_buffer, i);
@@ -572,5 +664,13 @@ void loop() {
     reply_buffer[i++] = GW_ACK_BADCMD;
     Serial.write(reply_buffer, 2);
   }
+
+  return;
+
+needfloppy:
+  Serial1.printf("Got command without valid floppy object\n", cmd);
+  reply_buffer[i++] = GW_ACK_BADCMD;
+  Serial.write(reply_buffer, 2);
+
   //Serial1.println("cmd complete!");
 }

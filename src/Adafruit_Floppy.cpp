@@ -265,10 +265,19 @@ void Adafruit_Floppy::select(bool selected) {
 /*!
     @brief Which head/side to read from
     @param head Head 0 or 1
+    @return true if the head can be selected, false otherwise
+    @note If _sidepin is no pin, then only head 0 can be selected
 */
 /**************************************************************************/
-void Adafruit_Floppy::side(uint8_t head) {
+bool Adafruit_Floppy::side(uint8_t head) {
+  if (head != 0 && head != 1) {
+    return false;
+  }
+  if (_sidepin == -1) {
+    return head == 0;
+  }
   digitalWrite(_sidepin, !head); // Head 0 is logic level 1, head 1 is logic 0!
+  return true;
 }
 
 /**************************************************************************/
@@ -413,6 +422,28 @@ void Adafruit_Floppy::step(bool dir, uint8_t times) {
 */
 /**************************************************************************/
 int8_t Adafruit_Floppy::track(void) { return _track; }
+
+bool Adafruit_Floppy::get_write_protect(void) {
+  if (_protectpin == -1) {
+    return false;
+  }
+  return digitalRead(_protectpin);
+}
+
+bool Adafruit_Floppy::get_track0_sense(void) {
+  if (_track0pin == 0) {
+    return track() == 0;
+  }
+  return digitalRead(_track0pin);
+}
+
+bool Adafruit_Floppy::set_density(bool high_density) {
+  if (_densitypin == 0) {
+    return !high_density;
+  }
+  digitalWrite(_densitypin, high_density);
+  return true;
+}
 
 /**************************************************************************/
 /*!
@@ -927,7 +958,8 @@ void Adafruit_Apple2Floppy::soft_reset() {
 /**************************************************************************/
 void Adafruit_Apple2Floppy::select(bool selected) {
   digitalWrite(_selectpin, !selected);
-  Serial.printf("set selectpin %d to %d\n", _selectpin, !selected);
+  if (debug_serial)
+    debug_serial->printf("set selectpin %d to %d\n", _selectpin, !selected);
 }
 
 /**************************************************************************/
@@ -996,16 +1028,32 @@ enum {
 */
 /**************************************************************************/
 bool Adafruit_Apple2Floppy::goto_track(uint8_t track_num) {
-  if (track_num < 0 || track_num > 160) {
-    return false;
-  }
   if (_quartertrack == -1) {
     _quartertrack = 160;
-    goto_track(0);
+    goto_quartertrack(0);
+  }
+  int quartertrack = track_num * _step_multiplier();
+  return goto_quartertrack(quartertrack);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Seek to the desired quarter track, requires the motor to be spun up!
+    @param  quartertrack The position to step to
+    @return True If we were able to get to the track location
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::goto_quartertrack(int quartertrack) {
+  if (quartertrack < 0 || quartertrack >= 160) {
+    return false;
   }
 
-  int quartertrack = track_num * 4;
-  int diff = quartertrack - this->_quartertrack;
+  int diff = (int)quartertrack - (int)this->_quartertrack;
+
+  if (debug_serial) {
+    debug_serial->printf("Stepping from %d -> %d, diff = %d\n",
+                         this->_quartertrack, quartertrack, diff);
+  }
 
   if (diff != 0) {
     if (diff < 0) {
@@ -1024,11 +1072,14 @@ bool Adafruit_Apple2Floppy::goto_track(uint8_t track_num) {
   digitalWrite(_phase3pin, 0);
   digitalWrite(_phase4pin, 0);
 
+  _quartertrack = quartertrack;
+
   return true;
 }
 
 void Adafruit_Apple2Floppy::_step(int direction, int count) {
-  Serial.printf("Step by %d x %d\n", direction, count);
+  if (debug_serial)
+    debug_serial->printf("Step by %d x %d\n", direction, count);
   for (; count--;) {
     _quartertrack += direction;
     auto phase = _quartertrack % std::size(phases);
@@ -1044,19 +1095,27 @@ void Adafruit_Apple2Floppy::_step(int direction, int count) {
 /**************************************************************************/
 /*!
     @brief Which head/side to read from
-    @param head Head 0
+    @param head Head must be 0
+    @return true if the head is 0, false otherwise
     @note Apple II floppy drives only have a single side
 */
 /**************************************************************************/
-void Adafruit_Apple2Floppy::side(uint8_t head) {}
+bool Adafruit_Apple2Floppy::side(uint8_t head) { return head == 0; }
 
 /**************************************************************************/
 /*!
     @brief  The current track location, based on internal caching
     @return The cached track location
+    @note Partial tracks are rounded, with quarter tracks always rounded down.
 */
 /**************************************************************************/
-int8_t Adafruit_Apple2Floppy::track(void) { return _quartertrack / 4; }
+int8_t Adafruit_Apple2Floppy::track(void) {
+  if (_quartertrack == -1) {
+    return -1;
+  }
+  auto m = _step_multiplier();
+  return (_quartertrack + m / 2) / m;
+}
 
 /**************************************************************************/
 /*!
@@ -1069,18 +1128,84 @@ int8_t Adafruit_Apple2Floppy::track(void) { return _quartertrack / 4; }
    energized; having the "phase 1" winding active also prevents writing, but at
    the Disk Interface Card, not at the drive. So, it's necessary for us to check
     write_protected in software!
+
+    If_protectpin is -1 (not available), then we always report that the disk is
+   write protected.
 */
 /**************************************************************************/
-bool Adafruit_Apple2Floppy::write_protected(void) {
-  auto t = track();
-  if (t & 1) {
-    goto_track(t & ~1);
+bool Adafruit_Apple2Floppy::get_write_protect(void) {
+  if (_protectpin == -1) {
+    return true;
   }
+
+  auto t = quartertrack();
+  // we need to be on an even-numbered track, so that activating the "phase 1"
+  // winding doesn't pull out of position. We'll return to the right spot below.
+  goto_quartertrack(t & ~3);
+
+  // goto_track() has deenergized all windings, we need to enable phase1
+  // temporarily
   digitalWrite(_phase1pin, 1);
+  // ensure that the output has time to rise, 1ms is plenty
+  delay(1);
+
+  // only now can we read the protect pin status
   bool result = !digitalRead(_protectpin);
-  digitalWrite(_phase1pin, 0);
-  delay(settle_delay_ms);
-  goto_track(t);
+
+  // Return to where we were before...!
+  goto_quartertrack(t);
 
   return result;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Set the density for flux reading and writing
+    @return true if low density mode is selected, false if high density is
+   selected
+    @note The drive hardware is only capable of single density operation
+*/
+bool Adafruit_Apple2Floppy::set_density(bool high_density) {
+  return high_density == false;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Check whether the track0 sensor is active
+    @returns True if the track0 sensor is active, false otherwise
+    @note This device has no home sensor so it just returns track() == 0.
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::get_track0_sense(void) { return track() == 0; }
+
+/**************************************************************************/
+/*!
+    @brief  Get the drive position in quarter tracks
+    @returns True if the track0 sensor is active, false otherwise
+    @note Returns -1 if the position is unknown
+*/
+/**************************************************************************/
+int8_t Adafruit_Apple2Floppy::quartertrack() { return _quartertrack; }
+
+/**************************************************************************/
+/*!
+    @brief  Set the positioning mode
+    @param step_mode The new positioning mode
+    @note This does not re-position the drive
+*/
+/**************************************************************************/
+void Adafruit_Apple2Floppy::step_mode(StepMode step_mode) {
+  _step_mode = step_mode;
+}
+
+int Adafruit_Apple2Floppy::_step_multiplier(void) const {
+  switch (_step_mode) {
+  case STEP_MODE_WHOLE:
+    return 4;
+  case STEP_MODE_HALF:
+    return 2;
+  default:
+  case STEP_MODE_QUARTER:
+    return 1;
+  }
 }
