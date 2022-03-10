@@ -217,10 +217,15 @@ private:
 /**************************************************************************/
 class Adafruit_Apple2Floppy : public Adafruit_FloppyBase {
 public:
+  /**************************************************************************/
+  /*!
+      @brief Constants for use with the step_mode method
+  */
+  /**************************************************************************/
   enum StepMode {
-    STEP_MODE_WHOLE,
-    STEP_MODE_HALF,
-    STEP_MODE_QUARTER,
+    STEP_MODE_WHOLE,   //< One step moves by one data track
+    STEP_MODE_HALF,    //< Two steps move by one data track
+    STEP_MODE_QUARTER, //< Four steps move by one data track
   };
 
   Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin, int8_t phase1pin,
