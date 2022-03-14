@@ -293,6 +293,8 @@ static void write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
   pinMode(wrgate_pin, OUTPUT);
   digitalWrite(wrgate_pin, LOW);
 
+  noInterrupts();
+  pio_sm_set_enabled(g_writer.pio, g_writer.sm, false);
   pio_sm_clear_fifos(g_writer.pio, g_writer.sm);
   pio_sm_exec(g_writer.pio, g_writer.sm, g_writer.offset);
   while (!pio_sm_is_tx_fifo_full(g_writer.pio, g_writer.sm)) {
@@ -302,7 +304,6 @@ static void write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
   }
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, true);
 
-  noInterrupts();
   bool old_index_state = false;
   int i = 0;
   while (pulses != pulse_end) {
