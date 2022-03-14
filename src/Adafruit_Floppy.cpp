@@ -1150,7 +1150,7 @@ bool Adafruit_Apple2Floppy::get_write_protect(void) {
   delay(1);
 
   // only now can we read the protect pin status
-  bool result = !digitalRead(_protectpin);
+  bool result = digitalRead(_protectpin);
 
   // Return to where we were before...!
   goto_quartertrack(t);
