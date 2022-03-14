@@ -163,12 +163,12 @@ static void free_capture(void) {
 }
 
 static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
-                                   uint32_t *falling_index_offset,
+                                   int32_t *falling_index_offset,
                                    bool store_greaseweazle,
                                    uint32_t capture_counts) {
   uint8_t *ptr = start;
   if (falling_index_offset) {
-    *falling_index_offset = ~0u;
+    *falling_index_offset = -1;
   }
   start_common();
 
@@ -340,7 +340,7 @@ static void free_write() {
 
 uint32_t rp2040_flux_capture(int index_pin, int rdpin, volatile uint8_t *pulses,
                              volatile uint8_t *pulse_end,
-                             uint32_t *falling_index_offset,
+                             int32_t *falling_index_offset,
                              bool store_greaseweazle, uint32_t capture_counts) {
   if (!init_capture(index_pin, rdpin)) {
     return 0;

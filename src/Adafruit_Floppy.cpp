@@ -513,7 +513,7 @@ uint32_t Adafruit_FloppyBase::getSampleFrequency(void) {
 /**************************************************************************/
 uint32_t Adafruit_FloppyBase::capture_track(volatile uint8_t *pulses,
                                             uint32_t max_pulses,
-                                            uint32_t *falling_index_offset,
+                                            int32_t *falling_index_offset,
                                             bool store_greaseweazle,
                                             uint32_t capture_ms) {
   memset((void *)pulses, 0, max_pulses); // zero zem out

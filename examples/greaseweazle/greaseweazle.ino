@@ -426,7 +426,7 @@ void loop() {
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
     while (revs--) {
-      uint32_t index_offset;
+      int32_t index_offset;
       // read in greaseweazle mode (long pulses encoded with 250's)
       captured_pulses = floppy->capture_track(flux_transitions, sizeof(flux_transitions),
                                               &index_offset, true, capture_ms);
@@ -446,8 +446,8 @@ void loop() {
 
       uint8_t *flux_ptr = flux_transitions;
       // send all data until the flux transition
-      while (index_offset) {
-        uint32_t to_send = min(index_offset, (uint32_t)256);
+      while (index_offset > 0 && captured_pulses > 0) {
+        int32_t to_send = min(captured_pulses, min(index_offset, (int32_t)256));
         Serial.write(flux_ptr, to_send);
         //Serial1.println(to_send);
         flux_ptr += to_send;

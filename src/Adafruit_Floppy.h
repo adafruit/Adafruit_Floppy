@@ -116,7 +116,7 @@ public:
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity, bool high_density = true);
   uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
-                         uint32_t *falling_index_offset,
+                         int32_t *falling_index_offset,
                          bool store_greaseweazle = false,
                          uint32_t capture_ms = 0)
       __attribute__((optimize("O3")));
