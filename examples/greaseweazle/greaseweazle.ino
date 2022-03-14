@@ -30,15 +30,15 @@
 #define READY_PIN     7    // IDC 34
 
 // jepler's prototype board, subject to change
-#define APPLE2_ENABLE_PIN (8)  // D6
-#define APPLE2_PHASE1_PIN (A2)
-#define APPLE2_PHASE2_PIN (13)
-#define APPLE2_PHASE3_PIN (12)
-#define APPLE2_PHASE4_PIN (11)
-#define APPLE2_RDDATA_PIN (7)  // D5
-#define APPLE2_WRDATA_PIN (-1)
-#define APPLE2_WRGATE_PIN (-1)
-#define APPLE2_PROTECT_PIN (-1)
+#define APPLE2_PHASE1_PIN (A2)        // IDC 2
+#define APPLE2_PHASE2_PIN (13)        // IDC 4
+#define APPLE2_PHASE3_PIN (12)        // IDC 6
+#define APPLE2_PHASE4_PIN (11)        // IDC 8
+#define APPLE2_WRGATE_PIN (10)        // IDC 10
+#define APPLE2_ENABLE_PIN (8)  // D6  // IDC 14
+#define APPLE2_RDDATA_PIN (7)  // D5  // IDC 16
+#define APPLE2_WRDATA_PIN (3)  // SCL // IDC 18
+#define APPLE2_PROTECT_PIN (2) // SDA // IDC 20
 #define APPLE2_INDEX_PIN  (A3)
 
 #ifndef USE_TINYUSB
@@ -412,6 +412,7 @@ void loop() {
     }
 
     Serial1.printf("Reading flux0rs on track %d: %u ticks and %d revs\n\r", floppy->track(), flux_ticks, revs);
+    Serial1.printf("Sample freqency %.1fMHz\n", floppy->getSampleFrequency() / 1e6);
     uint16_t capture_ms = 0;
     uint16_t capture_revs = 0;
     if (flux_ticks) {
