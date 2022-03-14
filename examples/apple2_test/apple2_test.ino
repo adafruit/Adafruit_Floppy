@@ -16,13 +16,14 @@
 #define PHASE4_PIN (11)
 #define RDDATA_PIN (7)  // D5
 #define INDEX_PIN  (A3)
+#define APPLE2_PROTECT_PIN (2) // "SDA"
 #else
 #error "Please set up pin definitions!"
 #endif
 
 Adafruit_Apple2Floppy floppy(INDEX_PIN, ENABLE_PIN,
                              PHASE1_PIN, PHASE2_PIN, PHASE3_PIN, PHASE4_PIN,
-                             -1, -1, -1, RDDATA_PIN);
+                             -1, -1, APPLE2_PROTECT_PIN, RDDATA_PIN);
 
 // WARNING! there are 150K max flux pulses per track!
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
@@ -68,5 +69,7 @@ void loop() {
   //floppy.print_pulses(flux_transitions, captured_flux);
   floppy.print_pulse_bins(flux_transitions, captured_flux, 255, true);
 
-  yield();
+  Serial.printf("Write protect: %s\n", floppy.get_write_protect() ? "ON" : "off");
+
+  delay(100);
 }
