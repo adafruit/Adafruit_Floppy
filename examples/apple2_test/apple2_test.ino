@@ -8,6 +8,7 @@
 #define PHASE4_PIN (11)
 #define RDDATA_PIN (5)
 #define INDEX_PIN  (A3)
+#define APPLE2_PROTECT_PIN (21) // "SDA"
 #elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
 #define ENABLE_PIN (8)  // D6
 #define PHASE1_PIN (A2)
@@ -59,7 +60,7 @@ void setup() {
 }
 
 void loop() {
-  uint32_t index_pulse_offset;
+  int32_t index_pulse_offset;
   uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset, true);
 
   Serial.print("Captured ");

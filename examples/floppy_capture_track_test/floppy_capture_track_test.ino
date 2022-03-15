@@ -85,7 +85,7 @@ void setup() {
 }
 
 void loop() {
-  uint32_t index_pulse_offset;
+  int32_t index_pulse_offset;
   uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset, true);
 
   Serial.print("Captured ");
@@ -99,7 +99,7 @@ void loop() {
     Serial.print("Ready? ");
     Serial.println(digitalRead(READY_PIN) ? "No" : "Yes");
     Serial.print("Write Protected? ");
-    Serial.println(digitalRead(PROT_PIN) ? "No" : "Yes");
+    Serial.println(floppy.get_write_protect() ? "Yes" : "No");
     Serial.print("Track 0? ");
     Serial.println(digitalRead(TRK0_PIN) ? "No" : "Yes");
     time_stamp = millis();

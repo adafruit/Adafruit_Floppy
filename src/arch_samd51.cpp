@@ -424,7 +424,7 @@ bool Adafruit_FloppyBase::start_polled_capture(void) {
 
 uint16_t mfm_io_sample_flux(bool *index) {
   if (!theReadTimer)
-    return ~0u;
+    return ~(uint16_t)0;
 
   // Check for match counter 0 (MC0) interrupt
   while (!(theReadTimer->COUNT16.INTFLAG.bit.MC0)) {

@@ -427,7 +427,7 @@ bool Adafruit_Floppy::get_write_protect(void) {
   if (_protectpin == -1) {
     return false;
   }
-  return digitalRead(_protectpin);
+  return !digitalRead(_protectpin);
 }
 
 bool Adafruit_Floppy::get_track0_sense(void) {
