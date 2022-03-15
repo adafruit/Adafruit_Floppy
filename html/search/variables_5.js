@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['select_5fdelay_5fus',['select_delay_us',['../class_adafruit___floppy.html#a69d794ce69e2f90b8c51f9127302b03d',1,'Adafruit_Floppy']]],
-  ['settle_5fdelay_5fms',['settle_delay_ms',['../class_adafruit___floppy.html#afb6578b1158e87b5a5d98d624e7b453c',1,'Adafruit_Floppy']]],
-  ['step_5fdelay_5fus',['step_delay_us',['../class_adafruit___floppy.html#a19e0838836537c6aeb1fdb97304f0f47',1,'Adafruit_Floppy']]]
+  ['select_5fdelay_5fus',['select_delay_us',['../class_adafruit___floppy_base.html#ac8460f5dfa05c3d97fc8022766c6f220',1,'Adafruit_FloppyBase']]],
+  ['settle_5fdelay_5fms',['settle_delay_ms',['../class_adafruit___floppy_base.html#a425175658aad71d40c58d8ccd464d99e',1,'Adafruit_FloppyBase']]],
+  ['step_5fdelay_5fus',['step_delay_us',['../class_adafruit___floppy_base.html#a1461a8c3e8d38cda524940101469e2e3',1,'Adafruit_FloppyBase']]]
 ];
