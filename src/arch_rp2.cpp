@@ -163,12 +163,12 @@ static void free_capture(void) {
 }
 
 static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
-                                   uint32_t *falling_index_offset,
+                                   int32_t *falling_index_offset,
                                    bool store_greaseweazle,
                                    uint32_t capture_counts) {
   uint8_t *ptr = start;
   if (falling_index_offset) {
-    *falling_index_offset = ~0u;
+    *falling_index_offset = -1;
   }
   start_common();
 
@@ -224,7 +224,7 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
 
   disable_capture();
 
-  return start;
+  return ptr;
 }
 
 static void enable_capture_fifo() { start_common(); }
@@ -293,6 +293,8 @@ static void write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
   pinMode(wrgate_pin, OUTPUT);
   digitalWrite(wrgate_pin, LOW);
 
+  noInterrupts();
+  pio_sm_set_enabled(g_writer.pio, g_writer.sm, false);
   pio_sm_clear_fifos(g_writer.pio, g_writer.sm);
   pio_sm_exec(g_writer.pio, g_writer.sm, g_writer.offset);
   while (!pio_sm_is_tx_fifo_full(g_writer.pio, g_writer.sm)) {
@@ -302,7 +304,6 @@ static void write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
   }
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, true);
 
-  noInterrupts();
   bool old_index_state = false;
   int i = 0;
   while (pulses != pulse_end) {
@@ -340,7 +341,7 @@ static void free_write() {
 
 uint32_t rp2040_flux_capture(int index_pin, int rdpin, volatile uint8_t *pulses,
                              volatile uint8_t *pulse_end,
-                             uint32_t *falling_index_offset,
+                             int32_t *falling_index_offset,
                              bool store_greaseweazle, uint32_t capture_counts) {
   if (!init_capture(index_pin, rdpin)) {
     return 0;
@@ -355,12 +356,12 @@ uint32_t rp2040_flux_capture(int index_pin, int rdpin, volatile uint8_t *pulses,
 }
 
 unsigned _last = ~0u;
-bool Adafruit_Floppy::init_capture(void) {
+bool Adafruit_FloppyBase::init_capture(void) {
   _last = ~0u;
   return ::init_capture(_indexpin, _rddatapin);
 }
 
-bool Adafruit_Floppy::start_polled_capture(void) {
+bool Adafruit_FloppyBase::start_polled_capture(void) {
   if (!init_capture())
     return false;
   start_common();
@@ -368,7 +369,7 @@ bool Adafruit_Floppy::start_polled_capture(void) {
   return true;
 }
 
-void Adafruit_Floppy::disable_capture(void) { ::disable_capture(); }
+void Adafruit_FloppyBase::disable_capture(void) { ::disable_capture(); }
 
 uint16_t mfm_io_sample_flux(bool *index) {
   if (_last == ~0u) {

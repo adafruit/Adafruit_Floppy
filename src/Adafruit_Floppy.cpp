@@ -5,7 +5,7 @@
 // We need to read and write some pins at optimized speeds - use raw registers
 // or native SDK API!
 #ifdef BUSIO_USE_FAST_PINIO
-#define read_index() (*indexPort & indexMask)
+#define read_index_fast() (*indexPort & indexMask)
 #define read_data() (*dataPort & dataMask)
 #define set_debug_led() (*ledPort |= ledMask)
 #define clr_debug_led() (*ledPort &= ~ledMask)
@@ -44,6 +44,21 @@ extern volatile bool g_writing_pulses;
 /**************************************************************************/
 /*!
     @brief  Create a hardware interface to a floppy drive
+    @param  indexpin A pin connected to the floppy Index Sensor output
+    @param  wrdatapin A pin connected to the floppy Write Data input
+    @param  wrgatepin A pin connected to the floppy Write Gate input
+    @param  rddatapin A pin connected to the floppy Read Data output
+
+*/
+/**************************************************************************/
+Adafruit_FloppyBase::Adafruit_FloppyBase(int indexpin, int wrdatapin,
+                                         int wrgatepin, int rddatapin)
+    : _indexpin(indexpin), _wrdatapin(wrdatapin), _wrgatepin(wrgatepin),
+      _rddatapin(rddatapin) {}
+
+/**************************************************************************/
+/*!
+    @brief  Create a hardware interface to a floppy drive
     @param  densitypin A pin connected to the floppy Density Select input
     @param  indexpin A pin connected to the floppy Index Sensor output
     @param  selectpin A pin connected to the floppy Drive Select input
@@ -67,18 +82,15 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
                                  int8_t wrdatapin, int8_t wrgatepin,
                                  int8_t track0pin, int8_t protectpin,
                                  int8_t rddatapin, int8_t sidepin,
-                                 int8_t readypin) {
+                                 int8_t readypin)
+    : Adafruit_FloppyBase{indexpin, wrdatapin, wrgatepin, rddatapin} {
   _densitypin = densitypin;
-  _indexpin = indexpin;
   _selectpin = selectpin;
   _motorpin = motorpin;
   _directionpin = directionpin;
   _steppin = steppin;
-  _wrdatapin = wrdatapin;
-  _wrgatepin = wrgatepin;
   _track0pin = track0pin;
   _protectpin = protectpin;
-  _rddatapin = rddatapin;
   _sidepin = sidepin;
   _readypin = readypin;
 }
@@ -89,7 +101,7 @@ Adafruit_Floppy::Adafruit_Floppy(int8_t densitypin, int8_t indexpin,
     @returns True if able to set up all pins and capture/waveform peripherals
 */
 /**************************************************************************/
-bool Adafruit_Floppy::begin(void) {
+bool Adafruit_FloppyBase::begin(void) {
   soft_reset();
 #if defined(__SAMD51__)
   if (!init_capture()) {
@@ -106,10 +118,72 @@ bool Adafruit_Floppy::begin(void) {
 
 /**************************************************************************/
 /*!
+    @brief  Initializes the GPIO pins but do not start the motor or anything
+*/
+/**************************************************************************/
+void Adafruit_FloppyBase::soft_reset(void) {
+  if (_indexpin >= 0) {
+    pinMode(_indexpin, INPUT_PULLUP);
+#ifdef BUSIO_USE_FAST_PINIO
+    indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
+    indexMask = digitalPinToBitMask(_indexpin);
+#endif
+  } else {
+#ifdef BUSIO_USE_FAST_PINIO
+    indexPort = &dummyPort;
+    indexMask = 0;
+#endif
+  }
+
+  // set write OFF
+  if (_wrdatapin >= 0) {
+    pinMode(_wrdatapin, OUTPUT);
+    digitalWrite(_wrdatapin, HIGH);
+  }
+  if (_wrgatepin >= 0) {
+    pinMode(_wrgatepin, INPUT_PULLUP);
+  }
+
+  select_delay_us = 10;
+  step_delay_us = 10000;
+  settle_delay_ms = 15;
+  motor_delay_ms = 1000;
+  watchdog_delay_ms = 1000;
+  bus_type = BUSTYPE_IBMPC;
+
+  if (led_pin >= 0) {
+    pinMode(led_pin, OUTPUT);
+    digitalWrite(led_pin, LOW);
+  }
+}
+
+/**************************************************************************/
+/*!
+    @brief Disables floppy communication, allowing pins to be used for general
+   input and output
+*/
+void Adafruit_FloppyBase::end(void) {
+  pinMode(_rddatapin, INPUT);
+  // set write OFF
+  if (_wrdatapin >= 0) {
+    pinMode(_wrdatapin, INPUT);
+  }
+  if (_wrgatepin >= 0) {
+    pinMode(_wrgatepin, INPUT);
+  }
+  if (_indexpin >= 0) {
+    pinMode(_indexpin, INPUT);
+  }
+}
+
+/**************************************************************************/
+/*!
     @brief  Set back the object and pins to initial state
 */
 /**************************************************************************/
 void Adafruit_Floppy::soft_reset(void) {
+  Adafruit_FloppyBase::soft_reset();
+
   // deselect drive
   pinMode(_selectpin, OUTPUT);
   digitalWrite(_selectpin, HIGH);
@@ -130,41 +204,49 @@ void Adafruit_Floppy::soft_reset(void) {
   pinMode(_sidepin, OUTPUT);
   digitalWrite(_sidepin, HIGH); // side 0 to start
 
-  pinMode(_indexpin, INPUT_PULLUP);
   pinMode(_track0pin, INPUT_PULLUP);
   pinMode(_protectpin, INPUT_PULLUP);
   pinMode(_readypin, INPUT_PULLUP);
-  pinMode(_rddatapin, INPUT_PULLUP);
 
   // set low density
   pinMode(_densitypin, OUTPUT);
   digitalWrite(_densitypin, LOW);
+}
 
-  // set write OFF
-  if (_wrdatapin >= 0) {
-    pinMode(_wrdatapin, OUTPUT);
-    digitalWrite(_wrdatapin, HIGH);
-  }
-  if (_wrgatepin >= 0) {
-    pinMode(_wrgatepin, INPUT_PULLUP);
-  }
-
+/**************************************************************************/
+/*!
+    @brief  Poll the status of the index pulse
+    @returns the status of the index pulse
+*/
+/**************************************************************************/
+bool Adafruit_FloppyBase::read_index() {
 #ifdef BUSIO_USE_FAST_PINIO
-  indexPort = (BusIO_PortReg *)portInputRegister(digitalPinToPort(_indexpin));
-  indexMask = digitalPinToBitMask(_indexpin);
-#endif
-
-  select_delay_us = 10;
-  step_delay_us = 10000;
-  settle_delay_ms = 15;
-  motor_delay_ms = 1000;
-  watchdog_delay_ms = 1000;
-  bus_type = BUSTYPE_IBMPC;
-
-  if (led_pin >= 0) {
-    pinMode(led_pin, OUTPUT);
-    digitalWrite(led_pin, LOW);
+  return read_index_fast();
+#else
+  if (_indexpin >= 0) {
+    return digitalRead(_indexpin);
+  } else {
+    return true;
   }
+#endif
+}
+
+/**************************************************************************/
+/*!
+    @brief Disables floppy communication, allowing pins to be used for general
+   input and output
+*/
+void Adafruit_Floppy::end(void) {
+  pinMode(_selectpin, INPUT);
+  pinMode(_motorpin, INPUT);
+  pinMode(_directionpin, INPUT);
+  pinMode(_steppin, INPUT);
+  pinMode(_sidepin, INPUT);
+  pinMode(_track0pin, INPUT);
+  pinMode(_protectpin, INPUT);
+  pinMode(_readypin, INPUT);
+  pinMode(_densitypin, INPUT);
+  Adafruit_FloppyBase::end();
 }
 
 /**************************************************************************/
@@ -183,10 +265,19 @@ void Adafruit_Floppy::select(bool selected) {
 /*!
     @brief Which head/side to read from
     @param head Head 0 or 1
+    @return true if the head can be selected, false otherwise
+    @note If _sidepin is no pin, then only head 0 can be selected
 */
 /**************************************************************************/
-void Adafruit_Floppy::side(uint8_t head) {
+bool Adafruit_Floppy::side(uint8_t head) {
+  if (head != 0 && head != 1) {
+    return false;
+  }
+  if (_sidepin == -1) {
+    return head == 0;
+  }
   digitalWrite(_sidepin, !head); // Head 0 is logic level 1, head 1 is logic 0!
+  return true;
 }
 
 /**************************************************************************/
@@ -210,7 +301,7 @@ bool Adafruit_Floppy::spin_motor(bool motor_on) {
   if (debug_serial)
     debug_serial->print("Waiting for index pulse...");
 
-  while (digitalRead(_indexpin)) {
+  while (read_index()) {
     if ((millis() - index_stamp) > 10000) {
       timedout = true; // its been 10 seconds?
       break;
@@ -332,6 +423,28 @@ void Adafruit_Floppy::step(bool dir, uint8_t times) {
 /**************************************************************************/
 int8_t Adafruit_Floppy::track(void) { return _track; }
 
+bool Adafruit_Floppy::get_write_protect(void) {
+  if (_protectpin == -1) {
+    return false;
+  }
+  return !digitalRead(_protectpin);
+}
+
+bool Adafruit_Floppy::get_track0_sense(void) {
+  if (_track0pin == 0) {
+    return track() == 0;
+  }
+  return digitalRead(_track0pin);
+}
+
+bool Adafruit_Floppy::set_density(bool high_density) {
+  if (_densitypin == 0) {
+    return !high_density;
+  }
+  digitalWrite(_densitypin, high_density);
+  return true;
+}
+
 /**************************************************************************/
 /*!
     @brief  Capture and decode one track of MFM data
@@ -345,9 +458,9 @@ int8_t Adafruit_Floppy::track(void) { return _track; }
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
-                                         uint8_t *sector_validity,
-                                         bool high_density) {
+uint32_t Adafruit_FloppyBase::read_track_mfm(uint8_t *sectors, size_t n_sectors,
+                                             uint8_t *sector_validity,
+                                             bool high_density) {
   mfm_io_t io;
 
   if (high_density) {
@@ -372,7 +485,7 @@ uint32_t Adafruit_Floppy::read_track_mfm(uint8_t *sectors, size_t n_sectors,
     @return Sample frequency in Hz, or 0 if not known
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::getSampleFrequency(void) {
+uint32_t Adafruit_FloppyBase::getSampleFrequency(void) {
 #if defined(__SAMD51__)
   return 48000000UL / g_timing_div;
 #endif
@@ -398,11 +511,11 @@ uint32_t Adafruit_Floppy::getSampleFrequency(void) {
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
-uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
-                                        uint32_t max_pulses,
-                                        uint32_t *falling_index_offset,
-                                        bool store_greaseweazle,
-                                        uint32_t capture_ms) {
+uint32_t Adafruit_FloppyBase::capture_track(volatile uint8_t *pulses,
+                                            uint32_t max_pulses,
+                                            int32_t *falling_index_offset,
+                                            bool store_greaseweazle,
+                                            uint32_t capture_ms) {
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
 #if defined(ARDUINO_ARCH_RP2040)
@@ -537,8 +650,8 @@ uint32_t Adafruit_Floppy::capture_track(volatile uint8_t *pulses,
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
 */
 /**************************************************************************/
-void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
-                                  bool store_greaseweazle) {
+void Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
+                                      bool store_greaseweazle) {
 #if defined(ARDUINO_ARCH_RP2040)
   rp2040_flux_write(_indexpin, _wrgatepin, _wrdatapin, pulses,
                     pulses + num_pulses, store_greaseweazle);
@@ -639,7 +752,7 @@ void Adafruit_Floppy::write_track(uint8_t *pulses, uint32_t num_pulses,
     @brief  Busy wait until the index line goes from high to low
 */
 /**************************************************************************/
-void Adafruit_Floppy::wait_for_index_pulse_low(void) {
+void Adafruit_FloppyBase::wait_for_index_pulse_low(void) {
   // initial state
   bool index_state = read_index();
   bool last_index_state = index_state;
@@ -662,8 +775,8 @@ void Adafruit_Floppy::wait_for_index_pulse_low(void) {
     @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
-void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses,
-                                   bool is_gw_format) {
+void Adafruit_FloppyBase::print_pulses(uint8_t *pulses, uint32_t num_pulses,
+                                       bool is_gw_format) {
   if (!debug_serial)
     return;
 
@@ -694,8 +807,9 @@ void Adafruit_Floppy::print_pulses(uint8_t *pulses, uint32_t num_pulses,
     @param  is_gw_format Set to true if we pack long pulses with two bytes
 */
 /**************************************************************************/
-void Adafruit_Floppy::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
-                                       uint8_t max_bins, bool is_gw_format) {
+void Adafruit_FloppyBase::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
+                                           uint8_t max_bins,
+                                           bool is_gw_format) {
   if (!debug_serial)
     return;
   uint32_t pulse_len = 0;
@@ -771,6 +885,329 @@ static inline int mfm_io_get_sync_count(mfm_io_t *io) {
   return io->index_count;
 }
 
-uint16_t Adafruit_Floppy::sample_flux(bool &index) {
+uint16_t Adafruit_FloppyBase::sample_flux(bool &index) {
   return ::mfm_io_sample_flux(&index);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Create a hardware interface to a floppy drive
+    @param  indexpin A pin connected to the floppy Index Sensor output
+    @param  selectpin A pin connected to the floppy Drive Select input
+    @param  phase1pin A pin connected to the floppy "phase 1" output
+    @param  phase2pin A pin connected to the floppy "phase 2" output
+    @param  phase3pin A pin connected to the floppy "phase 3" output
+    @param  phase4pin A pin connected to the floppy "phase 4" output
+    @param  wrdatapin A pin connected to the floppy Write Data input
+    @param  wrgatepin A pin connected to the floppy Write Gate input
+    @param  protectpin A pin connected to the floppy Write Protect Sensor output
+    @param  rddatapin A pin connected to the floppy Read Data output
+*/
+/**************************************************************************/
+
+Adafruit_Apple2Floppy::Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin,
+                                             int8_t phase1pin, int8_t phase2pin,
+                                             int8_t phase3pin, int8_t phase4pin,
+                                             int8_t wrdatapin, int8_t wrgatepin,
+                                             int8_t protectpin,
+                                             int8_t rddatapin)
+    : Adafruit_FloppyBase{indexpin, wrdatapin, wrgatepin, rddatapin},
+      _selectpin{selectpin}, _phase1pin{phase1pin}, _phase2pin{phase2pin},
+      _phase3pin{phase3pin}, _phase4pin{phase4pin}, _protectpin{protectpin} {}
+
+void Adafruit_Apple2Floppy::end() {
+  pinMode(_selectpin, INPUT);
+  pinMode(_phase1pin, INPUT);
+  pinMode(_phase2pin, INPUT);
+  pinMode(_phase3pin, INPUT);
+  pinMode(_phase4pin, INPUT);
+  Adafruit_FloppyBase::end();
+}
+
+/**************************************************************************/
+/*!
+    @brief  Initializes the GPIO pins but do not start the motor or anything
+*/
+/**************************************************************************/
+void Adafruit_Apple2Floppy::soft_reset() {
+  Adafruit_FloppyBase::soft_reset();
+
+  // deselect drive
+  pinMode(_selectpin, OUTPUT);
+  digitalWrite(_selectpin, HIGH);
+
+  // Turn off stepper motors
+  pinMode(_phase1pin, OUTPUT);
+  digitalWrite(_phase1pin, LOW);
+
+  pinMode(_phase2pin, OUTPUT);
+  digitalWrite(_phase2pin, LOW);
+
+  pinMode(_phase3pin, OUTPUT);
+  digitalWrite(_phase3pin, LOW);
+
+  pinMode(_phase4pin, OUTPUT);
+  digitalWrite(_phase4pin, LOW);
+}
+
+/**************************************************************************/
+/*!
+    @brief Whether to select this drive
+    @param selected True to select/enable
+*/
+/**************************************************************************/
+void Adafruit_Apple2Floppy::select(bool selected) {
+  digitalWrite(_selectpin, !selected);
+  if (debug_serial)
+    debug_serial->printf("set selectpin %d to %d\n", _selectpin, !selected);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Wait for index pulse
+    @param motor_on True to wait for index pulse, false to do nothing
+    @returns False if turning motor on and no index pulse found, true otherwise
+
+    @note The Apple II floppy has a single "select/enable" pin which selects the
+   drive and turns on the spindle.
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
+  if (motor_on) {
+    delay(motor_delay_ms); // Main motor turn on
+
+    uint32_t index_stamp = millis();
+    bool timedout = false;
+
+    if (debug_serial)
+      debug_serial->print("Waiting for index pulse...");
+
+    while (!read_index()) {
+      if ((millis() - index_stamp) > 10000) {
+        timedout = true; // its been 10 seconds?
+        break;
+      }
+    }
+
+    while (read_index()) {
+      if ((millis() - index_stamp) > 10000) {
+        timedout = true; // its been 10 seconds?
+        break;
+      }
+    }
+
+    if (timedout) {
+      if (debug_serial)
+        debug_serial->println("Didn't find an index pulse!");
+      return false;
+    }
+    if (debug_serial)
+      debug_serial->println("Found!");
+  }
+  return true;
+}
+
+// stepping FORWARD through phases steps OUT towards SMALLER track numbers
+// stepping BACKWARD through phases steps IN towards BIGGER track numbers
+static const uint8_t phases[] = {
+    0b1000, 0b1100, 0b0100, 0b0110, 0b0010, 0b0011, 0b0001, 0b1001,
+};
+
+enum {
+  STEP_OUT_QUARTER = -1,
+  STEP_OUT_HALF = -2,
+  STEP_IN_HALF = 2,
+  STEP_IN_QUARTER = 1,
+};
+
+/**************************************************************************/
+/*!
+    @brief  Seek to the desired track, requires the motor to be spun up!
+    @param  track_num The track to step to
+    @return True If we were able to get to the track location
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::goto_track(uint8_t track_num) {
+  if (_quartertrack == -1) {
+    _quartertrack = 160;
+    goto_quartertrack(0);
+  }
+  int quartertrack = track_num * _step_multiplier();
+  return goto_quartertrack(quartertrack);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Seek to the desired quarter track, requires the motor to be spun up!
+    @param  quartertrack The position to step to
+    @return True If we were able to get to the track location
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::goto_quartertrack(int quartertrack) {
+  if (quartertrack < 0 || quartertrack >= 160) {
+    return false;
+  }
+
+  int diff = (int)quartertrack - (int)this->_quartertrack;
+
+  if (debug_serial) {
+    debug_serial->printf("Stepping from %d -> %d, diff = %d\n",
+                         this->_quartertrack, quartertrack, diff);
+  }
+
+  if (diff != 0) {
+    if (diff < 0) {
+      // step OUT to SMALLER track_num numbers
+      _step(STEP_OUT_QUARTER, -diff);
+    } else {
+      // step IN to LARGER track_num numbers
+      _step(STEP_IN_QUARTER, diff);
+    }
+    delay(settle_delay_ms);
+  }
+
+  // according to legend, Apple DOS always disables all phases after settling
+  digitalWrite(_phase1pin, 0);
+  digitalWrite(_phase2pin, 0);
+  digitalWrite(_phase3pin, 0);
+  digitalWrite(_phase4pin, 0);
+
+  _quartertrack = quartertrack;
+
+  return true;
+}
+
+void Adafruit_Apple2Floppy::_step(int direction, int count) {
+  if (debug_serial)
+    debug_serial->printf("Step by %d x %d\n", direction, count);
+  for (; count--;) {
+    _quartertrack += direction;
+    auto phase = _quartertrack % 8;
+
+    digitalWrite(_phase1pin, phases[phase] & 8);
+    digitalWrite(_phase2pin, phases[phase] & 4);
+    digitalWrite(_phase3pin, phases[phase] & 2);
+    digitalWrite(_phase4pin, phases[phase] & 1);
+    delay((step_delay_us / 1000UL) + 1); // round up to at least 1ms
+  }
+}
+
+/**************************************************************************/
+/*!
+    @brief Which head/side to read from
+    @param head Head must be 0
+    @return true if the head is 0, false otherwise
+    @note Apple II floppy drives only have a single side
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::side(uint8_t head) { return head == 0; }
+
+/**************************************************************************/
+/*!
+    @brief  The current track location, based on internal caching
+    @return The cached track location
+    @note Partial tracks are rounded, with quarter tracks always rounded down.
+*/
+/**************************************************************************/
+int8_t Adafruit_Apple2Floppy::track(void) {
+  if (_quartertrack == -1) {
+    return -1;
+  }
+  auto m = _step_multiplier();
+  return (_quartertrack + m / 2) / m;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Check the write protect status of the floppy
+    @return true if the floppy is write protected, false otherwise
+
+    @note The write protect circuit in the Apple II floppy drive is
+    "interesting".  Because of how it was read by the Apple II Disk Interface
+   Card, the protect output is only active when the "phase 1" winding is
+   energized; having the "phase 1" winding active also prevents writing, but at
+   the Disk Interface Card, not at the drive. So, it's necessary for us to check
+    write_protected in software!
+
+    If_protectpin is -1 (not available), then we always report that the disk is
+   write protected.
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::get_write_protect(void) {
+  if (_protectpin == -1) {
+    return true;
+  }
+
+  auto t = quartertrack();
+  // we need to be on an even-numbered track, so that activating the "phase 1"
+  // winding doesn't pull out of position. We'll return to the right spot below.
+  goto_quartertrack(t & ~7);
+
+  // goto_track() has deenergized all windings, we need to enable phase1
+  // temporarily
+  digitalWrite(_phase1pin, 1);
+  // ensure that the output has time to rise, 1ms is plenty
+  delay(1);
+
+  // only now can we read the protect pin status
+  bool result = digitalRead(_protectpin);
+
+  // Return to where we were before...!
+  goto_quartertrack(t);
+
+  return result;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Set the density for flux reading and writing
+    @param high_density true to select high density, false to select low
+   density.
+    @return true if low density mode is selected, false if high density is
+   selected
+    @note The drive hardware is only capable of single density operation
+*/
+bool Adafruit_Apple2Floppy::set_density(bool high_density) {
+  return high_density == false;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Check whether the track0 sensor is active
+    @returns True if the track0 sensor is active, false otherwise
+    @note This device has no home sensor so it just returns track() == 0.
+*/
+/**************************************************************************/
+bool Adafruit_Apple2Floppy::get_track0_sense(void) { return track() == 0; }
+
+/**************************************************************************/
+/*!
+    @brief  Get the drive position in quarter tracks
+    @returns True if the track0 sensor is active, false otherwise
+    @note Returns -1 if the position is unknown
+*/
+/**************************************************************************/
+int8_t Adafruit_Apple2Floppy::quartertrack() { return _quartertrack; }
+
+/**************************************************************************/
+/*!
+    @brief  Set the positioning mode
+    @param step_mode The new positioning mode
+    @note This does not re-position the drive
+*/
+/**************************************************************************/
+void Adafruit_Apple2Floppy::step_mode(StepMode step_mode) {
+  _step_mode = step_mode;
+}
+
+int Adafruit_Apple2Floppy::_step_multiplier(void) const {
+  switch (_step_mode) {
+  case STEP_MODE_WHOLE:
+    return 4;
+  case STEP_MODE_HALF:
+    return 2;
+  default:
+  case STEP_MODE_QUARTER:
+    return 1;
+  }
 }

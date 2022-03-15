@@ -31,33 +31,96 @@ typedef enum {
 
 /**************************************************************************/
 /*!
-    @brief A helper class for chattin with floppy drives
+    @brief An abstract base class for chattin with floppy drives
 */
 /**************************************************************************/
-class Adafruit_Floppy {
-public:
-  Adafruit_Floppy(int8_t densitypin, int8_t indexpin, int8_t selectpin,
-                  int8_t motorpin, int8_t directionpin, int8_t steppin,
-                  int8_t wrdatapin, int8_t wrgatepin, int8_t track0pin,
-                  int8_t protectpin, int8_t rddatapin, int8_t sidepin,
-                  int8_t readypin);
-  bool begin(void);
-  void soft_reset(void);
+class Adafruit_FloppyBase {
+protected:
+  Adafruit_FloppyBase(int indexpin, int wrdatapin, int wrgatepin,
+                      int rddatapin);
 
-  void select(bool selected);
-  bool spin_motor(bool motor_on);
-  bool goto_track(uint8_t track);
-  void side(uint8_t head);
-  int8_t track(void);
-  void step(bool dir, uint8_t times);
+public:
+  bool begin(void);
+  virtual void end();
+
+  virtual void soft_reset(void);
+
+  /**************************************************************************/
+  /*!
+      @brief Whether to select this drive
+      @param selected True to select/enable
+  */
+  /**************************************************************************/
+  virtual void select(bool selected) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  Turn on or off the floppy motor, if on we wait till we get an
+     index pulse!
+      @param motor_on True to turn on motor, False to turn it off
+      @returns False if turning motor on and no index pulse found, true
+     otherwise
+  */
+  /**************************************************************************/
+  virtual bool spin_motor(bool motor_on) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  Seek to the desired track, requires the motor to be spun up!
+      @param  track_num The track to step to
+      @return True If we were able to get to the track location
+  */
+  /**************************************************************************/
+  virtual bool goto_track(uint8_t track_num) = 0;
+  /**************************************************************************/
+  /*!
+      @brief Which head/side to read from
+      @param head Head 0 or 1
+      @return true if the head exists, false otherwise
+  */
+  /**************************************************************************/
+  virtual bool side(uint8_t head) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  The current track location, based on internal caching
+      @return The cached track location
+      @note Returns -1 if the track is not known.
+  */
+  /**************************************************************************/
+  virtual int8_t track(void) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  Check whether the floppy in the drive is write protected
+      @returns False if the floppy is writable, true otherwise
+  */
+  /**************************************************************************/
+  virtual bool get_write_protect() = 0;
+
+  /**************************************************************************/
+  /*!
+      @brief  Check whether the track0 sensor is active
+      @returns True if the track0 sensor is active, false otherwise
+      @note On devices without a track0 sensor, this returns true when
+     track()==0
+  */
+  /**************************************************************************/
+  virtual bool get_track0_sense() = 0;
+
+  /**************************************************************************/
+  /*!
+      @brief  Set the density for flux reading and writing
+      @param high_density false for low density, true for high density
+      @returns True if the drive interface supports the given density.
+  */
+  /**************************************************************************/
+  virtual bool set_density(bool high_density) = 0;
 
   uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity, bool high_density = true);
   uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
-                         uint32_t *falling_index_offset,
+                         int32_t *falling_index_offset,
                          bool store_greaseweazle = false,
                          uint32_t capture_ms = 0)
       __attribute__((optimize("O3")));
+
   void write_track(uint8_t *pulses, uint32_t num_pulses,
                    bool store_greaseweazle = false)
       __attribute__((optimize("O3")));
@@ -79,6 +142,10 @@ public:
 
   Stream *debug_serial = NULL; ///< optional debug stream for serial output
 
+protected:
+  bool read_index();
+
+private:
 #if defined(__SAMD51__)
   void deinit_capture(void);
   void enable_capture(void);
@@ -89,7 +156,6 @@ public:
   void disable_generate(void);
 #endif
 
-private:
   bool start_polled_capture(void);
   void disable_capture(void);
   uint16_t sample_flux(bool &new_index_state);
@@ -102,17 +168,94 @@ private:
   void enable_background_capture(void);
   void wait_for_index_pulse_low(void);
 
-  // theres a lot of GPIO!
-  int8_t _densitypin, _indexpin, _selectpin, _motorpin, _directionpin, _steppin,
-      _wrdatapin, _wrgatepin, _track0pin, _protectpin, _rddatapin, _sidepin,
-      _readypin;
-
-  int8_t _track = -1;
+  int8_t _indexpin, _wrdatapin, _wrgatepin, _rddatapin;
 
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *indexPort;
   BusIO_PortMask indexMask;
+  uint32_t dummyPort = 0;
 #endif
+};
+
+/**************************************************************************/
+/*!
+    @brief A helper class for chattin with PC & Shugart floppy drives
+*/
+/**************************************************************************/
+class Adafruit_Floppy : public Adafruit_FloppyBase {
+public:
+  Adafruit_Floppy(int8_t densitypin, int8_t indexpin, int8_t selectpin,
+                  int8_t motorpin, int8_t directionpin, int8_t steppin,
+                  int8_t wrdatapin, int8_t wrgatepin, int8_t track0pin,
+                  int8_t protectpin, int8_t rddatapin, int8_t sidepin,
+                  int8_t readypin);
+  void end() override;
+  void soft_reset(void) override;
+
+  void select(bool selected) override;
+  bool spin_motor(bool motor_on) override;
+  bool goto_track(uint8_t track) override;
+  bool side(uint8_t head) override;
+  int8_t track(void) override;
+  void step(bool dir, uint8_t times);
+  bool set_density(bool high_density) override;
+  bool get_write_protect() override;
+  bool get_track0_sense() override;
+
+private:
+  // theres a lot of GPIO!
+  int8_t _densitypin, _selectpin, _motorpin, _directionpin, _steppin,
+      _track0pin, _protectpin, _sidepin, _readypin;
+
+  int8_t _track = -1;
+};
+
+/**************************************************************************/
+/*!
+    @brief A helper class for chattin with Apple 2 floppy drives
+*/
+/**************************************************************************/
+class Adafruit_Apple2Floppy : public Adafruit_FloppyBase {
+public:
+  /**************************************************************************/
+  /*!
+      @brief Constants for use with the step_mode method
+  */
+  /**************************************************************************/
+  enum StepMode {
+    STEP_MODE_WHOLE,   //< One step moves by one data track
+    STEP_MODE_HALF,    //< Two steps move by one data track
+    STEP_MODE_QUARTER, //< Four steps move by one data track
+  };
+
+  Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin, int8_t phase1pin,
+                        int8_t phase2pin, int8_t phase3pin, int8_t phase4pin,
+                        int8_t wrdatapin, int8_t wrgatepin, int8_t protectpin,
+                        int8_t rddatapin);
+  void end() override;
+  void soft_reset(void) override;
+
+  void select(bool selected) override;
+  bool spin_motor(bool motor_on) override;
+  bool goto_track(uint8_t track) override;
+  bool side(uint8_t head) override;
+  int8_t track(void) override;
+  bool set_density(bool high_density) override;
+  bool get_write_protect() override;
+  bool get_track0_sense() override;
+
+  int8_t quartertrack();
+  bool goto_quartertrack(int);
+  void step_mode(StepMode mode);
+
+private:
+  int _step_multiplier() const;
+  // theres not much GPIO!
+  int8_t _selectpin, _phase1pin, _phase2pin, _phase3pin, _phase4pin,
+      _protectpin;
+  int _quartertrack = -1;
+  StepMode _step_mode = STEP_MODE_HALF;
+  void _step(int dir, int times);
 };
 
 /**************************************************************************/
