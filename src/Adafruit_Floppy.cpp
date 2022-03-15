@@ -1141,7 +1141,7 @@ bool Adafruit_Apple2Floppy::get_write_protect(void) {
   auto t = quartertrack();
   // we need to be on an even-numbered track, so that activating the "phase 1"
   // winding doesn't pull out of position. We'll return to the right spot below.
-  goto_quartertrack(t & ~3);
+  goto_quartertrack(t & ~7);
 
   // goto_track() has deenergized all windings, we need to enable phase1
   // temporarily
