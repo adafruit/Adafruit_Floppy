@@ -52,9 +52,10 @@ extern volatile bool g_writing_pulses;
 */
 /**************************************************************************/
 Adafruit_FloppyBase::Adafruit_FloppyBase(int indexpin, int wrdatapin,
-                                         int wrgatepin, int rddatapin)
+                                         int wrgatepin, int rddatapin,
+                                         bool is_apple2)
     : _indexpin(indexpin), _wrdatapin(wrdatapin), _wrgatepin(wrgatepin),
-      _rddatapin(rddatapin) {}
+      _rddatapin(rddatapin), _is_apple2(is_apple2) {}
 
 /**************************************************************************/
 /*!
@@ -650,13 +651,15 @@ uint32_t Adafruit_FloppyBase::capture_track(volatile uint8_t *pulses,
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
 */
 /**************************************************************************/
-void Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
+bool Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
                                       bool store_greaseweazle) {
 #if defined(ARDUINO_ARCH_RP2040)
-  rp2040_flux_write(_indexpin, _wrgatepin, _wrdatapin, pulses,
-                    pulses + num_pulses, store_greaseweazle);
+  return rp2040_flux_write(_indexpin, _wrgatepin, _wrdatapin, pulses,
+                           pulses + num_pulses, store_greaseweazle, _is_apple2);
 #elif defined(__SAMD51__)
-
+  if (_is_apple2) {
+    return false;
+  }
   pinMode(_wrdatapin, OUTPUT);
   digitalWrite(_wrdatapin, HIGH);
 
@@ -697,6 +700,9 @@ void Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
   deinit_generate();
 
 #else // bitbang it!
+  if (_is_apple2) {
+    return false;
+  }
   uint8_t *pulses_ptr = pulses;
 
 #ifdef BUSIO_USE_FAST_PINIO
@@ -743,8 +749,8 @@ void Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
   digitalWrite(_wrgatepin, HIGH);
   digitalWrite(_wrdatapin, HIGH);
   interrupts();
+  return true;
 #endif
-  return;
 }
 
 /**************************************************************************/
@@ -911,7 +917,7 @@ Adafruit_Apple2Floppy::Adafruit_Apple2Floppy(int8_t indexpin, int8_t selectpin,
                                              int8_t wrdatapin, int8_t wrgatepin,
                                              int8_t protectpin,
                                              int8_t rddatapin)
-    : Adafruit_FloppyBase{indexpin, wrdatapin, wrgatepin, rddatapin},
+    : Adafruit_FloppyBase{indexpin, wrdatapin, wrgatepin, rddatapin, true},
       _selectpin{selectpin}, _phase1pin{phase1pin}, _phase2pin{phase2pin},
       _phase3pin{phase3pin}, _phase4pin{phase4pin}, _protectpin{protectpin} {}
 

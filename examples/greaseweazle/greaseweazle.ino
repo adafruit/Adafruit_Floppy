@@ -497,8 +497,6 @@ void loop() {
     } else {
       //uint8_t cue_at_index = cmd_buffer[2];
       //uint8_t terminate_at_index = cmd_buffer[3];
-      reply_buffer[i++] = GW_ACK_OK;
-      Serial.write(reply_buffer, 2);
 
       uint32_t fluxors = 0;
       uint8_t flux = 0xFF;
@@ -511,9 +509,12 @@ void loop() {
         Serial1.println("*** FLUX OVERRUN ***");
         while (1) yield();
       }
-      floppy->write_track(flux_transitions, fluxors - 7, true);
+      bool result = floppy->write_track(flux_transitions, fluxors - 7, true);
       Serial1.println("wrote fluxors");
       Serial.write((byte)0);
+
+      reply_buffer[i++] = result ? GW_ACK_OK : GW_ACK_WRPROT;
+      Serial.write(reply_buffer, 2);
     }
   }
   else if (cmd == GW_CMD_GETFLUXSTATUS) {
