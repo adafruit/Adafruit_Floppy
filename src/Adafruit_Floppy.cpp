@@ -48,6 +48,7 @@ extern volatile bool g_writing_pulses;
     @param  wrdatapin A pin connected to the floppy Write Data input
     @param  wrgatepin A pin connected to the floppy Write Gate input
     @param  rddatapin A pin connected to the floppy Read Data output
+    @param  is_apple2 True if the flux write waveform is like Apple Disk ][
 
 */
 /**************************************************************************/
