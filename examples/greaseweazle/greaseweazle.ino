@@ -199,6 +199,7 @@ uint32_t captured_pulses;
 // WARNING! there are 100K max flux pulses per track!
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
 bool motor_state = false; // we can cache whether the motor is spinning
+bool flux_status; // result of last flux read or write command
 
 
 void loop() {
@@ -484,6 +485,7 @@ void loop() {
 
     // THE END
     Serial.write((byte)0);
+    flux_status = true;
   }
   else if (cmd == GW_CMD_WRITEFLUX) {
     if (!floppy) goto needfloppy;
@@ -497,6 +499,9 @@ void loop() {
     } else {
       //uint8_t cue_at_index = cmd_buffer[2];
       //uint8_t terminate_at_index = cmd_buffer[3];
+      // send an ACK to request data
+      reply_buffer[i++] = GW_ACK_OK;
+      Serial.write(reply_buffer, 2);
 
       uint32_t fluxors = 0;
       uint8_t flux = 0xFF;
@@ -509,17 +514,15 @@ void loop() {
         Serial1.println("*** FLUX OVERRUN ***");
         while (1) yield();
       }
-      bool result = floppy->write_track(flux_transitions, fluxors - 7, true);
+      flux_status = floppy->write_track(flux_transitions, fluxors - 7, true);
       Serial1.println("wrote fluxors");
       Serial.write((byte)0);
 
-      reply_buffer[i++] = result ? GW_ACK_OK : GW_ACK_WRPROT;
-      Serial.write(reply_buffer, 2);
     }
   }
   else if (cmd == GW_CMD_GETFLUXSTATUS) {
     Serial1.println("get flux status");
-    reply_buffer[i++] = GW_ACK_OK;
+    reply_buffer[i++] = flux_status ? GW_ACK_OK : GW_ACK_BADPIN;
     Serial.write(reply_buffer, 2);
   }
 
