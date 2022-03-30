@@ -699,6 +699,7 @@ bool Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
   disable_generate();
   deinit_generate();
 
+  return true;
 #else // bitbang it!
   if (_is_apple2) {
     return false;
