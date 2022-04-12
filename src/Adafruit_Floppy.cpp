@@ -650,6 +650,8 @@ uint32_t Adafruit_FloppyBase::capture_track(volatile uint8_t *pulses,
     @param  pulses An array of timer-count pulses
     @param  num_pulses How many bytes are in the pulse array
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
+    @returns False if the data could not be written (samd51 cannot write apple
+   flux format)
 */
 /**************************************************************************/
 bool Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
