@@ -126,9 +126,9 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:a56c99d90c12e769f20100d079f0b8b97"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a56c99d90c12e769f20100d079f0b8b97">capture_track</a> (volatile uint8_t *pulses, uint32_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:a56c99d90c12e769f20100d079f0b8b97"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#a56c99d90c12e769f20100d079f0b8b97">More...</a><br /></td></tr>
 <tr class="separator:a56c99d90c12e769f20100d079f0b8b97"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acc9ec903e73be2f6b1b6a16b6f2088eb"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#acc9ec903e73be2f6b1b6a16b6f2088eb">write_track</a> (uint8_t *pulses, uint32_t num_pulses, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
-<tr class="memdesc:acc9ec903e73be2f6b1b6a16b6f2088eb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#acc9ec903e73be2f6b1b6a16b6f2088eb">More...</a><br /></td></tr>
-<tr class="separator:acc9ec903e73be2f6b1b6a16b6f2088eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aeafe6bf13638572d84ee5575ac01dfd2"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aeafe6bf13638572d84ee5575ac01dfd2">write_track</a> (uint8_t *pulses, uint32_t num_pulses, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
+<tr class="memdesc:aeafe6bf13638572d84ee5575ac01dfd2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#aeafe6bf13638572d84ee5575ac01dfd2">More...</a><br /></td></tr>
+<tr class="separator:aeafe6bf13638572d84ee5575ac01dfd2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3aa88fadef6a8996f34d6a8e09e94fe3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a3aa88fadef6a8996f34d6a8e09e94fe3">print_pulse_bins</a> (uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64, bool is_gw_format=false)</td></tr>
 <tr class="memdesc:a3aa88fadef6a8996f34d6a8e09e94fe3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#a3aa88fadef6a8996f34d6a8e09e94fe3">More...</a><br /></td></tr>
 <tr class="separator:a3aa88fadef6a8996f34d6a8e09e94fe3"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -175,9 +175,9 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
-<tr class="memitem:ad51d65d06597f03a540f145c9c65f7b1"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ad51d65d06597f03a540f145c9c65f7b1">Adafruit_FloppyBase</a> (int indexpin, int wrdatapin, int wrgatepin, int rddatapin)</td></tr>
-<tr class="memdesc:ad51d65d06597f03a540f145c9c65f7b1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create a hardware interface to a floppy drive.  <a href="#ad51d65d06597f03a540f145c9c65f7b1">More...</a><br /></td></tr>
-<tr class="separator:ad51d65d06597f03a540f145c9c65f7b1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af48b94459046214f7995a50f9457d40c"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#af48b94459046214f7995a50f9457d40c">Adafruit_FloppyBase</a> (int indexpin, int wrdatapin, int wrgatepin, int rddatapin, bool is_apple2=false)</td></tr>
+<tr class="memdesc:af48b94459046214f7995a50f9457d40c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create a hardware interface to a floppy drive.  <a href="#af48b94459046214f7995a50f9457d40c">More...</a><br /></td></tr>
+<tr class="separator:af48b94459046214f7995a50f9457d40c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a26bd88e603c296fb5aeab87674e66efd"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a26bd88e603c296fb5aeab87674e66efd">read_index</a> ()</td></tr>
 <tr class="memdesc:a26bd88e603c296fb5aeab87674e66efd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Poll the status of the index pulse.  <a href="#a26bd88e603c296fb5aeab87674e66efd">More...</a><br /></td></tr>
 <tr class="separator:a26bd88e603c296fb5aeab87674e66efd"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -185,8 +185,8 @@ Protected Member Functions</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>An abstract base class for chattin with floppy drives. </p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="ad51d65d06597f03a540f145c9c65f7b1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad51d65d06597f03a540f145c9c65f7b1">&#9670;&nbsp;</a></span>Adafruit_FloppyBase()</h2>
+<a id="af48b94459046214f7995a50f9457d40c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af48b94459046214f7995a50f9457d40c">&#9670;&nbsp;</a></span>Adafruit_FloppyBase()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -216,7 +216,13 @@ Protected Member Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>rddatapin</em>&#160;</td>
+          <td class="paramname"><em>rddatapin</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>is_apple2</em> = <code>false</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -238,6 +244,7 @@ Protected Member Functions</h2></td></tr>
     <tr><td class="paramname">wrdatapin</td><td>A pin connected to the floppy Write Data input </td></tr>
     <tr><td class="paramname">wrgatepin</td><td>A pin connected to the floppy Write Gate input </td></tr>
     <tr><td class="paramname">rddatapin</td><td>A pin connected to the floppy Read Data output </td></tr>
+    <tr><td class="paramname">is_apple2</td><td>True if the flux write waveform is like Apple Disk ][ </td></tr>
   </table>
   </dd>
 </dl>
@@ -654,14 +661,14 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="acc9ec903e73be2f6b1b6a16b6f2088eb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#acc9ec903e73be2f6b1b6a16b6f2088eb">&#9670;&nbsp;</a></span>write_track()</h2>
+<a id="aeafe6bf13638572d84ee5575ac01dfd2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aeafe6bf13638572d84ee5575ac01dfd2">&#9670;&nbsp;</a></span>write_track()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void Adafruit_FloppyBase::write_track </td>
+          <td class="memname">bool Adafruit_FloppyBase::write_track </td>
           <td>(</td>
           <td class="paramtype">uint8_t *&#160;</td>
           <td class="paramname"><em>pulses</em>, </td>
@@ -695,6 +702,7 @@ Protected Member Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>False if the data could not be written (samd51 cannot write apple flux format) </dd></dl>
 
 </div>
 </div>
