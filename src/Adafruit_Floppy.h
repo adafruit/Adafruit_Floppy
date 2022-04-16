@@ -36,8 +36,8 @@ typedef enum {
 /**************************************************************************/
 class Adafruit_FloppyBase {
 protected:
-  Adafruit_FloppyBase(int indexpin, int wrdatapin, int wrgatepin,
-                      int rddatapin);
+  Adafruit_FloppyBase(int indexpin, int wrdatapin, int wrgatepin, int rddatapin,
+                      bool is_apple2 = false);
 
 public:
   bool begin(void);
@@ -121,7 +121,7 @@ public:
                          uint32_t capture_ms = 0)
       __attribute__((optimize("O3")));
 
-  void write_track(uint8_t *pulses, uint32_t num_pulses,
+  bool write_track(uint8_t *pulses, uint32_t num_pulses,
                    bool store_greaseweazle = false)
       __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
@@ -169,6 +169,7 @@ private:
   void wait_for_index_pulse_low(void);
 
   int8_t _indexpin, _wrdatapin, _wrgatepin, _rddatapin;
+  bool _is_apple2;
 
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *indexPort;
