@@ -5,7 +5,8 @@
  *
  * \image html rabbit.png
  *
- * This is a helper library to abstract away interfacing with floppy disk drives in a cross-platform and open source library.
+ * This is a helper library to abstract away interfacing with floppy disk drives
+ * in a cross-platform and open source library.
  *
  * Adafruit Floppy is a project to make a flexible, full-stack, open source
  * hardware/software device for reading, archiving, accessing and duplicating
