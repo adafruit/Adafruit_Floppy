@@ -1,6 +1,20 @@
 #ifndef ADAFRUIT_FLOPPY_H
 #define ADAFRUIT_FLOPPY_H
 
+/*! \mainpage
+ *
+ * \image html rabbit.png
+ *
+ * This is a helper library to abstract away interfacing with floppy disk drives
+ * in a cross-platform and open source library.
+ *
+ * Adafruit Floppy is a project to make a flexible, full-stack, open source
+ * hardware/software device for reading, archiving, accessing and duplicating
+ * floppy disk media. It joins a family of open source hardware and software
+ * such as greaseweazle and fluxengine, and increases the availability and
+ * accessibility of floppy disk controllers.
+ */
+
 #include "Arduino.h"
 #include <Adafruit_SPIDevice.h>
 // to implement SdFat Block Driver
