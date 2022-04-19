@@ -113,7 +113,6 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_SETBUSTYPE_IBM 1
 #define GW_CMD_SETBUSTYPE_SHUGART 2
 #define GW_CMD_SETBUSTYPE_APPLE2 3
-#define GW_CMD_SETBUSTYPE_APPLE2_QUARTERTRACK 4
 #define GW_CMD_SETPIN    15
 #define GW_CMD_SETPIN_DENSITY 2
 #define GW_CMD_RESET     16
@@ -148,11 +147,7 @@ bool setbustype(int bustype) {
 #ifdef APPLE2_RDDATA_PIN
     case GW_CMD_SETBUSTYPE_APPLE2:
       floppy = &apple2floppy;
-      apple2floppy.step_mode(Adafruit_Apple2Floppy::STEP_MODE_HALF);
-      break;
-    case GW_CMD_SETBUSTYPE_APPLE2_QUARTERTRACK:
       apple2floppy.step_mode(Adafruit_Apple2Floppy::STEP_MODE_QUARTER);
-      floppy = &apple2floppy;
       break;
 #endif
     default:
