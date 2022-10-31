@@ -686,7 +686,6 @@ bool Adafruit_FloppyBase::write_track(uint8_t *pulses, uint32_t num_pulses,
   enable_generate();
 
   bool last_index_state = read_index();
-  uint8_t index_transitions = 0;
   while (g_writing_pulses) {
     bool index_state = read_index();
     // ahh a H to L transition, we have done one revolution
@@ -820,8 +819,10 @@ void Adafruit_FloppyBase::print_pulses(uint8_t *pulses, uint32_t num_pulses,
 void Adafruit_FloppyBase::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                                            uint8_t max_bins,
                                            bool is_gw_format) {
-  if (!debug_serial)
+  (void) is_gw_format;
+  if (!debug_serial) {
     return;
+  }
   uint32_t pulse_len = 0;
 
   // lets bin em!
