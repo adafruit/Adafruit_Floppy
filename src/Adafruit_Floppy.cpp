@@ -819,7 +819,7 @@ void Adafruit_FloppyBase::print_pulses(uint8_t *pulses, uint32_t num_pulses,
 void Adafruit_FloppyBase::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                                            uint8_t max_bins,
                                            bool is_gw_format) {
-  (void) is_gw_format;
+  (void)is_gw_format;
   if (!debug_serial) {
     return;
   }
