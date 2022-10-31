@@ -219,7 +219,7 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
     }
     last_index = now_index;
 
-    if (!data_available) {
+    if (!data_available()) {
       continue;
     }
 
@@ -329,7 +329,6 @@ static void write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, true);
 
   bool old_index_state = false;
-  int i = 0;
   while (pulses != pulse_end) {
     bool index_state = gpio_get(index_pin);
     if (old_index_state && !index_state) {
