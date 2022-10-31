@@ -85,9 +85,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a6bac2d28a9e23f7ad1a8138b8e167e8e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a6bac2d28a9e23f7ad1a8138b8e167e8e">begin</a> (void)</td></tr>
 <tr class="memdesc:a6bac2d28a9e23f7ad1a8138b8e167e8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize and spin up the floppy drive.  <a href="#a6bac2d28a9e23f7ad1a8138b8e167e8e">More...</a><br /></td></tr>
 <tr class="separator:a6bac2d28a9e23f7ad1a8138b8e167e8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aafaaf5e7088bf599ab8335cc8d055a60"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#aafaaf5e7088bf599ab8335cc8d055a60">end</a> (void)</td></tr>
-<tr class="memdesc:aafaaf5e7088bf599ab8335cc8d055a60"><td class="mdescLeft">&#160;</td><td class="mdescRight">Spin down and deselect the motor and drive.  <a href="#aafaaf5e7088bf599ab8335cc8d055a60">More...</a><br /></td></tr>
-<tr class="separator:aafaaf5e7088bf599ab8335cc8d055a60"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9eb103e312aa472701fcdd69f6c4ff38"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a9eb103e312aa472701fcdd69f6c4ff38">end</a> (void)</td></tr>
+<tr class="memdesc:a9eb103e312aa472701fcdd69f6c4ff38"><td class="mdescLeft">&#160;</td><td class="mdescRight">Spin down and deselect the motor and drive.  <a href="#a9eb103e312aa472701fcdd69f6c4ff38">More...</a><br /></td></tr>
+<tr class="separator:a9eb103e312aa472701fcdd69f6c4ff38"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adacbc5e5da123c8328818052da7b5590"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#adacbc5e5da123c8328818052da7b5590">size</a> (void)</td></tr>
 <tr class="memdesc:adacbc5e5da123c8328818052da7b5590"><td class="mdescLeft">&#160;</td><td class="mdescRight">Quick calculator for expected max capacity.  <a href="#adacbc5e5da123c8328818052da7b5590">More...</a><br /></td></tr>
 <tr class="separator:adacbc5e5da123c8328818052da7b5590"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -100,21 +100,27 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:aca20dd8b32bcc509514b0c39985424c9"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#aca20dd8b32bcc509514b0c39985424c9">tracks_per_side</a> (void)</td></tr>
 <tr class="memdesc:aca20dd8b32bcc509514b0c39985424c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">The expected number of tracks per side in this format.  <a href="#aca20dd8b32bcc509514b0c39985424c9">More...</a><br /></td></tr>
 <tr class="separator:aca20dd8b32bcc509514b0c39985424c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1399c620d4ae72bd0e7095b278618ac9"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a1399c620d4ae72bd0e7095b278618ac9">readBlock</a> (uint32_t block, uint8_t *dst)</td></tr>
-<tr class="memdesc:a1399c620d4ae72bd0e7095b278618ac9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read a 512 byte block of data, may used cached data.  <a href="#a1399c620d4ae72bd0e7095b278618ac9">More...</a><br /></td></tr>
-<tr class="separator:a1399c620d4ae72bd0e7095b278618ac9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5b676d9f1e187310f3afd202263d3f2a"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a5b676d9f1e187310f3afd202263d3f2a">writeBlock</a> (uint32_t block, const uint8_t *src)</td></tr>
-<tr class="memdesc:a5b676d9f1e187310f3afd202263d3f2a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write a 512 byte block of data NOT IMPLEMENTED YET.  <a href="#a5b676d9f1e187310f3afd202263d3f2a">More...</a><br /></td></tr>
-<tr class="separator:a5b676d9f1e187310f3afd202263d3f2a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac47d5c6a3e1ecf56506156d7937366f6"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#ac47d5c6a3e1ecf56506156d7937366f6">syncBlocks</a> ()</td></tr>
-<tr class="memdesc:ac47d5c6a3e1ecf56506156d7937366f6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sync written blocks NOT IMPLEMENTED YET.  <a href="#ac47d5c6a3e1ecf56506156d7937366f6">More...</a><br /></td></tr>
-<tr class="separator:ac47d5c6a3e1ecf56506156d7937366f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa66e3094d4a066e133b0ccb7b49db909"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#aa66e3094d4a066e133b0ccb7b49db909">readBlocks</a> (uint32_t block, uint8_t *dst, size_t nb)</td></tr>
-<tr class="memdesc:aa66e3094d4a066e133b0ccb7b49db909"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read multiple 512 byte block of data, may used cached data.  <a href="#aa66e3094d4a066e133b0ccb7b49db909">More...</a><br /></td></tr>
-<tr class="separator:aa66e3094d4a066e133b0ccb7b49db909"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a39cd7724fbff45bf554cc78b696b46cb"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a39cd7724fbff45bf554cc78b696b46cb">writeBlocks</a> (uint32_t block, const uint8_t *src, size_t nb)</td></tr>
-<tr class="memdesc:a39cd7724fbff45bf554cc78b696b46cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write multiple 512 byte blocks of data NOT IMPLEMENTED YET.  <a href="#a39cd7724fbff45bf554cc78b696b46cb">More...</a><br /></td></tr>
-<tr class="separator:a39cd7724fbff45bf554cc78b696b46cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7a582e24c96e0a8c3e5c3bb3746ed5c9"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a7a582e24c96e0a8c3e5c3bb3746ed5c9">isBusy</a> ()</td></tr>
+<tr class="memdesc:a7a582e24c96e0a8c3e5c3bb3746ed5c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if device busy.  <a href="#a7a582e24c96e0a8c3e5c3bb3746ed5c9">More...</a><br /></td></tr>
+<tr class="separator:a7a582e24c96e0a8c3e5c3bb3746ed5c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae2dbb3778bf9da61803e934c64182324"><td class="memItemLeft" align="right" valign="top">virtual uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#ae2dbb3778bf9da61803e934c64182324">sectorCount</a> ()</td></tr>
+<tr class="memdesc:ae2dbb3778bf9da61803e934c64182324"><td class="mdescLeft">&#160;</td><td class="mdescRight">Max capacity in sector block.  <a href="#ae2dbb3778bf9da61803e934c64182324">More...</a><br /></td></tr>
+<tr class="separator:ae2dbb3778bf9da61803e934c64182324"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac6c74df035223e2a89c4f6ee652ab7e4"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#ac6c74df035223e2a89c4f6ee652ab7e4">syncDevice</a> ()</td></tr>
+<tr class="memdesc:ac6c74df035223e2a89c4f6ee652ab7e4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sync written blocks NOT IMPLEMENTED YET.  <a href="#ac6c74df035223e2a89c4f6ee652ab7e4">More...</a><br /></td></tr>
+<tr class="separator:ac6c74df035223e2a89c4f6ee652ab7e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1df6a6200fdc117b8ac2a36cc1073e30"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a1df6a6200fdc117b8ac2a36cc1073e30">readSector</a> (uint32_t block, uint8_t *dst)</td></tr>
+<tr class="memdesc:a1df6a6200fdc117b8ac2a36cc1073e30"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read a 512 byte block of data, may used cached data.  <a href="#a1df6a6200fdc117b8ac2a36cc1073e30">More...</a><br /></td></tr>
+<tr class="separator:a1df6a6200fdc117b8ac2a36cc1073e30"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd596417afdf95fdcf22812eda66518d"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#afd596417afdf95fdcf22812eda66518d">readSectors</a> (uint32_t block, uint8_t *dst, size_t ns)</td></tr>
+<tr class="memdesc:afd596417afdf95fdcf22812eda66518d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read multiple 512 byte block of data, may used cached data.  <a href="#afd596417afdf95fdcf22812eda66518d">More...</a><br /></td></tr>
+<tr class="separator:afd596417afdf95fdcf22812eda66518d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aae3f8d9eaad3a96be99b63d95aa4fdac"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#aae3f8d9eaad3a96be99b63d95aa4fdac">writeSector</a> (uint32_t block, const uint8_t *src)</td></tr>
+<tr class="memdesc:aae3f8d9eaad3a96be99b63d95aa4fdac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write a 512 byte block of data NOT IMPLEMENTED YET.  <a href="#aae3f8d9eaad3a96be99b63d95aa4fdac">More...</a><br /></td></tr>
+<tr class="separator:aae3f8d9eaad3a96be99b63d95aa4fdac"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a65e150ebde8ecd595e157bc41b1be748"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a65e150ebde8ecd595e157bc41b1be748">writeSectors</a> (uint32_t block, const uint8_t *src, size_t ns)</td></tr>
+<tr class="memdesc:a65e150ebde8ecd595e157bc41b1be748"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write multiple 512 byte blocks of data NOT IMPLEMENTED YET.  <a href="#a65e150ebde8ecd595e157bc41b1be748">More...</a><br /></td></tr>
+<tr class="separator:a65e150ebde8ecd595e157bc41b1be748"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
@@ -185,14 +191,14 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="aafaaf5e7088bf599ab8335cc8d055a60"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aafaaf5e7088bf599ab8335cc8d055a60">&#9670;&nbsp;</a></span>end()</h2>
+<a id="a9eb103e312aa472701fcdd69f6c4ff38"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9eb103e312aa472701fcdd69f6c4ff38">&#9670;&nbsp;</a></span>end()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">bool Adafruit_MFM_Floppy::end </td>
+          <td class="memname">void Adafruit_MFM_Floppy::end </td>
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
@@ -323,8 +329,8 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="a1399c620d4ae72bd0e7095b278618ac9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1399c620d4ae72bd0e7095b278618ac9">&#9670;&nbsp;</a></span>readBlock()</h2>
+<a id="a7a582e24c96e0a8c3e5c3bb3746ed5c9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7a582e24c96e0a8c3e5c3bb3746ed5c9">&#9670;&nbsp;</a></span>isBusy()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -333,7 +339,91 @@ Public Attributes</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">bool Adafruit_MFM_Floppy::readBlock </td>
+          <td class="memname">bool Adafruit_MFM_Floppy::isBusy </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Check if device busy. </p>
+<dl class="section return"><dt>Returns</dt><dd>true if busy </dd></dl>
+
+</div>
+</div>
+<a id="ae2dbb3778bf9da61803e934c64182324"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae2dbb3778bf9da61803e934c64182324">&#9670;&nbsp;</a></span>sectorCount()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t Adafruit_MFM_Floppy::sectorCount </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Max capacity in sector block. </p>
+<dl class="section return"><dt>Returns</dt><dd>Size of the drive in sector (512 bytes) </dd></dl>
+
+</div>
+</div>
+<a id="ac6c74df035223e2a89c4f6ee652ab7e4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac6c74df035223e2a89c4f6ee652ab7e4">&#9670;&nbsp;</a></span>syncDevice()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Adafruit_MFM_Floppy::syncDevice </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Sync written blocks NOT IMPLEMENTED YET. </p>
+<dl class="section return"><dt>Returns</dt><dd>True on success, false if failed or unimplemented </dd></dl>
+
+</div>
+</div>
+<a id="a1df6a6200fdc117b8ac2a36cc1073e30"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1df6a6200fdc117b8ac2a36cc1073e30">&#9670;&nbsp;</a></span>readSector()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Adafruit_MFM_Floppy::readSector </td>
           <td>(</td>
           <td class="paramtype">uint32_t&#160;</td>
           <td class="paramname"><em>block</em>, </td>
@@ -369,8 +459,8 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="a5b676d9f1e187310f3afd202263d3f2a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a5b676d9f1e187310f3afd202263d3f2a">&#9670;&nbsp;</a></span>writeBlock()</h2>
+<a id="afd596417afdf95fdcf22812eda66518d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afd596417afdf95fdcf22812eda66518d">&#9670;&nbsp;</a></span>readSectors()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -379,81 +469,7 @@ Public Attributes</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">bool Adafruit_MFM_Floppy::writeBlock </td>
-          <td>(</td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>block</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const uint8_t *&#160;</td>
-          <td class="paramname"><em>src</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Write a 512 byte block of data NOT IMPLEMENTED YET. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">block</td><td>Block number, will be split into head and track based on expected formatting </td></tr>
-    <tr><td class="paramname">src</td><td>Source buffer </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>True on success, false if failed or unimplemented </dd></dl>
-
-</div>
-</div>
-<a id="ac47d5c6a3e1ecf56506156d7937366f6"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac47d5c6a3e1ecf56506156d7937366f6">&#9670;&nbsp;</a></span>syncBlocks()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool Adafruit_MFM_Floppy::syncBlocks </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Sync written blocks NOT IMPLEMENTED YET. </p>
-<dl class="section return"><dt>Returns</dt><dd>True on success, false if failed or unimplemented </dd></dl>
-
-</div>
-</div>
-<a id="aa66e3094d4a066e133b0ccb7b49db909"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa66e3094d4a066e133b0ccb7b49db909">&#9670;&nbsp;</a></span>readBlocks()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool Adafruit_MFM_Floppy::readBlocks </td>
+          <td class="memname">bool Adafruit_MFM_Floppy::readSectors </td>
           <td>(</td>
           <td class="paramtype">uint32_t&#160;</td>
           <td class="paramname"><em>block</em>, </td>
@@ -496,8 +512,8 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="a39cd7724fbff45bf554cc78b696b46cb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a39cd7724fbff45bf554cc78b696b46cb">&#9670;&nbsp;</a></span>writeBlocks()</h2>
+<a id="aae3f8d9eaad3a96be99b63d95aa4fdac"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aae3f8d9eaad3a96be99b63d95aa4fdac">&#9670;&nbsp;</a></span>writeSector()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -506,7 +522,53 @@ Public Attributes</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">bool Adafruit_MFM_Floppy::writeBlocks </td>
+          <td class="memname">bool Adafruit_MFM_Floppy::writeSector </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>block</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>src</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Write a 512 byte block of data NOT IMPLEMENTED YET. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">block</td><td>Block number, will be split into head and track based on expected formatting </td></tr>
+    <tr><td class="paramname">src</td><td>Source buffer </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True on success, false if failed or unimplemented </dd></dl>
+
+</div>
+</div>
+<a id="a65e150ebde8ecd595e157bc41b1be748"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a65e150ebde8ecd595e157bc41b1be748">&#9670;&nbsp;</a></span>writeSectors()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Adafruit_MFM_Floppy::writeSectors </td>
           <td>(</td>
           <td class="paramtype">uint32_t&#160;</td>
           <td class="paramname"><em>block</em>, </td>
