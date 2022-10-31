@@ -66,10 +66,10 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
 Adafruit_MFM_Floppy mfm_floppy(&floppy);
 
 // file system object from SdFat
-FatFileSystem fatfs;
+FatVolume fatfs;
 
-FatFile root;
-FatFile file;
+File32 root;
+File32 file;
 
 //------------------------------------------------------------------------------
 void setup() {
@@ -77,7 +77,7 @@ void setup() {
 
   // Wait for USB Serial
   while (!Serial) {
-    SysCall::yield();
+    yield();
   }
 
   Serial.println("Floppy FAT directory listing demo");
@@ -130,7 +130,7 @@ void loop() {
 
   // Open the file for reading and check that it was successfully opened.
   // The FILE_READ mode will open the file for reading.
-  File dataFile = fatfs.open(filename, FILE_READ);
+  File32 dataFile = fatfs.open(filename, FILE_READ);
   if (!dataFile) {
     Serial.println("Failed to open data file! Does it exist?");
     return;

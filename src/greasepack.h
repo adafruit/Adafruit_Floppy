@@ -45,10 +45,10 @@ static inline uint8_t *greasepack(uint8_t *buf, uint8_t *end, unsigned value) {
     }
     *buf++ = 255;
     *buf++ = 2;
-    *buf++ = 1 | (value << 1) & 255;
-    *buf++ = 1 | (value >> 6) & 255;
-    *buf++ = 1 | (value >> 13) & 255;
-    *buf++ = 1 | (value >> 20) & 255;
+    *buf++ = 1 | ((value << 1) & 255);
+    *buf++ = 1 | ((value >> 6) & 255);
+    *buf++ = 1 | ((value >> 13) & 255);
+    *buf++ = 1 | ((value >> 20) & 255);
   }
 
   return buf;

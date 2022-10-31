@@ -53,10 +53,9 @@ bool Adafruit_MFM_Floppy::begin(void) {
     @returns True always
 */
 /**************************************************************************/
-bool Adafruit_MFM_Floppy::end(void) {
+void Adafruit_MFM_Floppy::end(void) {
   _floppy->spin_motor(false);
   _floppy->select(false);
-  return true;
 }
 
 /**************************************************************************/
@@ -108,6 +107,27 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
 
 /**************************************************************************/
 /*!
+    @brief   Max capacity in sector block
+    @returns Size of the drive in sector (512 bytes)
+*/
+/**************************************************************************/
+uint32_t Adafruit_MFM_Floppy::sectorCount() {
+  return size() / MFM_BYTES_PER_SECTOR;
+}
+
+/**************************************************************************/
+/*!
+    @brief   Check if device busy
+    @returns true if busy
+*/
+/**************************************************************************/
+bool Adafruit_MFM_Floppy::isBusy() {
+  // since writing is not supported yet
+  return false;
+}
+
+/**************************************************************************/
+/*!
     @brief  Read a 512 byte block of data, may used cached data
     @param  block Block number, will be split into head and track based on
     expected formatting
@@ -115,7 +135,7 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
     @returns True on success
 */
 /**************************************************************************/
-bool Adafruit_MFM_Floppy::readBlock(uint32_t block, uint8_t *dst) {
+bool Adafruit_MFM_Floppy::readSector(uint32_t block, uint8_t *dst) {
   uint8_t track = block / (FLOPPY_HEADS * _sectors_per_track);
   uint8_t head = (block / _sectors_per_track) % FLOPPY_HEADS;
   uint8_t subsector = block % _sectors_per_track;
@@ -152,7 +172,7 @@ bool Adafruit_MFM_Floppy::readBlock(uint32_t block, uint8_t *dst) {
     @returns True on success
 */
 /**************************************************************************/
-bool Adafruit_MFM_Floppy::readBlocks(uint32_t block, uint8_t *dst, size_t nb) {
+bool Adafruit_MFM_Floppy::readSectors(uint32_t block, uint8_t *dst, size_t nb) {
   // read each block one by one
   for (size_t blocknum = 0; blocknum < nb; blocknum++) {
     if (!readBlock(block + blocknum, dst + (blocknum * MFM_BYTES_PER_SECTOR)))
@@ -170,9 +190,9 @@ bool Adafruit_MFM_Floppy::readBlocks(uint32_t block, uint8_t *dst, size_t nb) {
     @returns True on success, false if failed or unimplemented
 */
 /**************************************************************************/
-bool Adafruit_MFM_Floppy::writeBlock(uint32_t block, const uint8_t *src) {
+bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
   Serial.printf("Writing block %d\n", block);
-  (void *)src;
+  (void)src;
   return false;
 }
 
@@ -186,10 +206,10 @@ bool Adafruit_MFM_Floppy::writeBlock(uint32_t block, const uint8_t *src) {
     @returns True on success, false if failed or unimplemented
 */
 /**************************************************************************/
-bool Adafruit_MFM_Floppy::writeBlocks(uint32_t block, const uint8_t *src,
-                                      size_t nb) {
+bool Adafruit_MFM_Floppy::writeSectors(uint32_t block, const uint8_t *src,
+                                       size_t nb) {
   Serial.printf("Writing %d blocks %d\n", nb, block);
-  (void *)src;
+  (void)src;
   return false;
 }
 
@@ -199,4 +219,4 @@ bool Adafruit_MFM_Floppy::writeBlocks(uint32_t block, const uint8_t *src,
     @returns True on success, false if failed or unimplemented
 */
 /**************************************************************************/
-bool Adafruit_MFM_Floppy::syncBlocks() { return false; }
+bool Adafruit_MFM_Floppy::syncDevice() { return false; }

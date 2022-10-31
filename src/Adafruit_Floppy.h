@@ -280,13 +280,13 @@ private:
    class. or for a mass storage device
 */
 /**************************************************************************/
-class Adafruit_MFM_Floppy : public BaseBlockDriver {
+class Adafruit_MFM_Floppy : public FsBlockDeviceInterface {
 public:
   Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
                       adafruit_floppy_disk_t format = IBMPC1440K);
 
   bool begin(void);
-  bool end(void);
+  void end(void);
 
   uint32_t size(void);
   int32_t readTrack(uint8_t track, bool head);
@@ -298,12 +298,15 @@ public:
        @returns The number of tracks per side */
   uint8_t tracks_per_side(void) { return _tracks_per_side; }
 
-  //------------- SdFat BaseBlockDRiver API -------------//
-  virtual bool readBlock(uint32_t block, uint8_t *dst);
-  virtual bool writeBlock(uint32_t block, const uint8_t *src);
-  virtual bool syncBlocks();
-  virtual bool readBlocks(uint32_t block, uint8_t *dst, size_t nb);
-  virtual bool writeBlocks(uint32_t block, const uint8_t *src, size_t nb);
+  //------------- SdFat v2 FsBlockDeviceInterface API -------------//
+  virtual bool isBusy();
+  virtual uint32_t sectorCount();
+  virtual bool syncDevice();
+
+  virtual bool readSector(uint32_t block, uint8_t *dst);
+  virtual bool readSectors(uint32_t block, uint8_t *dst, size_t ns);
+  virtual bool writeSector(uint32_t block, const uint8_t *src);
+  virtual bool writeSectors(uint32_t block, const uint8_t *src, size_t ns);
 
   /**! The raw byte decoded data from the last track read */
   uint8_t track_data[MFM_IBMPC1440K_SECTORS_PER_TRACK * MFM_BYTES_PER_SECTOR];
