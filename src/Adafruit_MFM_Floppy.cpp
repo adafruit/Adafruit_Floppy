@@ -175,7 +175,7 @@ bool Adafruit_MFM_Floppy::readSector(uint32_t block, uint8_t *dst) {
 bool Adafruit_MFM_Floppy::readSectors(uint32_t block, uint8_t *dst, size_t nb) {
   // read each block one by one
   for (size_t blocknum = 0; blocknum < nb; blocknum++) {
-    if (!readBlock(block + blocknum, dst + (blocknum * MFM_BYTES_PER_SECTOR)))
+    if (!readSector(block + blocknum, dst + (blocknum * MFM_BYTES_PER_SECTOR)))
       return false;
   }
   return true;
