@@ -68,7 +68,10 @@ void setup() {
   while (!Serial) delay(100);
 delay(3000);
   Serial.println("its time for a nice floppy transfer!");
-  Serial.printf("Sample freqency %.1fMHz\n", floppy->getSampleFrequency() / 1e6);
+  Serial.print("Sample freqency ");
+  Serial.print(floppy.getSampleFrequency() / 1e6);
+  Serial.println("MHz");
+
   floppy.debug_serial = &Serial;
 
   if (!floppy.begin()) {
