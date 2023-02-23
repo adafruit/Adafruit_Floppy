@@ -140,7 +140,7 @@ public:
       __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                         uint8_t max_bins = 64, bool is_gw_format = false,
-                        uint32_t min_bin_size=100);
+                        uint32_t min_bin_size = 100);
   void print_pulses(uint8_t *pulses, uint32_t num_pulses,
                     bool is_gw_format = false);
   uint32_t getSampleFrequency(void);
