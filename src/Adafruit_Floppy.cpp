@@ -818,7 +818,9 @@ void Adafruit_FloppyBase::print_pulses(uint8_t *pulses, uint32_t num_pulses,
 /**************************************************************************/
 void Adafruit_FloppyBase::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
                                            uint8_t max_bins,
-                                           bool is_gw_format) {
+                                           bool is_gw_format,
+                                           uint32_t min_bin_size
+) {
   (void)is_gw_format;
   if (!debug_serial) {
     return;
@@ -859,12 +861,19 @@ void Adafruit_FloppyBase::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
       debug_serial->println("oof we ran out of bins but we'll keep going");
   }
   // this is a very lazy way to print the bins sorted
+  bool gap=false;
   for (uint16_t pulse_w = 1; pulse_w < 512; pulse_w++) {
     for (uint8_t b = 0; b < max_bins; b++) {
       if (bins[b][0] == pulse_w) {
-        debug_serial->print(bins[b][0]);
-        debug_serial->print(": ");
-        debug_serial->println(bins[b][1]);
+        if(bins[b][1] >= min_bin_size) {
+          if(gap) debug_serial->println("-------");
+          gap = false;
+          debug_serial->print(bins[b][0]);
+          debug_serial->print(": ");
+          debug_serial->println(bins[b][1]);
+        } else {
+          gap = true;
+        }
       }
     }
   }
