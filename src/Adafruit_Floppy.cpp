@@ -814,6 +814,7 @@ void Adafruit_FloppyBase::print_pulses(uint8_t *pulses, uint32_t num_pulses,
     @param  num_pulses The size of the pulses in the array
     @param  max_bins The maximum number of histogram bins to use (default 64)
     @param  is_gw_format Set to true if we pack long pulses with two bytes
+    @param  min_bin_size Bins with fewer samples than this are skipped, not printed
 */
 /**************************************************************************/
 void Adafruit_FloppyBase::print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
