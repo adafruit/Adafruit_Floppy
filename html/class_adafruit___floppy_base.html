@@ -129,9 +129,9 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:aeafe6bf13638572d84ee5575ac01dfd2"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aeafe6bf13638572d84ee5575ac01dfd2">write_track</a> (uint8_t *pulses, uint32_t num_pulses, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:aeafe6bf13638572d84ee5575ac01dfd2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#aeafe6bf13638572d84ee5575ac01dfd2">More...</a><br /></td></tr>
 <tr class="separator:aeafe6bf13638572d84ee5575ac01dfd2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3aa88fadef6a8996f34d6a8e09e94fe3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a3aa88fadef6a8996f34d6a8e09e94fe3">print_pulse_bins</a> (uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64, bool is_gw_format=false)</td></tr>
-<tr class="memdesc:a3aa88fadef6a8996f34d6a8e09e94fe3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#a3aa88fadef6a8996f34d6a8e09e94fe3">More...</a><br /></td></tr>
-<tr class="separator:a3aa88fadef6a8996f34d6a8e09e94fe3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a93a1b4da38d7a2309457a9488210a6da"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a93a1b4da38d7a2309457a9488210a6da">print_pulse_bins</a> (uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64, bool is_gw_format=false, uint32_t min_bin_size=100)</td></tr>
+<tr class="memdesc:a93a1b4da38d7a2309457a9488210a6da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#a93a1b4da38d7a2309457a9488210a6da">More...</a><br /></td></tr>
+<tr class="separator:a93a1b4da38d7a2309457a9488210a6da"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af286420feb49f1f868327ffbbb18ef66"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#af286420feb49f1f868327ffbbb18ef66">print_pulses</a> (uint8_t *pulses, uint32_t num_pulses, bool is_gw_format=false)</td></tr>
 <tr class="memdesc:af286420feb49f1f868327ffbbb18ef66"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print the counts in a list of flux transitions.  <a href="#af286420feb49f1f868327ffbbb18ef66">More...</a><br /></td></tr>
 <tr class="separator:af286420feb49f1f868327ffbbb18ef66"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -706,8 +706,8 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a3aa88fadef6a8996f34d6a8e09e94fe3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3aa88fadef6a8996f34d6a8e09e94fe3">&#9670;&nbsp;</a></span>print_pulse_bins()</h2>
+<a id="a93a1b4da38d7a2309457a9488210a6da"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a93a1b4da38d7a2309457a9488210a6da">&#9670;&nbsp;</a></span>print_pulse_bins()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -734,7 +734,13 @@ Protected Member Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">bool&#160;</td>
-          <td class="paramname"><em>is_gw_format</em> = <code>false</code>&#160;</td>
+          <td class="paramname"><em>is_gw_format</em> = <code>false</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>min_bin_size</em> = <code>100</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -751,6 +757,7 @@ Protected Member Functions</h2></td></tr>
     <tr><td class="paramname">num_pulses</td><td>The size of the pulses in the array </td></tr>
     <tr><td class="paramname">max_bins</td><td>The maximum number of histogram bins to use (default 64) </td></tr>
     <tr><td class="paramname">is_gw_format</td><td>Set to true if we pack long pulses with two bytes </td></tr>
+    <tr><td class="paramname">min_bin_size</td><td>Bins with fewer samples than this are skipped, not printed </td></tr>
   </table>
   </dd>
 </dl>
