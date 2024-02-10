@@ -1,3 +1,8 @@
+// This example will ERASE TRACK 0 on a floppy disk to test if flux writing
+// is functioning
+// DO NOT RUN IT ON A FLOPPY YOU WISH TO KEEP DATA! 
+// IT MUST BE REFORMATTED AFTER WRITING!
+
 #include <Adafruit_Floppy.h>
 
 #if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
@@ -28,9 +33,6 @@
 #define READ_PIN 9     // IDC 30
 #define SIDE_PIN 8     // IDC 32
 #define READY_PIN 7    // IDC 34
-#ifndef USE_TINYUSB
-#error "Please set Adafruit TinyUSB under Tools > USB Stack"
-#endif
 #elif defined(ARDUINO_RASPBERRY_PI_PICO)
 #define DENSITY_PIN 2 // IDC 2
 #define INDEX_PIN 3   // IDC 8
@@ -45,12 +47,16 @@
 #define READ_PIN 12   // IDC 30
 #define SIDE_PIN 13   // IDC 32
 #define READY_PIN 14  // IDC 34
-#ifndef USE_TINYUSB
-#error "Please set Adafruit TinyUSB under Tools > USB Stack"
-#endif
+#elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
+// Yay built in pin definitions!
 #else
 #error "Please set up pin definitions!"
 #endif
+
+#ifndef USE_TINYUSB
+#error "Please set Adafruit TinyUSB under Tools > USB Stack"
+#endif
+
 
 Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        MOTOR_PIN, DIR_PIN, STEP_PIN,
@@ -66,6 +72,11 @@ uint32_t time_stamp = 0;
 void setup() {
   Serial.begin(115200);
   while (!Serial) delay(100);
+
+#if defined(FLOPPY_DIRECTION_PIN)
+  pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
+  digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
+#endif
 
   Serial.println("its time for a nice floppy transfer!");
   floppy.debug_serial = &Serial;
@@ -87,9 +98,20 @@ void setup() {
     while (1) yield();
   }
   Serial.println("done!");
+
 }
 
 void loop() {
+  // Flush input of serial port
+  while (Serial.available()) Serial.read();
+
+  // Warn them again!
+  Serial.println("Are you SURE you want to run the write test?");
+  Serial.println("THIS WILL PERMANENTLY ERASE ANY DATA ON THE FLOPPY DISK!!!");
+  Serial.println("Type Y to continue...");
+  while (! Serial.available()) yield();
+  if (Serial.read() != 'Y') return;
+
   int32_t index_pulse_offset;
   uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset, true);
 
