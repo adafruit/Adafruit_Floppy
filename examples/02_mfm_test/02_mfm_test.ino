@@ -48,6 +48,8 @@
 #ifndef USE_TINYUSB
 #error "Please set Adafruit TinyUSB under Tools > USB Stack"
 #endif
+#elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
+// Yay built in pin definitions!
 #else
 #error "Please set up pin definitions!"
 #endif
@@ -59,7 +61,7 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
 
 // You can select IBMPC1440K or IBMPC360K (check adafruit_floppy_disk_t options!)
-Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC360K);
+Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC1440K);
 
 
 uint32_t time_stamp = 0;
@@ -68,6 +70,11 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);
   while (!Serial) delay(100);
+
+#if defined(FLOPPY_DIRECTION_PIN)
+  pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
+  digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
+#endif
 
   delay(500); // wait for serial to open
   Serial.println("its time for a nice floppy transfer!");
