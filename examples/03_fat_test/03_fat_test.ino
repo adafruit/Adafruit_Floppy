@@ -60,6 +60,8 @@
 #ifndef USE_TINYUSB
 #error "Please set Adafruit TinyUSB under Tools > USB Stack"
 #endif
+#elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
+// Yay built in pin definitions!
 #else
 #error "Please set up pin definitions!"
 #endif
@@ -85,11 +87,17 @@ void setup() {
     yield();
   }
 
+#if defined(FLOPPY_DIRECTION_PIN)
+  pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
+  digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
+#endif
+
   Serial.println("Floppy FAT directory listing demo");
 
   // Init floppy drive - must spin up and find index
   if (! mfm_floppy.begin()) {
     Serial.println("Floppy didn't initialize - check wiring and diskette!");
+    while (1) yield();
   }
 
   // Init file system on the flash
@@ -97,7 +105,9 @@ void setup() {
 
   if (!root.open("/")) {
     Serial.println("open root failed");
+    while (1) yield();
   }
+  
   // Open next file in root.
   // Warning, openNext starts at the current directory position
   // so a rewind of the directory may be required.
