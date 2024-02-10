@@ -48,6 +48,8 @@
 #ifndef USE_TINYUSB
 #error "Please set Adafruit TinyUSB under Tools > USB Stack"
 #endif
+#elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
+// Yay built in pin definitions!
 #else
 #error "Please set up pin definitions!"
 #endif
@@ -66,6 +68,11 @@ uint32_t time_stamp = 0;
 void setup() {
   Serial.begin(115200);
   while (!Serial) delay(100);
+
+#if defined(FLOPPY_DIRECTION_PIN)
+  pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
+  digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
+#endif
 
   Serial.println("its time for a nice floppy transfer!");
   Serial.print("Sample freqency ");
