@@ -94,6 +94,13 @@ public:
   virtual bool side(uint8_t head) = 0;
   /**************************************************************************/
   /*!
+      @brief Current head in use, based on internal caching
+      @return Head 0 or 1
+  */
+  /**************************************************************************/
+  virtual int8_t get_side() = 0;
+  /**************************************************************************/
+  /*!
       @brief  The current track location, based on internal caching
       @return The cached track location
       @note Returns -1 if the track is not known.
@@ -127,21 +134,26 @@ public:
   /**************************************************************************/
   virtual bool set_density(bool high_density) = 0;
 
-  uint32_t read_track_mfm(uint8_t *sectors, size_t n_sectors,
-                          uint8_t *sector_validity, bool high_density = true);
-  uint32_t capture_track(volatile uint8_t *pulses, uint32_t max_pulses,
-                         int32_t *falling_index_offset,
-                         bool store_greaseweazle = false,
-                         uint32_t capture_ms = 0)
+  size_t decode_track_mfm(uint8_t *sectors, size_t n_sectors,
+                          uint8_t *sector_validity, const uint8_t *pulses,
+                          size_t n_pulses, float nominal_bit_time_us,
+                          bool clear_validity = false);
+
+  size_t encode_track_mfm(const uint8_t *sectors, size_t n_sectors,
+                          uint8_t *pulses, size_t max_pulses,
+                          float nominal_bit_time_us);
+
+  size_t capture_track(volatile uint8_t *pulses, size_t max_pulses,
+                       int32_t *falling_index_offset,
+                       bool store_greaseweazle = false, uint32_t capture_ms = 0)
       __attribute__((optimize("O3")));
 
-  bool write_track(uint8_t *pulses, uint32_t num_pulses,
+  bool write_track(uint8_t *pulses, size_t n_pulses,
                    bool store_greaseweazle = false)
       __attribute__((optimize("O3")));
-  void print_pulse_bins(uint8_t *pulses, uint32_t num_pulses,
-                        uint8_t max_bins = 64, bool is_gw_format = false,
-                        uint32_t min_bin_size = 100);
-  void print_pulses(uint8_t *pulses, uint32_t num_pulses,
+  void print_pulse_bins(uint8_t *pulses, size_t n_pulses, uint8_t max_bins = 64,
+                        bool is_gw_format = false, uint32_t min_bin_size = 100);
+  void print_pulses(uint8_t *pulses, size_t n_pulses,
                     bool is_gw_format = false);
   uint32_t getSampleFrequency(void);
 
@@ -173,11 +185,6 @@ private:
 
   bool start_polled_capture(void);
   void disable_capture(void);
-  uint16_t sample_flux(bool &new_index_state);
-  uint16_t sample_flux() {
-    bool unused;
-    return sample_flux(unused);
-  }
 
   bool init_capture(void);
   void enable_background_capture(void);
@@ -213,6 +220,7 @@ public:
   bool goto_track(uint8_t track) override;
   bool side(uint8_t head) override;
   int8_t track(void) override;
+  int8_t get_side(void) override;
   void step(bool dir, uint8_t times);
   bool set_density(bool high_density) override;
   bool get_write_protect() override;
@@ -223,7 +231,7 @@ private:
   int8_t _densitypin, _selectpin, _motorpin, _directionpin, _steppin,
       _track0pin, _protectpin, _sidepin, _readypin;
 
-  int8_t _track = -1;
+  int8_t _track = -1, _side = -1;
 };
 
 /**************************************************************************/
@@ -319,12 +327,18 @@ private:
 #if defined(PICO_BOARD) || defined(__RP2040__) || defined(ARDUINO_ARCH_RP2040)
   uint16_t _last;
 #endif
+  uint8_t NO_TRACK = UINT8_MAX;
   uint8_t _sectors_per_track = 0;
   uint8_t _tracks_per_side = 0;
-  int8_t _last_track_read = -1; // last cached track
+  uint8_t _last_track_read = NO_TRACK; // last cached track
   bool _high_density = true;
+  bool _dirty = false, _track_has_errors = false;
   Adafruit_Floppy *_floppy = NULL;
   adafruit_floppy_disk_t _format = IBMPC1440K;
+
+  /**! The raw flux data from the last track read */
+  uint8_t _flux[125000];
+  size_t _n_flux;
 };
 
 #endif

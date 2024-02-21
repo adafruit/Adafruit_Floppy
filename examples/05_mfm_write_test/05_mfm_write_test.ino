@@ -1,8 +1,4 @@
-// this example makes a lot of assumptions: MFM floppy which is already inserted
-// and only reading is supported - no write yet!
-
 #include <Adafruit_Floppy.h>
-#include "Adafruit_TinyUSB.h"
 
 #if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
 #define DENSITY_PIN A1 // IDC 2
@@ -32,6 +28,9 @@
 #define READ_PIN 9     // IDC 30
 #define SIDE_PIN 8     // IDC 32
 #define READY_PIN 7    // IDC 34
+#ifndef USE_TINYUSB
+#error "Please set Adafruit TinyUSB under Tools > USB Stack"
+#endif
 #elif defined(ARDUINO_RASPBERRY_PI_PICO)
 #define DENSITY_PIN 2 // IDC 2
 #define INDEX_PIN 3   // IDC 8
@@ -46,18 +45,15 @@
 #define READ_PIN 12   // IDC 30
 #define SIDE_PIN 13   // IDC 32
 #define READY_PIN 14  // IDC 34
+#ifndef USE_TINYUSB
+#error "Please set Adafruit TinyUSB under Tools > USB Stack"
+#endif
 #elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
 // Yay built in pin definitions!
 #else
 #error "Please set up pin definitions!"
 #endif
 
-#ifndef USE_TINYUSB
-#error "Please set Adafruit TinyUSB under Tools > USB Stack"
-#endif
-
-
-Adafruit_USBD_MSC usb_msc;
 
 Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        MOTOR_PIN, DIR_PIN, STEP_PIN,
@@ -68,40 +64,22 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
 Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC1440K);
 
 
-constexpr size_t SECTOR_SIZE = 512UL;
-int8_t last_track_read = -1;  // last cached track
+uint32_t time_stamp = 0;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);
+  while (!Serial) delay(100);
 
 #if defined(FLOPPY_DIRECTION_PIN)
   pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
   digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
 #endif
 
-#if defined(ARDUINO_ARCH_MBED) && defined(ARDUINO_ARCH_RP2040)
-  // Manual begin() is required on core without built-in support for TinyUSB such as
-  // - mbed rp2040
-  TinyUSB_Device_Init(0);
-#endif
-
-  // Set disk vendor id, product id and revision with string up to 8, 16, 4 characters respectively
-  usb_msc.setID("Adafruit", "Floppy Mass Storage", "1.0");
-
-  // Set disk size
-  usb_msc.setCapacity(mfm_floppy.sectors_per_track() * mfm_floppy.tracks_per_side() * FLOPPY_HEADS, SECTOR_SIZE);
-
-  // Set callback
-  usb_msc.setReadWriteCallback(msc_read_callback, msc_write_callback, msc_flush_callback);
+  delay(500); // wait for serial to open
+  Serial.println("its time for a nice floppy transfer!");
 
   floppy.debug_serial = &Serial;
-  floppy.begin();
-  // Set Lun ready
-  usb_msc.setUnitReady(true);
-  Serial.println("Ready!");
-
-  usb_msc.begin();
 
   if (! mfm_floppy.begin()) {
     Serial.println("Failed to spin up motor & find index pulse");
@@ -109,35 +87,53 @@ void setup() {
   }
 }
 
+void hexdump(size_t offset, const uint8_t *data, size_t n) {
+  for (size_t i = 0; i < n; i += 16) {
+    size_t addr = offset + i;
+    Serial.printf("%08x", addr);
+    for (size_t j = 0; j < 16; j++) {
+      if(i+j > n) Serial.printf("   ");else
+      Serial.printf(" %02x", mfm_floppy.track_data[addr + j]);
+    }
+    Serial.print(" | ");
+    for (size_t j = 0; j < 16; j++) {
+      if(i+j > n) break;
+      uint8_t d = mfm_floppy.track_data[addr + j];
+      if (! isprint(d)) {
+        d = ' ';
+      }
+      Serial.write(d);
+    }
+    Serial.print("\n");
+  }
+}
+
+uint8_t track = 0;
+bool head = 0;
+int i = 0;
 void loop() {
+  int32_t captured_sectors;
+
+  uint8_t sector[512];
+  int lba = (i++ % 2 == 0) ? 0 : 18;
+  if (!mfm_floppy.readSector(lba, sector)) {
+    Serial.println("Failed to read sector");
+    return;
+  }
+
+  hexdump(lba * 512, sector, 512);
+
+  memset(sector, 0, 512);
+  snprintf(reinterpret_cast<char*>(sector), sizeof(sector), "Hello from iteration %zd of Adafruit Floppy MFM writing\n", i);
+
+  if (!mfm_floppy.writeSector(lba, sector)) {
+    Serial.println("Failed to write sectorn");
+    return;
+  }
+  if (!mfm_floppy.syncDevice()) {
+    Serial.println("Failed to sync device");
+    return;
+  }
+
   delay(1000);
-}
-
-// Callback invoked when received READ10 command.
-// Copy disk's data to buffer (up to bufsize) and
-// return number of copied bytes (must be multiple of block size)
-int32_t msc_read_callback (uint32_t lba, void* buffer, uint32_t bufsize)
-{
-  Serial.printf("read call back block %d size %d\n", lba, bufsize);
-  auto result = mfm_floppy.readSectors(lba, reinterpret_cast<uint8_t*>(buffer), bufsize / MFM_BYTES_PER_SECTOR);
-  return result ? bufsize : -1;
-}
-
-// Callback invoked when received WRITE10 command.
-// Process data in buffer to disk's storage and
-// return number of written bytes (must be multiple of block size)
-int32_t msc_write_callback (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
-{
-  Serial.printf("write call back block %d size %d\n", lba, bufsize);
-  auto result = mfm_floppy.writeSectors(lba, buffer, bufsize / MFM_BYTES_PER_SECTOR);
-  return result ? bufsize : -1;
-}
-
-// Callback invoked when WRITE10 command is completed (status received and accepted by host).
-// used to flush any pending cache.
-void msc_flush_callback (void)
-{
-  Serial.println("flush\n");
-  mfm_floppy.syncDevice();
-  // nothing to do
 }

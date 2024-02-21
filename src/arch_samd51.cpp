@@ -31,7 +31,7 @@ Tc *theWriteTimer = NULL;
 int g_cap_tc_num;
 volatile uint8_t *g_flux_pulses = NULL;
 volatile uint32_t g_max_pulses = 0;
-volatile uint32_t g_num_pulses = 0;
+volatile uint32_t g_n_pulses = 0;
 volatile bool g_store_greaseweazle = false;
 volatile uint8_t g_timing_div = 2;
 volatile bool g_writing_pulses = false;
@@ -46,18 +46,18 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
       // dont do something if its 0 - thats wierd!
     } else if (ticks < 250 || !g_store_greaseweazle) {
       // 1-249: One byte.
-      g_flux_pulses[g_num_pulses++] = min(249, ticks);
+      g_flux_pulses[g_n_pulses++] = min(249, ticks);
     } else {
       uint8_t high = (ticks - 250) / 255;
       if (high < 5) {
         // 250-1524: Two bytes.
-        g_flux_pulses[g_num_pulses++] = 250 + high;
-        g_flux_pulses[g_num_pulses++] = 1 + ((ticks - 250) % 255);
+        g_flux_pulses[g_n_pulses++] = 250 + high;
+        g_flux_pulses[g_n_pulses++] = 1 + ((ticks - 250) % 255);
       } else {
         // TODO MEME FIX!
         /* 1525-(2^28-1): Seven bytes.
-        g_flux_pulses[g_num_pulses++] = 0xff;
-        g_flux_pulses[g_num_pulses++] = FLUXOP_SPACE;
+        g_flux_pulses[g_n_pulses++] = 0xff;
+        g_flux_pulses[g_n_pulses++] = FLUXOP_SPACE;
         _write_28bit(ticks - 249);
         u_buf[U_MASK(u_prod++)] = 249;
         }
@@ -80,10 +80,10 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
     // last-pulse-out case where we need one extra invocation of the interrupt
     // to allow that pulse out before resetting PWM to steady high and disabling
     // the interrupt.
-    if (g_num_pulses < g_max_pulses) {
+    if (g_n_pulses < g_max_pulses) {
       // Set period for next pulse
 
-      uint16_t ticks = g_flux_pulses[g_num_pulses];
+      uint16_t ticks = g_flux_pulses[g_n_pulses];
       if (ticks == 0) {
         // dont do something if its 0 - thats wierd!
       } else if (ticks < 250 || !g_store_greaseweazle) {
@@ -92,17 +92,17 @@ void FLOPPY_TC_HANDLER() // Interrupt Service Routine (ISR) for timer TCx
       } else {
         // 250-1524: Two bytes.
         uint16_t high = ((ticks - 250) + 1) * 255;
-        g_num_pulses++;
-        ticks = high + g_flux_pulses[g_num_pulses];
+        g_n_pulses++;
+        ticks = high + g_flux_pulses[g_n_pulses];
       }
       theWriteTimer->COUNT16.CCBUF[0].reg = ticks;
-    } else if (g_num_pulses > g_max_pulses) {
+    } else if (g_n_pulses > g_max_pulses) {
       // Last pulse out was allowed its one extra PWM cycle, done now
       theWriteTimer->COUNT16.CCBUF[1].reg = 0;     // Steady high on next pulse
       theWriteTimer->COUNT16.INTENCLR.bit.MC0 = 1; // Disable interrupt
       g_writing_pulses = false;
     }
-    g_num_pulses++; // Outside if/else to allow last-pulse case
+    g_n_pulses++; // Outside if/else to allow last-pulse case
     theWriteTimer->COUNT16.INTFLAG.bit.MC0 = 1; // Clear interrupt flag
   }
 }
