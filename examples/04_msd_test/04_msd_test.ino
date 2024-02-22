@@ -32,9 +32,6 @@
 #define READ_PIN 9     // IDC 30
 #define SIDE_PIN 8     // IDC 32
 #define READY_PIN 7    // IDC 34
-#ifndef USE_TINYUSB
-#error "Please set Adafruit TinyUSB under Tools > USB Stack"
-#endif
 #elif defined(ARDUINO_RASPBERRY_PI_PICO)
 #define DENSITY_PIN 2 // IDC 2
 #define INDEX_PIN 3   // IDC 8
@@ -49,11 +46,14 @@
 #define READ_PIN 12   // IDC 30
 #define SIDE_PIN 13   // IDC 32
 #define READY_PIN 14  // IDC 34
-#ifndef USE_TINYUSB
-#error "Please set Adafruit TinyUSB under Tools > USB Stack"
-#endif
+#elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
+// Yay built in pin definitions!
 #else
 #error "Please set up pin definitions!"
+#endif
+
+#ifndef USE_TINYUSB
+#error "Please set Adafruit TinyUSB under Tools > USB Stack"
 #endif
 
 
@@ -74,6 +74,11 @@ int8_t last_track_read = -1;  // last cached track
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);
+
+#if defined(FLOPPY_DIRECTION_PIN)
+  pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
+  digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
+#endif
 
 #if defined(ARDUINO_ARCH_MBED) && defined(ARDUINO_ARCH_RP2040)
   // Manual begin() is required on core without built-in support for TinyUSB such as
