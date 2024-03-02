@@ -133,7 +133,10 @@ void setup() {
 }
 //------------------------------------------------------------------------------
 void loop() {
-  Serial.print("Read a file? >");
+  Serial.print("\n\nRead a file? >");
+  Serial.flush();
+  delay(10);
+  
   String filename;
   do {
     filename = Serial.readStringUntil('\n');
