@@ -272,6 +272,8 @@ public:
   bool goto_quartertrack(int);
   void step_mode(StepMode mode);
 
+  int8_t get_side() override { return 0; }
+
 private:
   int _step_multiplier() const;
   // theres not much GPIO!
