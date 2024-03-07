@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-/mfm
-/html
 /ci
+/doxygen
 /examples/*/build
+/html

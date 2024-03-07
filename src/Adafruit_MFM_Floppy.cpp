@@ -79,6 +79,7 @@ uint32_t Adafruit_MFM_Floppy::size(void) {
 */
 /**************************************************************************/
 int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
+  syncDevice();
 
   // Serial.printf("\tSeeking track %d head %d...", track, head);
   if (!_floppy->goto_track(track)) {
@@ -87,16 +88,26 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
   }
   _floppy->side(head);
   // Serial.println("done!");
-  uint32_t captured_sectors = _floppy->read_track_mfm(
-      track_data, _sectors_per_track, track_validity, _high_density);
-  /*
-    Serial.print("Captured %d sectors", captured_sectors);
+  // flux not decoding from a 3.5" floppy? Maybe it's rotating at 360RPM instead
+  // of 300RPM see e.g.,
+  // https://www.retrotechnology.com/herbs_stuff/drive.html#rotate2
+  // and change nominal bit time to 0.833 ~= 300/360
+  // would be good to auto-detect!
+  uint32_t captured_sectors = 0;
+  for (int i = 0; i < 5 && captured_sectors < _sectors_per_track; i++) {
+    int32_t index_offset;
+    _n_flux =
+        _floppy->capture_track(_flux, sizeof(_flux), &index_offset, false, 220);
+    captured_sectors = _floppy->decode_track_mfm(
+        track_data, _sectors_per_track, track_validity, _flux, _n_flux,
+        _high_density ? 1.f : 2.f, i == 0);
+  }
 
-    Serial.print("Validity: ");
-    for(size_t i=0; i<MFM_SECTORS_PER_TRACK; i++) {
-      Serial.print(track_validity[i] ? "V" : "?");
-    }
-  */
+  _track_has_errors = (captured_sectors != _sectors_per_track);
+  if (_track_has_errors) {
+    Serial.printf("Track has errors (%d != %d)\n", captured_sectors,
+                  _sectors_per_track);
+  }
   return captured_sectors;
 }
 
@@ -191,9 +202,28 @@ bool Adafruit_MFM_Floppy::readSectors(uint32_t block, uint8_t *dst, size_t nb) {
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
+  uint8_t track = block / (FLOPPY_HEADS * _sectors_per_track);
+  uint8_t head = (block / _sectors_per_track) % FLOPPY_HEADS;
+  uint8_t subsector = block % _sectors_per_track;
+
+  if ((track * FLOPPY_HEADS + head) != _last_track_read) {
+    // oof it is not cached!
+
+    if (readTrack(track, head) == -1) {
+      return false;
+    }
+
+    _last_track_read = track * FLOPPY_HEADS + head;
+  }
+  if (_track_has_errors) {
+    Serial.printf("Can't write to track with read errors\n", block);
+    return false;
+  }
   Serial.printf("Writing block %d\n", block);
-  (void)src;
-  return false;
+  memcpy(track_data + (subsector * MFM_BYTES_PER_SECTOR), src,
+         MFM_BYTES_PER_SECTOR);
+  _dirty = true;
+  return true;
 }
 
 /**************************************************************************/
@@ -208,9 +238,12 @@ bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::writeSectors(uint32_t block, const uint8_t *src,
                                        size_t nb) {
-  Serial.printf("Writing %d blocks %d\n", nb, block);
-  (void)src;
-  return false;
+  // write each block one by one
+  for (size_t blocknum = 0; blocknum < nb; blocknum++) {
+    if (!writeSector(block + blocknum, src + (blocknum * MFM_BYTES_PER_SECTOR)))
+      return false;
+  }
+  return true;
 }
 
 /**************************************************************************/
@@ -219,4 +252,34 @@ bool Adafruit_MFM_Floppy::writeSectors(uint32_t block, const uint8_t *src,
     @returns True on success, false if failed or unimplemented
 */
 /**************************************************************************/
-bool Adafruit_MFM_Floppy::syncDevice() { return false; }
+bool Adafruit_MFM_Floppy::syncDevice() {
+  if (!_dirty || _last_track_read == NO_TRACK) {
+    return true;
+  }
+  _dirty = false;
+
+  int track = _last_track_read / FLOPPY_HEADS;
+  int head = _last_track_read % FLOPPY_HEADS;
+  Serial.printf("Flushing track %d side %d\n", track, head);
+
+  // should be a no-op
+  if (!_floppy->goto_track(track)) {
+    Serial.println("failed to seek to track");
+    return false;
+  }
+
+  if (!_floppy->side(head)) {
+    Serial.println("failed to select head");
+    return false;
+  }
+
+  _n_flux = _floppy->encode_track_mfm(track_data, _sectors_per_track, _flux,
+                                      sizeof(_flux), _high_density ? 1.f : 2.f);
+
+  if (!_floppy->write_track(_flux, _n_flux, false)) {
+    Serial.println("failed to write track");
+    return false;
+  }
+
+  return true;
+}
