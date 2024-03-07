@@ -25,8 +25,10 @@
 #define FLOPPY_IBMPC_DD_TRACKS 40
 #define FLOPPY_HEADS 2
 
+#define MFM_IBMPC1200K_SECTORS_PER_TRACK 15
 #define MFM_IBMPC1440K_SECTORS_PER_TRACK 18
 #define MFM_IBMPC360K_SECTORS_PER_TRACK 9
+#define MFM_IBMPC720K_SECTORS_PER_TRACK 9
 #define MFM_BYTES_PER_SECTOR 512UL
 
 #define STEP_OUT HIGH
@@ -39,8 +41,14 @@
 #define BUSTYPE_SHUGART 2
 
 typedef enum {
-  IBMPC1440K,
   IBMPC360K,
+  IBMPC720K,
+  IBMPC720K_360RPM,
+  IBMPC1200K,
+  IBMPC1440K,
+  IBMPC1440K_360RPM,
+  FAILED_AUTODETECT,
+  AUTODETECT,
 } adafruit_floppy_disk_t;
 
 /**************************************************************************/
@@ -145,7 +153,8 @@ public:
 
   size_t capture_track(volatile uint8_t *pulses, size_t max_pulses,
                        int32_t *falling_index_offset,
-                       bool store_greaseweazle = false, uint32_t capture_ms = 0)
+                       bool store_greaseweazle = false, uint32_t capture_ms = 0,
+                       uint32_t index_wait_ms = 250)
       __attribute__((optimize("O3")));
 
   bool write_track(uint8_t *pulses, size_t n_pulses,
@@ -288,6 +297,12 @@ private:
   void _step(int dir, int times);
 };
 
+struct adafruit_floppy_format_info_t {
+  uint8_t cylinders, heads;
+  uint16_t bit_time_ns;
+  uint16_t track_time_ms;
+};
+
 /**************************************************************************/
 /*!
     This class adds support for the BaseBlockDriver interface to an MFM
@@ -298,20 +313,29 @@ private:
 class Adafruit_MFM_Floppy : public FsBlockDeviceInterface {
 public:
   Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
-                      adafruit_floppy_disk_t format = IBMPC1440K);
+                      adafruit_floppy_disk_t format = AUTODETECT);
 
   bool begin(void);
   void end(void);
 
-  uint32_t size(void);
+  adafruit_floppy_disk_t format() const { return _format; }
+  const adafruit_floppy_format_info_t *format_info() const;
+
+  uint32_t size(void) const;
   int32_t readTrack(uint8_t track, bool head);
+
 
   /**! @brief The expected number of sectors per track in this format
        @returns The number of sectors per track */
-  uint8_t sectors_per_track(void) { return _sectors_per_track; }
+  uint8_t sectors_per_track(void) const { return _sectors_per_track; }
   /**! @brief The expected number of tracks per side in this format
        @returns The number of tracks per side */
-  uint8_t tracks_per_side(void) { return _tracks_per_side; }
+  uint8_t tracks_per_side(void) const { return _tracks_per_side; }
+
+  bool dirty() const { return _dirty; }
+
+  void removed();
+  void inserted();
 
   //------------- SdFat v2 FsBlockDeviceInterface API -------------//
   virtual bool isBusy();
@@ -340,7 +364,7 @@ private:
   bool _high_density = true;
   bool _dirty = false, _track_has_errors = false;
   Adafruit_Floppy *_floppy = NULL;
-  adafruit_floppy_disk_t _format = IBMPC1440K;
+  adafruit_floppy_disk_t _format = AUTODETECT;
 
   /**! The raw flux data from the last track read */
   uint8_t _flux[125000];

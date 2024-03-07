@@ -1,5 +1,23 @@
 #include <Adafruit_Floppy.h>
 
+
+const adafruit_floppy_format_info_t _format_info[] = {
+    /* IBMPC360K */
+    { 40, 9, 2000, 167 },
+    /* IBMPC1200K */
+    { 80, 18, 1000, 200 },
+
+    /* IBMPC720K */
+    { 80, 9, 1000, 200 },
+    /* IBMPC720K_360RPM */
+    { 80, 9, 1667, 167 },
+
+    /* IBMPC1440K */
+    { 80, 18, 1000, 200 },
+    /* IBMPC1440K_360RPM */
+    { 80, 18, 867, 167 },
+};
+
 /**************************************************************************/
 /*!
     @brief  Instantiate an MFM-formatted floppy
@@ -64,7 +82,7 @@ void Adafruit_MFM_Floppy::end(void) {
     @returns Size of the drive in bytes
 */
 /**************************************************************************/
-uint32_t Adafruit_MFM_Floppy::size(void) {
+uint32_t Adafruit_MFM_Floppy::size(void) const {
   return (uint32_t)_tracks_per_side * FLOPPY_HEADS * _sectors_per_track *
          MFM_BYTES_PER_SECTOR;
 }
@@ -108,6 +126,7 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
     Serial.printf("Track has errors (%d != %d)\n", captured_sectors,
                   _sectors_per_track);
   }
+  _last_track_read = track * FLOPPY_HEADS + head;
   return captured_sectors;
 }
 
@@ -147,6 +166,8 @@ bool Adafruit_MFM_Floppy::isBusy() {
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::readSector(uint32_t block, uint8_t *dst) {
+  if (block > sectorCount()) { return false; }
+
   uint8_t track = block / (FLOPPY_HEADS * _sectors_per_track);
   uint8_t head = (block / _sectors_per_track) % FLOPPY_HEADS;
   uint8_t subsector = block % _sectors_per_track;
@@ -159,7 +180,6 @@ bool Adafruit_MFM_Floppy::readSector(uint32_t block, uint8_t *dst) {
       return false;
     }
 
-    _last_track_read = track * FLOPPY_HEADS + head;
   }
 
   if (!track_validity[subsector]) {
@@ -202,6 +222,14 @@ bool Adafruit_MFM_Floppy::readSectors(uint32_t block, uint8_t *dst, size_t nb) {
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
+  if (block > sectorCount()) { return false; }
+
+  // promptly fail if disk is protected
+  // might also fail if WGATE is masked by HW (e.g., by physical switch on floppsy)
+  if (_floppy->get_write_protect()) { 
+      return false;
+  }
+
   uint8_t track = block / (FLOPPY_HEADS * _sectors_per_track);
   uint8_t head = (block / _sectors_per_track) % FLOPPY_HEADS;
   uint8_t subsector = block % _sectors_per_track;
@@ -215,11 +243,8 @@ bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
 
     _last_track_read = track * FLOPPY_HEADS + head;
   }
-  if (_track_has_errors) {
-    Serial.printf("Can't write to track with read errors\n", block);
-    return false;
-  }
-  Serial.printf("Writing block %d\n", block);
+  Serial.printf("Writing block %d\r\n", block);
+  track_validity[subsector] = 1;
   memcpy(track_data + (subsector * MFM_BYTES_PER_SECTOR), src,
          MFM_BYTES_PER_SECTOR);
   _dirty = true;
@@ -260,7 +285,7 @@ bool Adafruit_MFM_Floppy::syncDevice() {
 
   int track = _last_track_read / FLOPPY_HEADS;
   int head = _last_track_read % FLOPPY_HEADS;
-  Serial.printf("Flushing track %d side %d\n", track, head);
+  Serial.printf("Flushing track %d side %d\r\n", track, head);
 
   // should be a no-op
   if (!_floppy->goto_track(track)) {
@@ -273,6 +298,15 @@ bool Adafruit_MFM_Floppy::syncDevice() {
     return false;
   }
 
+  bool has_errors = false;
+  for(size_t i=0; !has_errors && i<_sectors_per_track; i++) {
+      has_errors = !track_validity[i];
+  }
+
+  if (has_errors) {
+    Serial.printf("Can't do a non-full track write to track with read errors\n");
+    return false;
+  }
   _n_flux = _floppy->encode_track_mfm(track_data, _sectors_per_track, _flux,
                                       sizeof(_flux), _high_density ? 1.f : 2.f);
 
@@ -283,3 +317,21 @@ bool Adafruit_MFM_Floppy::syncDevice() {
 
   return true;
 }
+
+void Adafruit_MFM_Floppy::removed() {
+    _tracks_per_side = 0;
+}
+
+void Adafruit_MFM_Floppy::inserted() {
+    if (_floppy->track() <= 0) { _floppy->goto_track(1); }
+    _floppy->goto_track(0);
+    _tracks_per_side = 80;
+}
+
+const adafruit_floppy_format_info_t *Adafruit_MFM_Floppy::format_info() const {
+    if (_format < 0 || _format >= std::size(_format_info)) {
+        return nullptr;
+    }
+    return &_format_info[_format];
+}
+

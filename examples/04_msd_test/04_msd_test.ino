@@ -48,6 +48,20 @@
 #define READY_PIN 14  // IDC 34
 #elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
 // Yay built in pin definitions!
+#define USE_GFX (1)
+#include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
+Adafruit_ST7789 tft = Adafruit_ST7789(&SPI1, TFT_CS, TFT_DC, TFT_RESET);
+#define TFT_INIT() do { \
+  tft.init(240, 240); \
+  pinMode(TFT_BACKLIGHT, OUTPUT); \
+  digitalWrite(TFT_BACKLIGHT, 1); \
+  tft.fillScreen(0); \
+  tft.setTextSize(3); \
+  tft.setTextColor(~0, 0); \
+  tft.setCursor(3, 3); \
+  tft.println("TFTinit!"); \
+  Serial.println("TFTinit!"); \
+} while(0)
 #else
 #error "Please set up pin definitions!"
 #endif
@@ -56,6 +70,12 @@
 #error "Please set Adafruit TinyUSB under Tools > USB Stack"
 #endif
 
+#if USE_GFX
+#include "Adafruit_GFX.h"
+#define IF_GFX(...) do { __VA_ARGS__ } while(0)
+#else
+#define IF_GFX(...) ((void)0)
+#endif
 
 Adafruit_USBD_MSC usb_msc;
 
@@ -69,10 +89,9 @@ Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC1440K);
 
 
 constexpr size_t SECTOR_SIZE = 512UL;
-int8_t last_track_read = -1;  // last cached track
 
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
+  TFT_INIT();
   Serial.begin(115200);
 
 #if defined(FLOPPY_DIRECTION_PIN)
@@ -90,27 +109,96 @@ void setup() {
   usb_msc.setID("Adafruit", "Floppy Mass Storage", "1.0");
 
   // Set disk size
-  usb_msc.setCapacity(mfm_floppy.sectors_per_track() * mfm_floppy.tracks_per_side() * FLOPPY_HEADS, SECTOR_SIZE);
-
-  // Set callback
+  usb_msc.setCapacity(0, SECTOR_SIZE);
+  // Set callbacks
+  usb_msc.setReadyCallback(0, msc_ready_callback);
   usb_msc.setReadWriteCallback(msc_read_callback, msc_write_callback, msc_flush_callback);
 
-  floppy.debug_serial = &Serial;
-  floppy.begin();
+  // floppy.debug_serial = &Serial;
   // Set Lun ready
-  usb_msc.setUnitReady(true);
+  usb_msc.setUnitReady(false);
   Serial.println("Ready!");
-
   usb_msc.begin();
 
+  Serial.println("serial Ready!");
+
+  floppy.begin();
   if (! mfm_floppy.begin()) {
     Serial.println("Failed to spin up motor & find index pulse");
     while (1) yield();
   }
+
+  IF_GFX(tft.fillScreen(0););
 }
 
+uint32_t index_time;
+bool index_ui_state;
+
+#if USE_GFX
+const char spinner[4] = {' ', '.', 'o', 'O'};
+size_t i_spin;
+
+void update_display() {
+  noInterrupts();
+  auto trk0 = floppy.get_track0_sense();
+  auto wp = floppy.get_write_protect();
+  auto ind = digitalRead(INDEX_PIN);
+  auto rdy = digitalRead(READY_PIN);
+  auto dirty = mfm_floppy.dirty();
+  int x = 3;
+  int y = 3;
+  tft.setCursor(x, y);
+  tft.printf("%s %s %s",
+      trk0 ? "TRK0" : "    ",
+      wp ? "R/O" : "   ",
+      rdy ? "RDY" : index_ui_state ? "IDX" : "   "
+  );
+
+  y += 24;
+  tft.setCursor(x, y);
+  if (floppy.track() == -1) {
+      tft.printf("T:?? S:?");
+  } else {
+      tft.printf("T:%02d S:%d",
+        floppy.track(),
+        floppy.get_side()
+      );
+  }
+  y += 24;
+  tft.setCursor(x, y);
+  tft.printf("%s %c",
+    dirty ? "dirty" : "     ", spinner[i_spin++ % std::size(spinner)]);
+  interrupts();
+}
+#else
+void update_display() {
+}
+#endif
+
+bool index_delayed, ready_delayed;
 void loop() {
-  delay(1000);
+  uint32_t now = millis();
+  bool index = !digitalRead(INDEX_PIN);
+  bool ready = digitalRead(READY_PIN);
+
+  // ready pin fell: media ejected
+  if (!ready && ready_delayed) {
+    Serial.println("removed");
+    mfm_floppy.removed();
+  }
+  if (index && !index_delayed) {
+    index_time = now;
+    if (mfm_floppy.sectorCount() == 0) {
+        Serial.println("inserted");
+        mfm_floppy.inserted();
+    }
+  }
+
+  index_ui_state = (now - index_time) < 400;
+  index_delayed = index;
+  ready_delayed = ready;
+
+  update_display();
 }
 
 // Callback invoked when received READ10 command.
@@ -118,8 +206,9 @@ void loop() {
 // return number of copied bytes (must be multiple of block size)
 int32_t msc_read_callback (uint32_t lba, void* buffer, uint32_t bufsize)
 {
-  Serial.printf("read call back block %d size %d\n", lba, bufsize);
+  //Serial.printf("read call back block %d size %d\r\n", lba, bufsize);
   auto result = mfm_floppy.readSectors(lba, reinterpret_cast<uint8_t*>(buffer), bufsize / MFM_BYTES_PER_SECTOR);
+  update_display();
   return result ? bufsize : -1;
 }
 
@@ -128,8 +217,16 @@ int32_t msc_read_callback (uint32_t lba, void* buffer, uint32_t bufsize)
 // return number of written bytes (must be multiple of block size)
 int32_t msc_write_callback (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
 {
-  Serial.printf("write call back block %d size %d\n", lba, bufsize);
-  auto result = mfm_floppy.writeSectors(lba, buffer, bufsize / MFM_BYTES_PER_SECTOR);
+  //Serial.printf("write call back block %d size %d\r\n", lba, bufsize);
+  auto sectors =  bufsize / MFM_BYTES_PER_SECTOR;
+  auto result = mfm_floppy.writeSectors(lba, buffer, sectors);
+  if (result) {
+    if (lba == 0 || (lba + sectors) == mfm_floppy.sectorCount()) {
+      // If writing the first or last sector,
+      mfm_floppy.syncDevice();
+    }
+  }
+  update_display();
   return result ? bufsize : -1;
 }
 
@@ -137,7 +234,16 @@ int32_t msc_write_callback (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
 // used to flush any pending cache.
 void msc_flush_callback (void)
 {
-  Serial.println("flush\n");
+  Serial.print("flush\r\n");
   mfm_floppy.syncDevice();
+  update_display();
   // nothing to do
+}
+
+bool msc_ready_callback (void)
+{
+//Serial.printf("ready callback -> %d\r\n", mfm_floppy.sectorCount());
+auto sectors = mfm_floppy.sectorCount();
+  usb_msc.setCapacity(sectors, SECTOR_SIZE);
+  return sectors != 0;
 }

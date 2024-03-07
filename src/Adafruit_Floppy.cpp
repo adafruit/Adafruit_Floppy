@@ -301,6 +301,7 @@ bool Adafruit_Floppy::spin_motor(bool motor_on) {
       timedout = true; // its been a second
       break;
     }
+    yield();
   }
 
   if (timedout) {
@@ -567,13 +568,15 @@ size_t Adafruit_FloppyBase::capture_track(volatile uint8_t *pulses,
                                           size_t max_pulses,
                                           int32_t *falling_index_offset,
                                           bool store_greaseweazle,
-                                          uint32_t capture_ms) {
+                                          uint32_t capture_ms,
+                                          uint32_t index_wait_ms) {
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
 #if defined(ARDUINO_ARCH_RP2040)
   return rp2040_flux_capture(_indexpin, _rddatapin, pulses, pulses + max_pulses,
                              falling_index_offset, store_greaseweazle,
-                             capture_ms * (getSampleFrequency() / 1000));
+                             capture_ms * (getSampleFrequency() / 1000),
+                             index_wait_ms);
 #elif defined(__SAMD51__)
   noInterrupts();
   wait_for_index_pulse_low();
