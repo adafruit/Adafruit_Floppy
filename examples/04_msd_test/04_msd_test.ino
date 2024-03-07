@@ -131,8 +131,9 @@ void setup() {
   IF_GFX(tft.fillScreen(0););
 }
 
-uint32_t index_time;
-bool index_ui_state;
+uint32_t index_time, last_update_time;
+bool index_ui_state, index_ui_state_delayed;
+volatile bool update_queued;
 
 #if USE_GFX
 const char spinner[4] = {' ', '.', 'o', 'O'};
@@ -170,9 +171,29 @@ void update_display() {
     dirty ? "dirty" : "     ", spinner[i_spin++ % std::size(spinner)]);
   interrupts();
 }
-#else
-void update_display() {
+void maybe_update_display(uint32_t now) {
+    noInterrupts();
+    auto do_update = update_queued || (now - last_update_time) > 500;
+    update_queued = false;
+    interrupts();
+
+    if (do_update) {
+        update_display();
+        last_update_time = now;
+    } else {
+        yield();
+    }
 }
+
+void queue_update_display() {
+}
+
+#else
+void maybe_update_display(uint32_t now) {
+}
+
+void queue_update_display() {}
+
 #endif
 
 bool index_delayed, ready_delayed;
@@ -185,20 +206,27 @@ void loop() {
   if (!ready && ready_delayed) {
     Serial.println("removed");
     mfm_floppy.removed();
+    queue_update_display();
   }
   if (index && !index_delayed) {
     index_time = now;
     if (mfm_floppy.sectorCount() == 0) {
         Serial.println("inserted");
         mfm_floppy.inserted();
+        queue_update_display();
     }
   }
 
   index_ui_state = (now - index_time) < 400;
+  if (index_ui_state != index_ui_state_delayed) {
+        queue_update_display();
+  }
+
+  index_ui_state_delayed = index_ui_state;
   index_delayed = index;
   ready_delayed = ready;
 
-  update_display();
+  maybe_update_display(now);
 }
 
 // Callback invoked when received READ10 command.
@@ -208,7 +236,7 @@ int32_t msc_read_callback (uint32_t lba, void* buffer, uint32_t bufsize)
 {
   //Serial.printf("read call back block %d size %d\r\n", lba, bufsize);
   auto result = mfm_floppy.readSectors(lba, reinterpret_cast<uint8_t*>(buffer), bufsize / MFM_BYTES_PER_SECTOR);
-  update_display();
+  queue_update_display();
   return result ? bufsize : -1;
 }
 
@@ -226,7 +254,7 @@ int32_t msc_write_callback (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
       mfm_floppy.syncDevice();
     }
   }
-  update_display();
+  queue_update_display();
   return result ? bufsize : -1;
 }
 
@@ -236,7 +264,7 @@ void msc_flush_callback (void)
 {
   Serial.print("flush\r\n");
   mfm_floppy.syncDevice();
-  update_display();
+  queue_update_display();
   // nothing to do
 }
 
