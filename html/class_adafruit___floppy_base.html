@@ -108,6 +108,9 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:a095dc38b204919f0f55e631b2b733209"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a095dc38b204919f0f55e631b2b733209">side</a> (uint8_t head)=0</td></tr>
 <tr class="memdesc:a095dc38b204919f0f55e631b2b733209"><td class="mdescLeft">&#160;</td><td class="mdescRight">Which head/side to read from.  <a href="#a095dc38b204919f0f55e631b2b733209">More...</a><br /></td></tr>
 <tr class="separator:a095dc38b204919f0f55e631b2b733209"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a59e2d35f4468cde4cdaa9540c6964e1a"><td class="memItemLeft" align="right" valign="top">virtual int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a59e2d35f4468cde4cdaa9540c6964e1a">get_side</a> ()=0</td></tr>
+<tr class="memdesc:a59e2d35f4468cde4cdaa9540c6964e1a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Current head in use, based on internal caching.  <a href="#a59e2d35f4468cde4cdaa9540c6964e1a">More...</a><br /></td></tr>
+<tr class="separator:a59e2d35f4468cde4cdaa9540c6964e1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aea1825a4168ba557a488ab57ca3a6a20"><td class="memItemLeft" align="right" valign="top">virtual int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aea1825a4168ba557a488ab57ca3a6a20">track</a> (void)=0</td></tr>
 <tr class="memdesc:aea1825a4168ba557a488ab57ca3a6a20"><td class="mdescLeft">&#160;</td><td class="mdescRight">The current track location, based on internal caching.  <a href="#aea1825a4168ba557a488ab57ca3a6a20">More...</a><br /></td></tr>
 <tr class="separator:aea1825a4168ba557a488ab57ca3a6a20"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -120,21 +123,24 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:aa895897dd9436aeac573f0ca25fa1428"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aa895897dd9436aeac573f0ca25fa1428">set_density</a> (bool high_density)=0</td></tr>
 <tr class="memdesc:aa895897dd9436aeac573f0ca25fa1428"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the density for flux reading and writing.  <a href="#aa895897dd9436aeac573f0ca25fa1428">More...</a><br /></td></tr>
 <tr class="separator:aa895897dd9436aeac573f0ca25fa1428"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a71e21280c7cbf105ea717540b11caa1b"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a71e21280c7cbf105ea717540b11caa1b">read_track_mfm</a> (uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity, bool high_density=true)</td></tr>
-<tr class="memdesc:a71e21280c7cbf105ea717540b11caa1b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture and decode one track of MFM data.  <a href="#a71e21280c7cbf105ea717540b11caa1b">More...</a><br /></td></tr>
-<tr class="separator:a71e21280c7cbf105ea717540b11caa1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a56c99d90c12e769f20100d079f0b8b97"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a56c99d90c12e769f20100d079f0b8b97">capture_track</a> (volatile uint8_t *pulses, uint32_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
-<tr class="memdesc:a56c99d90c12e769f20100d079f0b8b97"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#a56c99d90c12e769f20100d079f0b8b97">More...</a><br /></td></tr>
-<tr class="separator:a56c99d90c12e769f20100d079f0b8b97"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aeafe6bf13638572d84ee5575ac01dfd2"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aeafe6bf13638572d84ee5575ac01dfd2">write_track</a> (uint8_t *pulses, uint32_t num_pulses, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
-<tr class="memdesc:aeafe6bf13638572d84ee5575ac01dfd2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#aeafe6bf13638572d84ee5575ac01dfd2">More...</a><br /></td></tr>
-<tr class="separator:aeafe6bf13638572d84ee5575ac01dfd2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a93a1b4da38d7a2309457a9488210a6da"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a93a1b4da38d7a2309457a9488210a6da">print_pulse_bins</a> (uint8_t *pulses, uint32_t num_pulses, uint8_t max_bins=64, bool is_gw_format=false, uint32_t min_bin_size=100)</td></tr>
-<tr class="memdesc:a93a1b4da38d7a2309457a9488210a6da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#a93a1b4da38d7a2309457a9488210a6da">More...</a><br /></td></tr>
-<tr class="separator:a93a1b4da38d7a2309457a9488210a6da"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af286420feb49f1f868327ffbbb18ef66"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#af286420feb49f1f868327ffbbb18ef66">print_pulses</a> (uint8_t *pulses, uint32_t num_pulses, bool is_gw_format=false)</td></tr>
-<tr class="memdesc:af286420feb49f1f868327ffbbb18ef66"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print the counts in a list of flux transitions.  <a href="#af286420feb49f1f868327ffbbb18ef66">More...</a><br /></td></tr>
-<tr class="separator:af286420feb49f1f868327ffbbb18ef66"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae36ad0d7faabc422e1f31c5f39f1da35"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ae36ad0d7faabc422e1f31c5f39f1da35">decode_track_mfm</a> (uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity, const uint8_t *pulses, size_t n_pulses, float nominal_bit_time_us, bool clear_validity=false)</td></tr>
+<tr class="memdesc:ae36ad0d7faabc422e1f31c5f39f1da35"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode one track of previously captured MFM data.  <a href="#ae36ad0d7faabc422e1f31c5f39f1da35">More...</a><br /></td></tr>
+<tr class="separator:ae36ad0d7faabc422e1f31c5f39f1da35"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7132aa4cba4f674e59928f253e25dcbd"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a7132aa4cba4f674e59928f253e25dcbd">encode_track_mfm</a> (const uint8_t *sectors, size_t n_sectors, uint8_t *pulses, size_t max_pulses, float nominal_bit_time_us)</td></tr>
+<tr class="memdesc:a7132aa4cba4f674e59928f253e25dcbd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Encode one track of previously captured MFM data.  <a href="#a7132aa4cba4f674e59928f253e25dcbd">More...</a><br /></td></tr>
+<tr class="separator:a7132aa4cba4f674e59928f253e25dcbd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4d9cbd08ce57bb87ed6f0a7a029104ee"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a4d9cbd08ce57bb87ed6f0a7a029104ee">capture_track</a> (volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
+<tr class="memdesc:a4d9cbd08ce57bb87ed6f0a7a029104ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#a4d9cbd08ce57bb87ed6f0a7a029104ee">More...</a><br /></td></tr>
+<tr class="separator:a4d9cbd08ce57bb87ed6f0a7a029104ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a82e0b5da0c4f3984a76234a8aefb323a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a82e0b5da0c4f3984a76234a8aefb323a">write_track</a> (uint8_t *pulses, size_t n_pulses, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
+<tr class="memdesc:a82e0b5da0c4f3984a76234a8aefb323a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#a82e0b5da0c4f3984a76234a8aefb323a">More...</a><br /></td></tr>
+<tr class="separator:a82e0b5da0c4f3984a76234a8aefb323a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa14051eda6d466396bc79e5266caa23d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aa14051eda6d466396bc79e5266caa23d">print_pulse_bins</a> (uint8_t *pulses, size_t n_pulses, uint8_t max_bins=64, bool is_gw_format=false, uint32_t min_bin_size=100)</td></tr>
+<tr class="memdesc:aa14051eda6d466396bc79e5266caa23d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#aa14051eda6d466396bc79e5266caa23d">More...</a><br /></td></tr>
+<tr class="separator:aa14051eda6d466396bc79e5266caa23d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af9f469b2c5f969718a95adf3c341b615"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#af9f469b2c5f969718a95adf3c341b615">print_pulses</a> (uint8_t *pulses, size_t n_pulses, bool is_gw_format=false)</td></tr>
+<tr class="memdesc:af9f469b2c5f969718a95adf3c341b615"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print the counts in a list of flux transitions.  <a href="#af9f469b2c5f969718a95adf3c341b615">More...</a><br /></td></tr>
+<tr class="separator:af9f469b2c5f969718a95adf3c341b615"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac31e8a06157e98fd6b1a8c2af68b3c52"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ac31e8a06157e98fd6b1a8c2af68b3c52">getSampleFrequency</a> (void)</td></tr>
 <tr class="memdesc:ac31e8a06157e98fd6b1a8c2af68b3c52"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the sample rate that we read and emit pulses at, platform and implementation-dependant.  <a href="#ac31e8a06157e98fd6b1a8c2af68b3c52">More...</a><br /></td></tr>
 <tr class="separator:ac31e8a06157e98fd6b1a8c2af68b3c52"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -420,6 +426,36 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a59e2d35f4468cde4cdaa9540c6964e1a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a59e2d35f4468cde4cdaa9540c6964e1a">&#9670;&nbsp;</a></span>get_side()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual int8_t Adafruit_FloppyBase::get_side </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">pure virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Current head in use, based on internal caching. </p>
+<dl class="section return"><dt>Returns</dt><dd>Head 0 or 1 </dd></dl>
+
+<p>Implemented in <a class="el" href="class_adafruit___apple2_floppy.html#af26f9e7f6152ce777b196828683d6aad">Adafruit_Apple2Floppy</a>, and <a class="el" href="class_adafruit___floppy.html#afcdc3e0d7cf35c89b41ef5aa28543f58">Adafruit_Floppy</a>.</p>
+
+</div>
+</div>
 <a id="aea1825a4168ba557a488ab57ca3a6a20"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aea1825a4168ba557a488ab57ca3a6a20">&#9670;&nbsp;</a></span>track()</h2>
 
@@ -550,14 +586,14 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a71e21280c7cbf105ea717540b11caa1b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a71e21280c7cbf105ea717540b11caa1b">&#9670;&nbsp;</a></span>read_track_mfm()</h2>
+<a id="ae36ad0d7faabc422e1f31c5f39f1da35"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae36ad0d7faabc422e1f31c5f39f1da35">&#9670;&nbsp;</a></span>decode_track_mfm()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">uint32_t Adafruit_FloppyBase::read_track_mfm </td>
+          <td class="memname">size_t Adafruit_FloppyBase::decode_track_mfm </td>
           <td>(</td>
           <td class="paramtype">uint8_t *&#160;</td>
           <td class="paramname"><em>sectors</em>, </td>
@@ -577,8 +613,26 @@ Protected Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>pulses</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n_pulses</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">float&#160;</td>
+          <td class="paramname"><em>nominal_bit_time_us</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
           <td class="paramtype">bool&#160;</td>
-          <td class="paramname"><em>high_density</em> = <code>true</code>&#160;</td>
+          <td class="paramname"><em>clear_validity</em> = <code>false</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -588,13 +642,16 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Capture and decode one track of MFM data. </p>
+<p>Decode one track of previously captured MFM data. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">sectors</td><td>A pointer to an array of memory we can use to store into, 512*n_sectors bytes </td></tr>
     <tr><td class="paramname">n_sectors</td><td>The number of sectors (e.g., 18 for a standard 3.5", 1.44MB format) </td></tr>
     <tr><td class="paramname">sector_validity</td><td>An array of values set to 1 if the sector was captured, 0 if not captured (no IDAM, CRC error, etc) </td></tr>
-    <tr><td class="paramname">high_density</td><td>Whether the diskette is high density (HD) encoded </td></tr>
+    <tr><td class="paramname">pulses</td><td>An array of pulses from capture_track </td></tr>
+    <tr><td class="paramname">n_pulses</td><td>An array of pulses from capture_track </td></tr>
+    <tr><td class="paramname">nominal_bit_time_us</td><td>The nominal time of one MFM bit, usually 1.0f (double density) or 2.0f (high density) </td></tr>
+    <tr><td class="paramname">clear_validity</td><td>Whether to clear the validity flag. Set to false if re-reading a track with errors. </td></tr>
   </table>
   </dd>
 </dl>
@@ -602,14 +659,73 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a56c99d90c12e769f20100d079f0b8b97"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a56c99d90c12e769f20100d079f0b8b97">&#9670;&nbsp;</a></span>capture_track()</h2>
+<a id="a7132aa4cba4f674e59928f253e25dcbd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7132aa4cba4f674e59928f253e25dcbd">&#9670;&nbsp;</a></span>encode_track_mfm()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">uint32_t Adafruit_FloppyBase::capture_track </td>
+          <td class="memname">size_t Adafruit_FloppyBase::encode_track_mfm </td>
+          <td>(</td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>sectors</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n_sectors</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t *&#160;</td>
+          <td class="paramname"><em>pulses</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>max_pulses</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">float&#160;</td>
+          <td class="paramname"><em>nominal_bit_time_us</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Encode one track of previously captured MFM data. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">sectors</td><td>A pointer to an array of memory we can use to store into, 512*n_sectors bytes </td></tr>
+    <tr><td class="paramname">n_sectors</td><td>The number of sectors (e.g., 18 for a standard 3.5", 1.44MB format) </td></tr>
+    <tr><td class="paramname">pulses</td><td>An array of pulses from capture_track </td></tr>
+    <tr><td class="paramname">max_pulses</td><td>The maximum number of pulses that may be stored </td></tr>
+    <tr><td class="paramname">nominal_bit_time_us</td><td>The nominal time of one MFM bit, usually 1.0f (double density) or 2.0f (high density) </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Number of pulses actually generated </dd></dl>
+
+</div>
+</div>
+<a id="a4d9cbd08ce57bb87ed6f0a7a029104ee"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4d9cbd08ce57bb87ed6f0a7a029104ee">&#9670;&nbsp;</a></span>capture_track()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">size_t Adafruit_FloppyBase::capture_track </td>
           <td>(</td>
           <td class="paramtype">volatile uint8_t *&#160;</td>
           <td class="paramname"><em>pulses</em>, </td>
@@ -617,7 +733,7 @@ Protected Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramtype">size_t&#160;</td>
           <td class="paramname"><em>max_pulses</em>, </td>
         </tr>
         <tr>
@@ -661,8 +777,8 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="aeafe6bf13638572d84ee5575ac01dfd2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aeafe6bf13638572d84ee5575ac01dfd2">&#9670;&nbsp;</a></span>write_track()</h2>
+<a id="a82e0b5da0c4f3984a76234a8aefb323a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a82e0b5da0c4f3984a76234a8aefb323a">&#9670;&nbsp;</a></span>write_track()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -676,8 +792,8 @@ Protected Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>num_pulses</em>, </td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n_pulses</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -697,7 +813,7 @@ Protected Member Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">pulses</td><td>An array of timer-count pulses </td></tr>
-    <tr><td class="paramname">num_pulses</td><td>How many bytes are in the pulse array </td></tr>
+    <tr><td class="paramname">n_pulses</td><td>How many bytes are in the pulse array </td></tr>
     <tr><td class="paramname">store_greaseweazle</td><td>If true, long pulses are 'packed' in gw format </td></tr>
   </table>
   </dd>
@@ -706,8 +822,8 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a93a1b4da38d7a2309457a9488210a6da"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a93a1b4da38d7a2309457a9488210a6da">&#9670;&nbsp;</a></span>print_pulse_bins()</h2>
+<a id="aa14051eda6d466396bc79e5266caa23d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa14051eda6d466396bc79e5266caa23d">&#9670;&nbsp;</a></span>print_pulse_bins()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -721,8 +837,8 @@ Protected Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>num_pulses</em>, </td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n_pulses</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -754,7 +870,7 @@ Protected Member Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">pulses</td><td>A pointer to an array of memory containing pulse counts </td></tr>
-    <tr><td class="paramname">num_pulses</td><td>The size of the pulses in the array </td></tr>
+    <tr><td class="paramname">n_pulses</td><td>The size of the pulses in the array </td></tr>
     <tr><td class="paramname">max_bins</td><td>The maximum number of histogram bins to use (default 64) </td></tr>
     <tr><td class="paramname">is_gw_format</td><td>Set to true if we pack long pulses with two bytes </td></tr>
     <tr><td class="paramname">min_bin_size</td><td>Bins with fewer samples than this are skipped, not printed </td></tr>
@@ -764,8 +880,8 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="af286420feb49f1f868327ffbbb18ef66"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af286420feb49f1f868327ffbbb18ef66">&#9670;&nbsp;</a></span>print_pulses()</h2>
+<a id="af9f469b2c5f969718a95adf3c341b615"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af9f469b2c5f969718a95adf3c341b615">&#9670;&nbsp;</a></span>print_pulses()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -779,8 +895,8 @@ Protected Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>num_pulses</em>, </td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n_pulses</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -800,7 +916,7 @@ Protected Member Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">pulses</td><td>A pointer to an array of memory containing pulse counts </td></tr>
-    <tr><td class="paramname">num_pulses</td><td>The size of the pulses in the array </td></tr>
+    <tr><td class="paramname">n_pulses</td><td>The size of the pulses in the array </td></tr>
     <tr><td class="paramname">is_gw_format</td><td>Set to true if we pack long pulses with two bytes </td></tr>
   </table>
   </dd>

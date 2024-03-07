@@ -1,5 +1,6 @@
 var searchData=
 [
+  ['get_5fside',['get_side',['../class_adafruit___floppy_base.html#a59e2d35f4468cde4cdaa9540c6964e1a',1,'Adafruit_FloppyBase::get_side()'],['../class_adafruit___floppy.html#afcdc3e0d7cf35c89b41ef5aa28543f58',1,'Adafruit_Floppy::get_side()'],['../class_adafruit___apple2_floppy.html#af26f9e7f6152ce777b196828683d6aad',1,'Adafruit_Apple2Floppy::get_side()']]],
   ['get_5ftrack0_5fsense',['get_track0_sense',['../class_adafruit___floppy_base.html#a447bbcabe0f83e658807d84d00a37ffe',1,'Adafruit_FloppyBase::get_track0_sense()'],['../class_adafruit___floppy.html#ac1011884b6a9ea846faeb7e7646f3711',1,'Adafruit_Floppy::get_track0_sense()'],['../class_adafruit___apple2_floppy.html#a81cd20f5d40c825cb2a8b84b6a5ca39c',1,'Adafruit_Apple2Floppy::get_track0_sense()']]],
   ['get_5fwrite_5fprotect',['get_write_protect',['../class_adafruit___floppy_base.html#a2d73f3b5ef1e54693a925f45dcd3b1e9',1,'Adafruit_FloppyBase::get_write_protect()'],['../class_adafruit___floppy.html#a5b09c19cb0a8a0ba694520b4375ad950',1,'Adafruit_Floppy::get_write_protect()'],['../class_adafruit___apple2_floppy.html#a4337334a9c1cea931862a176d0ef5d6d',1,'Adafruit_Apple2Floppy::get_write_protect()']]],
   ['getsamplefrequency',['getSampleFrequency',['../class_adafruit___floppy_base.html#ac31e8a06157e98fd6b1a8c2af68b3c52',1,'Adafruit_FloppyBase']]],
