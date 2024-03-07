@@ -157,7 +157,11 @@ public:
                     bool is_gw_format = false);
   uint32_t getSampleFrequency(void);
 
+#if defined(LED_BUILTIN)
   int8_t led_pin = LED_BUILTIN; ///< Debug LED output for tracing
+#else
+  int8_t led_pin = -1; ///< Debug LED output for tracing
+#endif
 
   uint16_t select_delay_us = 10;  ///< delay after drive select (usecs)
   uint16_t step_delay_us = 10000; ///< delay between head steps (usecs)
