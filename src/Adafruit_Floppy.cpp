@@ -429,9 +429,9 @@ bool Adafruit_Floppy::get_write_protect(void) {
 
 bool Adafruit_Floppy::get_track0_sense(void) {
   if (_track0pin == 0) {
-    return track() == 0;
+    return track() != 0;
   }
-  return digitalRead(_track0pin);
+  return !digitalRead(_track0pin);
 }
 
 bool Adafruit_Floppy::set_density(bool high_density) {
