@@ -339,8 +339,10 @@ public:
   /**! @brief Call when the media has been removed */
   void removed();
   /**! @brief Call when media has been inserted
-       @param format The hard coded format or AUTODETECT to try several common formats
-       @returns True if media is hard coded or if the media was detected by autodetect */
+       @param format The hard coded format or AUTODETECT to try several common
+     formats
+       @returns True if media is hard coded or if the media was detected by
+     autodetect */
   bool inserted(adafruit_floppy_disk_t format);
 
   //------------- SdFat v2 FsBlockDeviceInterface API -------------//
