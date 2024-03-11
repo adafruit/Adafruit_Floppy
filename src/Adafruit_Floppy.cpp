@@ -428,6 +428,13 @@ bool Adafruit_Floppy::get_write_protect(void) {
   return !digitalRead(_protectpin);
 }
 
+bool Adafruit_Floppy::get_ready_sense(void) {
+  if (_readypin == 0) {
+    return true;
+  }
+  return !digitalRead(_readypin);
+}
+
 bool Adafruit_Floppy::get_track0_sense(void) {
   if (_track0pin == 0) {
     return track() != 0;

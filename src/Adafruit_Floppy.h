@@ -47,7 +47,6 @@ typedef enum {
   IBMPC1200K,
   IBMPC1440K,
   IBMPC1440K_360RPM,
-  FAILED_AUTODETECT,
   AUTODETECT,
 } adafruit_floppy_disk_t;
 
@@ -132,6 +131,16 @@ public:
   */
   /**************************************************************************/
   virtual bool get_track0_sense() = 0;
+
+  /**************************************************************************/
+  /*!
+      @brief  Check whether the ready output is active
+      @returns True if the ready sensor is active, false otherwise
+      @note On devices without a ready sensor, this always returns true
+  */
+  /**************************************************************************/
+  virtual bool get_ready_sense() = 0;
+
 
   /**************************************************************************/
   /*!
@@ -238,6 +247,7 @@ public:
   bool set_density(bool high_density) override;
   bool get_write_protect() override;
   bool get_track0_sense() override;
+  bool get_ready_sense() override;
 
 private:
   // theres a lot of GPIO!
@@ -280,6 +290,7 @@ public:
   bool set_density(bool high_density) override;
   bool get_write_protect() override;
   bool get_track0_sense() override;
+  bool get_ready_sense() override { return true; }
 
   int8_t quartertrack();
   bool goto_quartertrack(int);
@@ -295,12 +306,6 @@ private:
   int _quartertrack = -1;
   StepMode _step_mode = STEP_MODE_HALF;
   void _step(int dir, int times);
-};
-
-struct adafruit_floppy_format_info_t {
-  uint8_t cylinders, heads;
-  uint16_t bit_time_ns;
-  uint16_t track_time_ms;
 };
 
 /**************************************************************************/
@@ -319,7 +324,6 @@ public:
   void end(void);
 
   adafruit_floppy_disk_t format() const { return _format; }
-  const adafruit_floppy_format_info_t *format_info() const;
 
   uint32_t size(void) const;
   int32_t readTrack(uint8_t track, bool head);
@@ -335,7 +339,7 @@ public:
   bool dirty() const { return _dirty; }
 
   void removed();
-  void inserted();
+  bool inserted(adafruit_floppy_disk_t format);
 
   //------------- SdFat v2 FsBlockDeviceInterface API -------------//
   virtual bool isBusy();
@@ -354,6 +358,7 @@ public:
   uint8_t track_validity[MFM_IBMPC1440K_SECTORS_PER_TRACK];
 
 private:
+  bool autodetect();
 #if defined(PICO_BOARD) || defined(__RP2040__) || defined(ARDUINO_ARCH_RP2040)
   uint16_t _last;
 #endif
@@ -361,8 +366,10 @@ private:
   uint8_t _sectors_per_track = 0;
   uint8_t _tracks_per_side = 0;
   uint8_t _last_track_read = NO_TRACK; // last cached track
+  uint16_t _bit_time_ns;
   bool _high_density = true;
   bool _dirty = false, _track_has_errors = false;
+  bool _forty_track_drive = false;
   Adafruit_Floppy *_floppy = NULL;
   adafruit_floppy_disk_t _format = AUTODETECT;
 

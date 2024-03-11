@@ -59,7 +59,7 @@ Adafruit_ST7789 tft = Adafruit_ST7789(&SPI1, TFT_CS, TFT_DC, TFT_RESET);
   tft.setTextSize(3); \
   tft.setTextColor(~0, 0); \
   tft.setCursor(3, 3); \
-  tft.println("TFTinit!"); \
+  tft.println("Floppsy MSD"); \
   Serial.println("TFTinit!"); \
 } while(0)
 #else
@@ -85,7 +85,8 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                        PROT_PIN, READ_PIN, SIDE_PIN, READY_PIN);
 
 // You can select IBMPC1440K or IBMPC360K (check adafruit_floppy_disk_t options!)
-Adafruit_MFM_Floppy mfm_floppy(&floppy, IBMPC1440K);
+auto FLOPPY_TYPE = AUTODETECT;
+Adafruit_MFM_Floppy mfm_floppy(&floppy, FLOPPY_TYPE);
 
 
 constexpr size_t SECTOR_SIZE = 512UL;
@@ -125,7 +126,7 @@ void setup() {
   floppy.begin();
   if (! mfm_floppy.begin()) {
     Serial.println("Failed to spin up motor & find index pulse");
-    while (1) yield();
+    mfm_floppy.removed();
   }
 
   IF_GFX(tft.fillScreen(0););
@@ -157,13 +158,23 @@ void update_display() {
 
   y += 24;
   tft.setCursor(x, y);
-  if (floppy.track() == -1) {
-      tft.printf("T:?? S:?");
+  if (mfm_floppy.sectorCount() == 0) {
+      tft.printf("NO MEDIA ");
+      y += 24;
+      tft.setCursor(x, y);
+      tft.printf("         ");
   } else {
-      tft.printf("T:%02d S:%d",
-        floppy.track(),
-        floppy.get_side()
-      );
+      tft.printf("%4d KiB ", mfm_floppy.sectorCount()/2);
+      y += 24;
+      tft.setCursor(x, y);
+      if (floppy.track() == -1) {
+          tft.printf("T:?? S:? ");
+      } else {
+          tft.printf("T:%02d S:%d ",
+            floppy.track(),
+            floppy.get_side()
+          );
+      }
   }
   y += 24;
   tft.setCursor(x, y);
@@ -212,7 +223,7 @@ void loop() {
     index_time = now;
     if (mfm_floppy.sectorCount() == 0) {
         Serial.println("inserted");
-        mfm_floppy.inserted();
+        mfm_floppy.inserted(FLOPPY_TYPE);
         queue_update_display();
     }
   }
