@@ -186,8 +186,7 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
                                    int32_t *falling_index_offset,
                                    bool store_greaseweazle,
                                    uint32_t capture_counts,
-                                   uint32_t max_wait_time
-                                   ) {
+                                   uint32_t max_wait_time) {
   uint8_t *ptr = start;
   if (falling_index_offset) {
     *falling_index_offset = -1;
@@ -197,16 +196,16 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
   // wait for a falling edge of index pin, then enable the capture peripheral
   uint32_t start_time = millis();
   while (!gpio_get(index_pin)) { /* NOTHING */
-      if (millis() - start_time > max_wait_time) {
-            disable_capture();
-            return ptr;
-      }
+    if (millis() - start_time > max_wait_time) {
+      disable_capture();
+      return ptr;
+    }
   }
   while (gpio_get(index_pin)) { /* NOTHING */
-      if (millis() - start_time > max_wait_time) {
-            disable_capture();
-            return ptr;
-      }
+    if (millis() - start_time > max_wait_time) {
+      disable_capture();
+      return ptr;
+    }
   }
 
   uint32_t total_counts = 0;
@@ -381,7 +380,7 @@ uint32_t rp2040_flux_capture(int index_pin, int rdpin, volatile uint8_t *pulses,
   if (!init_capture(index_pin, rdpin)) {
     return 0;
   }
-  
+
   auto result =
       capture_foreground(index_pin, (uint8_t *)pulses, (uint8_t *)pulse_end,
                          falling_index_offset, store_greaseweazle,

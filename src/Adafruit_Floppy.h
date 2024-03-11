@@ -141,7 +141,6 @@ public:
   /**************************************************************************/
   virtual bool get_ready_sense() = 0;
 
-
   /**************************************************************************/
   /*!
       @brief  Set the density for flux reading and writing
@@ -327,7 +326,6 @@ public:
 
   uint32_t size(void) const;
   int32_t readTrack(uint8_t track, bool head);
-
 
   /**! @brief The expected number of sectors per track in this format
        @returns The number of sectors per track */

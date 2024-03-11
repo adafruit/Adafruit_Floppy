@@ -571,12 +571,9 @@ uint32_t Adafruit_FloppyBase::getSampleFrequency(void) {
     @return Number of pulses we actually captured
 */
 /**************************************************************************/
-size_t Adafruit_FloppyBase::capture_track(volatile uint8_t *pulses,
-                                          size_t max_pulses,
-                                          int32_t *falling_index_offset,
-                                          bool store_greaseweazle,
-                                          uint32_t capture_ms,
-                                          uint32_t index_wait_ms) {
+size_t Adafruit_FloppyBase::capture_track(
+    volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset,
+    bool store_greaseweazle, uint32_t capture_ms, uint32_t index_wait_ms) {
   memset((void *)pulses, 0, max_pulses); // zero zem out
 
 #if defined(ARDUINO_ARCH_RP2040)
