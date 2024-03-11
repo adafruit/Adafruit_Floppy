@@ -568,6 +568,8 @@ uint32_t Adafruit_FloppyBase::getSampleFrequency(void) {
     @param  capture_ms If not zero, we will capture at least one revolution and
    extra time will be determined by this variable. e.g. 250ms means one
    revolution plus about 50 ms post-index
+    @param  index_wait_ms If not zero, wait at most this many ms for an index pulse
+   to arrive
     @return Number of pulses we actually captured
 */
 /**************************************************************************/

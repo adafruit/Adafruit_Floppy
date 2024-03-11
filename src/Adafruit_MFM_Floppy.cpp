@@ -1,5 +1,6 @@
 #include <Adafruit_Floppy.h>
 
+/// @cond false
 static const uint16_t flux_rates[] = {2000, 1000, 867, 1667};
 
 struct adafruit_floppy_format_info_t {
@@ -25,6 +26,7 @@ static const adafruit_floppy_format_info_t _format_info[] = {
     /* IBMPC1440K_360RPM */
     {80, 18, 867, 167},
 };
+/// @endcond
 
 static_assert(std::size(_format_info) == AUTODETECT);
 

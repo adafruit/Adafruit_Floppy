@@ -322,8 +322,6 @@ public:
   bool begin(void);
   void end(void);
 
-  adafruit_floppy_disk_t format() const { return _format; }
-
   uint32_t size(void) const;
   int32_t readTrack(uint8_t track, bool head);
 
@@ -334,9 +332,15 @@ public:
        @returns The number of tracks per side */
   uint8_t tracks_per_side(void) const { return _tracks_per_side; }
 
+  /**! @brief Check if there is data to be written to the current track
+       @returns True if data needs to be written out */
   bool dirty() const { return _dirty; }
 
+  /**! @brief Call when the media has been removed */
   void removed();
+  /**! @brief Call when media has been inserted
+       @param format The hard coded format or AUTODETECT to try several common formats
+       @returns True if media is hard coded or if the media was detected by autodetect */
   bool inserted(adafruit_floppy_disk_t format);
 
   //------------- SdFat v2 FsBlockDeviceInterface API -------------//
