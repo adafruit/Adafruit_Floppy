@@ -102,6 +102,7 @@ void setup() {
   usb_msc.setCapacity(0, SECTOR_SIZE);
   // Set callbacks
   usb_msc.setReadyCallback(0, msc_ready_callback);
+  usb_msc.setWritableCallback(0, msc_writable_callback);
   usb_msc.setReadWriteCallback(msc_read_callback, msc_write_callback,
                                msc_flush_callback);
 
@@ -203,3 +204,5 @@ bool msc_ready_callback(void) {
   usb_msc.setCapacity(sectors, SECTOR_SIZE);
   return sectors != 0;
 }
+
+bool msc_writable_callback(void) { return !floppy.get_write_protect(); }
