@@ -28,7 +28,7 @@ static const adafruit_floppy_format_info_t _format_info[] = {
 };
 /// @endcond
 
-static_assert(std::size(_format_info) == AUTODETECT);
+static_assert(sizeof(_format_info)/sizeof(_format_info[0]) == AUTODETECT);
 
 /**************************************************************************/
 /*!
