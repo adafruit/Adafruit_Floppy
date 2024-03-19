@@ -1,5 +1,35 @@
 #include <Adafruit_Floppy.h>
 
+/// @cond false
+static const uint16_t flux_rates[] = {2000, 1000, 867, 1667};
+
+struct adafruit_floppy_format_info_t {
+  uint8_t cylinders, sectors;
+  uint16_t bit_time_ns;
+  uint16_t track_time_ms;
+};
+
+// must match the order of adafruit_floppy_disk_t
+static const adafruit_floppy_format_info_t _format_info[] = {
+    /* IBMPC360K */
+    {40, 9, 2000, 167},
+    /* IBMPC1200K */
+    {80, 18, 1000, 200},
+
+    /* IBMPC720K */
+    {80, 9, 1000, 200},
+    /* IBMPC720K_360RPM */
+    {80, 9, 1667, 167},
+
+    /* IBMPC1440K */
+    {80, 18, 1000, 200},
+    /* IBMPC1440K_360RPM */
+    {80, 18, 867, 167},
+};
+/// @endcond
+
+static_assert(sizeof(_format_info) / sizeof(_format_info[0]) == AUTODETECT);
+
 /**************************************************************************/
 /*!
     @brief  Instantiate an MFM-formatted floppy
@@ -40,11 +70,34 @@ bool Adafruit_MFM_Floppy::begin(void) {
   if (_format == IBMPC360K) {
     _floppy->step_delay_us = 65000UL; // lets make it max 65ms not 10ms?
     _floppy->settle_delay_ms = 50;    // 50ms not 15
+    _forty_track_drive = true;
   }
 
   _floppy->select(true);
 
-  return _floppy->spin_motor(true);
+  _floppy->spin_motor(true);
+
+  if (_format == AUTODETECT) {
+#if 0
+      // Determine if a 40 or 80 track device
+      _floppy->goto_track(49);
+      _floppy->goto_track(1);
+
+      if (!_floppy->get_track0_sense()) {
+        _forty_track_drive = false;
+        _floppy->step_delay_us = 10000UL;
+        _floppy->settle_delay_ms = 15;
+      }
+#endif
+  } else {
+    _floppy->goto_track(0);
+    _floppy->goto_track(1); // trigger the READY output
+  }
+
+  if (_floppy->get_ready_sense()) {
+    return inserted(_format);
+  }
+  return true;
 }
 
 /**************************************************************************/
@@ -64,7 +117,7 @@ void Adafruit_MFM_Floppy::end(void) {
     @returns Size of the drive in bytes
 */
 /**************************************************************************/
-uint32_t Adafruit_MFM_Floppy::size(void) {
+uint32_t Adafruit_MFM_Floppy::size(void) const {
   return (uint32_t)_tracks_per_side * FLOPPY_HEADS * _sectors_per_track *
          MFM_BYTES_PER_SECTOR;
 }
@@ -98,9 +151,9 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
     int32_t index_offset;
     _n_flux =
         _floppy->capture_track(_flux, sizeof(_flux), &index_offset, false, 220);
-    captured_sectors = _floppy->decode_track_mfm(
-        track_data, _sectors_per_track, track_validity, _flux, _n_flux,
-        _high_density ? 1.f : 2.f, i == 0);
+    captured_sectors = _floppy->decode_track_mfm(track_data, _sectors_per_track,
+                                                 track_validity, _flux, _n_flux,
+                                                 _bit_time_ns / 1000.f, i == 0);
   }
 
   _track_has_errors = (captured_sectors != _sectors_per_track);
@@ -108,6 +161,7 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t track, bool head) {
     Serial.printf("Track has errors (%d != %d)\n", captured_sectors,
                   _sectors_per_track);
   }
+  _last_track_read = track * FLOPPY_HEADS + head;
   return captured_sectors;
 }
 
@@ -147,6 +201,10 @@ bool Adafruit_MFM_Floppy::isBusy() {
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::readSector(uint32_t block, uint8_t *dst) {
+  if (block > sectorCount()) {
+    return false;
+  }
+
   uint8_t track = block / (FLOPPY_HEADS * _sectors_per_track);
   uint8_t head = (block / _sectors_per_track) % FLOPPY_HEADS;
   uint8_t subsector = block % _sectors_per_track;
@@ -158,8 +216,6 @@ bool Adafruit_MFM_Floppy::readSector(uint32_t block, uint8_t *dst) {
     if (readTrack(track, head) == -1) {
       return false;
     }
-
-    _last_track_read = track * FLOPPY_HEADS + head;
   }
 
   if (!track_validity[subsector]) {
@@ -202,6 +258,17 @@ bool Adafruit_MFM_Floppy::readSectors(uint32_t block, uint8_t *dst, size_t nb) {
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
+  if (block > sectorCount()) {
+    return false;
+  }
+
+  // promptly fail if disk is protected
+  // might also fail if WGATE is masked by HW (e.g., by physical switch on
+  // floppsy)
+  if (_floppy->get_write_protect()) {
+    return false;
+  }
+
   uint8_t track = block / (FLOPPY_HEADS * _sectors_per_track);
   uint8_t head = (block / _sectors_per_track) % FLOPPY_HEADS;
   uint8_t subsector = block % _sectors_per_track;
@@ -215,11 +282,8 @@ bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
 
     _last_track_read = track * FLOPPY_HEADS + head;
   }
-  if (_track_has_errors) {
-    Serial.printf("Can't write to track with read errors\n", block);
-    return false;
-  }
-  Serial.printf("Writing block %d\n", block);
+  Serial.printf("Writing block %d\r\n", block);
+  track_validity[subsector] = 1;
   memcpy(track_data + (subsector * MFM_BYTES_PER_SECTOR), src,
          MFM_BYTES_PER_SECTOR);
   _dirty = true;
@@ -260,7 +324,7 @@ bool Adafruit_MFM_Floppy::syncDevice() {
 
   int track = _last_track_read / FLOPPY_HEADS;
   int head = _last_track_read % FLOPPY_HEADS;
-  Serial.printf("Flushing track %d side %d\n", track, head);
+  Serial.printf("Flushing track %d side %d\r\n", track, head);
 
   // should be a no-op
   if (!_floppy->goto_track(track)) {
@@ -273,6 +337,16 @@ bool Adafruit_MFM_Floppy::syncDevice() {
     return false;
   }
 
+  bool has_errors = false;
+  for (size_t i = 0; !has_errors && i < _sectors_per_track; i++) {
+    has_errors = !track_validity[i];
+  }
+
+  if (has_errors) {
+    Serial.printf(
+        "Can't do a non-full track write to track with read errors\n");
+    return false;
+  }
   _n_flux = _floppy->encode_track_mfm(track_data, _sectors_per_track, _flux,
                                       sizeof(_flux), _high_density ? 1.f : 2.f);
 
@@ -282,4 +356,87 @@ bool Adafruit_MFM_Floppy::syncDevice() {
   }
 
   return true;
+}
+
+void Adafruit_MFM_Floppy::removed() {
+  noInterrupts();
+  _tracks_per_side = 0;
+  _last_track_read = NO_TRACK;
+  _dirty = false;
+  interrupts();
+}
+
+static uint16_t le16_at(uint8_t *ptr) { return ptr[0] | (ptr[1] << 8); }
+
+bool Adafruit_MFM_Floppy::autodetect() {
+  Serial.printf("autodetecting\r\n");
+  int32_t index_offset;
+  _n_flux = _floppy->capture_track(_flux, sizeof(_flux) / 16, &index_offset,
+                                   false, 220);
+  for (auto flux_rate_ns : flux_rates) {
+    Serial.printf("flux rate %d\r\n", flux_rate_ns);
+    auto captured_sectors =
+        _floppy->decode_track_mfm(track_data, 1, track_validity, _flux, _n_flux,
+                                  flux_rate_ns / 1000.f, true);
+    if (captured_sectors) {
+      auto valid_signature =
+          track_data[0] == 0xeb && // short jump
+          track_data[1] >= 0x1e && // minimum BPB size (DOS 3.0 BPB)
+          track_data[2] == 0x90;   // NOP
+      if (!valid_signature) {
+        Serial.printf("Invalid signature %02x %02x %02x\r\n", track_data[0],
+                      track_data[1], track_data[2]);
+        continue;
+      }
+      auto heads = le16_at(track_data + 0x1A);
+      auto total_logical_sectors = le16_at(track_data + 0x13);
+
+      noInterrupts();
+      _bit_time_ns = flux_rate_ns;
+      _sectors_per_track = le16_at(track_data + 0x18);
+      _tracks_per_side = total_logical_sectors / heads / _sectors_per_track;
+      _last_track_read = NO_TRACK;
+      _dirty = false;
+      interrupts();
+
+      Serial.printf("Detected flux rate %dns/bit\r\n%d/%d/%d C/H/S\r\n",
+                    flux_rate_ns, _tracks_per_side, heads, _sectors_per_track);
+      return true;
+    }
+  }
+  Serial.printf("failed autodetect\r\n");
+  _sectors_per_track = 0;
+  return false;
+}
+
+bool Adafruit_MFM_Floppy::inserted(adafruit_floppy_disk_t floppy_type) {
+  if (_floppy->track() <= 0) {
+    _floppy->goto_track(1);
+  }
+  _floppy->goto_track(0);
+  _floppy->side(0);
+
+  Serial.printf("floppy type %d _forty_track=%d\r\n", floppy_type,
+                _forty_track_drive);
+  if (floppy_type == AUTODETECT && _forty_track_drive) {
+    floppy_type = IBMPC360K;
+  }
+
+  if (floppy_type == AUTODETECT) {
+    return autodetect();
+  } else if (floppy_type < 0 || floppy_type > AUTODETECT) {
+    return false;
+  }
+  const auto &info = _format_info[floppy_type];
+
+  noInterrupts();
+  _tracks_per_side = info.cylinders;
+  _sectors_per_track = info.sectors;
+  _bit_time_ns = info.bit_time_ns;
+  _last_track_read = NO_TRACK;
+  _dirty = false;
+  interrupts();
+
+  return true;
+  // TODO: set up double stepping on HD 5.25 drives with 360kB media inserted
 }

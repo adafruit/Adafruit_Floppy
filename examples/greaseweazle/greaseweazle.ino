@@ -636,7 +636,7 @@ void loop() {
     switch (pin) {
       case GW_CMD_GETPIN_TRACK0:
         reply_buffer[i++] = GW_ACK_OK;
-        reply_buffer[i++] = floppy->get_track0_sense();
+        reply_buffer[i++] = !floppy->get_track0_sense();
         break;
 
       default:

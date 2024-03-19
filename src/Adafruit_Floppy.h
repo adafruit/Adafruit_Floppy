@@ -25,8 +25,10 @@
 #define FLOPPY_IBMPC_DD_TRACKS 40
 #define FLOPPY_HEADS 2
 
+#define MFM_IBMPC1200K_SECTORS_PER_TRACK 15
 #define MFM_IBMPC1440K_SECTORS_PER_TRACK 18
 #define MFM_IBMPC360K_SECTORS_PER_TRACK 9
+#define MFM_IBMPC720K_SECTORS_PER_TRACK 9
 #define MFM_BYTES_PER_SECTOR 512UL
 
 #define STEP_OUT HIGH
@@ -39,8 +41,13 @@
 #define BUSTYPE_SHUGART 2
 
 typedef enum {
-  IBMPC1440K,
   IBMPC360K,
+  IBMPC720K,
+  IBMPC720K_360RPM,
+  IBMPC1200K,
+  IBMPC1440K,
+  IBMPC1440K_360RPM,
+  AUTODETECT,
 } adafruit_floppy_disk_t;
 
 /**************************************************************************/
@@ -127,6 +134,15 @@ public:
 
   /**************************************************************************/
   /*!
+      @brief  Check whether the ready output is active
+      @returns True if the ready sensor is active, false otherwise
+      @note On devices without a ready sensor, this always returns true
+  */
+  /**************************************************************************/
+  virtual bool get_ready_sense() = 0;
+
+  /**************************************************************************/
+  /*!
       @brief  Set the density for flux reading and writing
       @param high_density false for low density, true for high density
       @returns True if the drive interface supports the given density.
@@ -145,7 +161,8 @@ public:
 
   size_t capture_track(volatile uint8_t *pulses, size_t max_pulses,
                        int32_t *falling_index_offset,
-                       bool store_greaseweazle = false, uint32_t capture_ms = 0)
+                       bool store_greaseweazle = false, uint32_t capture_ms = 0,
+                       uint32_t index_wait_ms = 250)
       __attribute__((optimize("O3")));
 
   bool write_track(uint8_t *pulses, size_t n_pulses,
@@ -157,7 +174,11 @@ public:
                     bool is_gw_format = false);
   uint32_t getSampleFrequency(void);
 
+#if defined(LED_BUILTIN)
   int8_t led_pin = LED_BUILTIN; ///< Debug LED output for tracing
+#else
+  int8_t led_pin = -1; ///< Debug LED output for tracing
+#endif
 
   uint16_t select_delay_us = 10;  ///< delay after drive select (usecs)
   uint16_t step_delay_us = 10000; ///< delay between head steps (usecs)
@@ -225,6 +246,7 @@ public:
   bool set_density(bool high_density) override;
   bool get_write_protect() override;
   bool get_track0_sense() override;
+  bool get_ready_sense() override;
 
 private:
   // theres a lot of GPIO!
@@ -267,6 +289,7 @@ public:
   bool set_density(bool high_density) override;
   bool get_write_protect() override;
   bool get_track0_sense() override;
+  bool get_ready_sense() override { return true; }
 
   int8_t quartertrack();
   bool goto_quartertrack(int);
@@ -294,20 +317,33 @@ private:
 class Adafruit_MFM_Floppy : public FsBlockDeviceInterface {
 public:
   Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
-                      adafruit_floppy_disk_t format = IBMPC1440K);
+                      adafruit_floppy_disk_t format = AUTODETECT);
 
   bool begin(void);
   void end(void);
 
-  uint32_t size(void);
+  uint32_t size(void) const;
   int32_t readTrack(uint8_t track, bool head);
 
   /**! @brief The expected number of sectors per track in this format
        @returns The number of sectors per track */
-  uint8_t sectors_per_track(void) { return _sectors_per_track; }
+  uint8_t sectors_per_track(void) const { return _sectors_per_track; }
   /**! @brief The expected number of tracks per side in this format
        @returns The number of tracks per side */
-  uint8_t tracks_per_side(void) { return _tracks_per_side; }
+  uint8_t tracks_per_side(void) const { return _tracks_per_side; }
+
+  /**! @brief Check if there is data to be written to the current track
+       @returns True if data needs to be written out */
+  bool dirty() const { return _dirty; }
+
+  /**! @brief Call when the media has been removed */
+  void removed();
+  /**! @brief Call when media has been inserted
+       @param format The hard coded format or AUTODETECT to try several common
+     formats
+       @returns True if media is hard coded or if the media was detected by
+     autodetect */
+  bool inserted(adafruit_floppy_disk_t format);
 
   //------------- SdFat v2 FsBlockDeviceInterface API -------------//
   virtual bool isBusy();
@@ -326,6 +362,7 @@ public:
   uint8_t track_validity[MFM_IBMPC1440K_SECTORS_PER_TRACK];
 
 private:
+  bool autodetect();
 #if defined(PICO_BOARD) || defined(__RP2040__) || defined(ARDUINO_ARCH_RP2040)
   uint16_t _last;
 #endif
@@ -333,10 +370,12 @@ private:
   uint8_t _sectors_per_track = 0;
   uint8_t _tracks_per_side = 0;
   uint8_t _last_track_read = NO_TRACK; // last cached track
+  uint16_t _bit_time_ns;
   bool _high_density = true;
   bool _dirty = false, _track_has_errors = false;
+  bool _forty_track_drive = false;
   Adafruit_Floppy *_floppy = NULL;
-  adafruit_floppy_disk_t _format = IBMPC1440K;
+  adafruit_floppy_disk_t _format = AUTODETECT;
 
   /**! The raw flux data from the last track read */
   uint8_t _flux[125000];
