@@ -79,27 +79,36 @@ Inheritance diagram for Adafruit_MFM_Floppy:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ae3054a274b2c699ce8bcb75d7a9a5322"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#ae3054a274b2c699ce8bcb75d7a9a5322">Adafruit_MFM_Floppy</a> (<a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a> *floppy, adafruit_floppy_disk_t format=IBMPC1440K)</td></tr>
-<tr class="memdesc:ae3054a274b2c699ce8bcb75d7a9a5322"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiate an MFM-formatted floppy.  <a href="#ae3054a274b2c699ce8bcb75d7a9a5322">More...</a><br /></td></tr>
-<tr class="separator:ae3054a274b2c699ce8bcb75d7a9a5322"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa59bf5f29248b129ada8f3e7b9901204"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#aa59bf5f29248b129ada8f3e7b9901204">Adafruit_MFM_Floppy</a> (<a class="el" href="class_adafruit___floppy.html">Adafruit_Floppy</a> *floppy, adafruit_floppy_disk_t format=AUTODETECT)</td></tr>
+<tr class="memdesc:aa59bf5f29248b129ada8f3e7b9901204"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiate an MFM-formatted floppy.  <a href="#aa59bf5f29248b129ada8f3e7b9901204">More...</a><br /></td></tr>
+<tr class="separator:aa59bf5f29248b129ada8f3e7b9901204"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6bac2d28a9e23f7ad1a8138b8e167e8e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a6bac2d28a9e23f7ad1a8138b8e167e8e">begin</a> (void)</td></tr>
 <tr class="memdesc:a6bac2d28a9e23f7ad1a8138b8e167e8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize and spin up the floppy drive.  <a href="#a6bac2d28a9e23f7ad1a8138b8e167e8e">More...</a><br /></td></tr>
 <tr class="separator:a6bac2d28a9e23f7ad1a8138b8e167e8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9eb103e312aa472701fcdd69f6c4ff38"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a9eb103e312aa472701fcdd69f6c4ff38">end</a> (void)</td></tr>
 <tr class="memdesc:a9eb103e312aa472701fcdd69f6c4ff38"><td class="mdescLeft">&#160;</td><td class="mdescRight">Spin down and deselect the motor and drive.  <a href="#a9eb103e312aa472701fcdd69f6c4ff38">More...</a><br /></td></tr>
 <tr class="separator:a9eb103e312aa472701fcdd69f6c4ff38"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:adacbc5e5da123c8328818052da7b5590"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#adacbc5e5da123c8328818052da7b5590">size</a> (void)</td></tr>
-<tr class="memdesc:adacbc5e5da123c8328818052da7b5590"><td class="mdescLeft">&#160;</td><td class="mdescRight">Quick calculator for expected max capacity.  <a href="#adacbc5e5da123c8328818052da7b5590">More...</a><br /></td></tr>
-<tr class="separator:adacbc5e5da123c8328818052da7b5590"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a193aabb268c0a529d7b56d44a33eb391"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a193aabb268c0a529d7b56d44a33eb391">size</a> (void) const</td></tr>
+<tr class="memdesc:a193aabb268c0a529d7b56d44a33eb391"><td class="mdescLeft">&#160;</td><td class="mdescRight">Quick calculator for expected max capacity.  <a href="#a193aabb268c0a529d7b56d44a33eb391">More...</a><br /></td></tr>
+<tr class="separator:a193aabb268c0a529d7b56d44a33eb391"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abd5e166ad88cc49516aa4d3e58485714"><td class="memItemLeft" align="right" valign="top">int32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#abd5e166ad88cc49516aa4d3e58485714">readTrack</a> (uint8_t track, bool head)</td></tr>
 <tr class="memdesc:abd5e166ad88cc49516aa4d3e58485714"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read one track's worth of data and MFM decode it.  <a href="#abd5e166ad88cc49516aa4d3e58485714">More...</a><br /></td></tr>
 <tr class="separator:abd5e166ad88cc49516aa4d3e58485714"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af7c81e3db3b574dc498e12bf4cc581e8"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#af7c81e3db3b574dc498e12bf4cc581e8">sectors_per_track</a> (void)</td></tr>
-<tr class="memdesc:af7c81e3db3b574dc498e12bf4cc581e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">The expected number of sectors per track in this format.  <a href="#af7c81e3db3b574dc498e12bf4cc581e8">More...</a><br /></td></tr>
-<tr class="separator:af7c81e3db3b574dc498e12bf4cc581e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aca20dd8b32bcc509514b0c39985424c9"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#aca20dd8b32bcc509514b0c39985424c9">tracks_per_side</a> (void)</td></tr>
-<tr class="memdesc:aca20dd8b32bcc509514b0c39985424c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">The expected number of tracks per side in this format.  <a href="#aca20dd8b32bcc509514b0c39985424c9">More...</a><br /></td></tr>
-<tr class="separator:aca20dd8b32bcc509514b0c39985424c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9b4d86f565b833039d21699fbd9ee96a"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a9b4d86f565b833039d21699fbd9ee96a">sectors_per_track</a> (void) const</td></tr>
+<tr class="memdesc:a9b4d86f565b833039d21699fbd9ee96a"><td class="mdescLeft">&#160;</td><td class="mdescRight">The expected number of sectors per track in this format.  <a href="#a9b4d86f565b833039d21699fbd9ee96a">More...</a><br /></td></tr>
+<tr class="separator:a9b4d86f565b833039d21699fbd9ee96a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0e60ea15f690c9517b1ac0c7fdba0d20"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a0e60ea15f690c9517b1ac0c7fdba0d20">tracks_per_side</a> (void) const</td></tr>
+<tr class="memdesc:a0e60ea15f690c9517b1ac0c7fdba0d20"><td class="mdescLeft">&#160;</td><td class="mdescRight">The expected number of tracks per side in this format.  <a href="#a0e60ea15f690c9517b1ac0c7fdba0d20">More...</a><br /></td></tr>
+<tr class="separator:a0e60ea15f690c9517b1ac0c7fdba0d20"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1ea49388433e8366c9c1e220b7eaed3e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a1ea49388433e8366c9c1e220b7eaed3e">dirty</a> () const</td></tr>
+<tr class="memdesc:a1ea49388433e8366c9c1e220b7eaed3e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if there is data to be written to the current track.  <a href="#a1ea49388433e8366c9c1e220b7eaed3e">More...</a><br /></td></tr>
+<tr class="separator:a1ea49388433e8366c9c1e220b7eaed3e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a82f698b0ddee5b5602d9437c72ee5759"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a82f698b0ddee5b5602d9437c72ee5759">removed</a> ()</td></tr>
+<tr class="memdesc:a82f698b0ddee5b5602d9437c72ee5759"><td class="mdescLeft">&#160;</td><td class="mdescRight">Call when the media has been removed.  <a href="#a82f698b0ddee5b5602d9437c72ee5759">More...</a><br /></td></tr>
+<tr class="separator:a82f698b0ddee5b5602d9437c72ee5759"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3b65f17f43a0c76615de5e58329d2228"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a3b65f17f43a0c76615de5e58329d2228">inserted</a> (adafruit_floppy_disk_t format)</td></tr>
+<tr class="memdesc:a3b65f17f43a0c76615de5e58329d2228"><td class="mdescLeft">&#160;</td><td class="mdescRight">Call when media has been inserted.  <a href="#a3b65f17f43a0c76615de5e58329d2228">More...</a><br /></td></tr>
+<tr class="separator:a3b65f17f43a0c76615de5e58329d2228"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7a582e24c96e0a8c3e5c3bb3746ed5c9"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a7a582e24c96e0a8c3e5c3bb3746ed5c9">isBusy</a> ()</td></tr>
 <tr class="memdesc:a7a582e24c96e0a8c3e5c3bb3746ed5c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if device busy.  <a href="#a7a582e24c96e0a8c3e5c3bb3746ed5c9">More...</a><br /></td></tr>
 <tr class="separator:a7a582e24c96e0a8c3e5c3bb3746ed5c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -132,8 +141,8 @@ Public Attributes</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>This class adds support for the BaseBlockDriver interface to an MFM encoded floppy disk. This allows it to be used with SdFat's FatFileSystem class. or for a mass storage device </p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="ae3054a274b2c699ce8bcb75d7a9a5322"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae3054a274b2c699ce8bcb75d7a9a5322">&#9670;&nbsp;</a></span>Adafruit_MFM_Floppy()</h2>
+<a id="aa59bf5f29248b129ada8f3e7b9901204"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa59bf5f29248b129ada8f3e7b9901204">&#9670;&nbsp;</a></span>Adafruit_MFM_Floppy()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -148,7 +157,7 @@ Public Attributes</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">adafruit_floppy_disk_t&#160;</td>
-          <td class="paramname"><em>format</em> = <code>IBMPC1440K</code>&#160;</td>
+          <td class="paramname"><em>format</em> = <code>AUTODETECT</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -212,8 +221,8 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="adacbc5e5da123c8328818052da7b5590"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#adacbc5e5da123c8328818052da7b5590">&#9670;&nbsp;</a></span>size()</h2>
+<a id="a193aabb268c0a529d7b56d44a33eb391"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a193aabb268c0a529d7b56d44a33eb391">&#9670;&nbsp;</a></span>size()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -223,7 +232,7 @@ Public Attributes</h2></td></tr>
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -271,8 +280,8 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="af7c81e3db3b574dc498e12bf4cc581e8"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af7c81e3db3b574dc498e12bf4cc581e8">&#9670;&nbsp;</a></span>sectors_per_track()</h2>
+<a id="a9b4d86f565b833039d21699fbd9ee96a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9b4d86f565b833039d21699fbd9ee96a">&#9670;&nbsp;</a></span>sectors_per_track()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -285,7 +294,7 @@ Public Attributes</h2></td></tr>
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
   </td>
@@ -300,8 +309,8 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="aca20dd8b32bcc509514b0c39985424c9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aca20dd8b32bcc509514b0c39985424c9">&#9670;&nbsp;</a></span>tracks_per_side()</h2>
+<a id="a0e60ea15f690c9517b1ac0c7fdba0d20"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0e60ea15f690c9517b1ac0c7fdba0d20">&#9670;&nbsp;</a></span>tracks_per_side()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -314,7 +323,7 @@ Public Attributes</h2></td></tr>
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
   </td>
@@ -326,6 +335,81 @@ Public Attributes</h2></td></tr>
 
 <p>The expected number of tracks per side in this format. </p>
 <p>! </p><dl class="section return"><dt>Returns</dt><dd>The number of tracks per side </dd></dl>
+
+</div>
+</div>
+<a id="a1ea49388433e8366c9c1e220b7eaed3e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1ea49388433e8366c9c1e220b7eaed3e">&#9670;&nbsp;</a></span>dirty()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Adafruit_MFM_Floppy::dirty </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Check if there is data to be written to the current track. </p>
+<p>! </p><dl class="section return"><dt>Returns</dt><dd>True if data needs to be written out </dd></dl>
+
+</div>
+</div>
+<a id="a82f698b0ddee5b5602d9437c72ee5759"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a82f698b0ddee5b5602d9437c72ee5759">&#9670;&nbsp;</a></span>removed()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Adafruit_MFM_Floppy::removed </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Call when the media has been removed. </p>
+<p>! </p>
+
+</div>
+</div>
+<a id="a3b65f17f43a0c76615de5e58329d2228"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3b65f17f43a0c76615de5e58329d2228">&#9670;&nbsp;</a></span>inserted()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Adafruit_MFM_Floppy::inserted </td>
+          <td>(</td>
+          <td class="paramtype">adafruit_floppy_disk_t&#160;</td>
+          <td class="paramname"><em>format</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Call when media has been inserted. </p>
+<p>! </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">format</td><td>The hard coded format or AUTODETECT to try several common formats </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if media is hard coded or if the media was detected by autodetect </dd></dl>
 
 </div>
 </div>

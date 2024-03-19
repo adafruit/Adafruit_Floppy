@@ -120,6 +120,9 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:a447bbcabe0f83e658807d84d00a37ffe"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a447bbcabe0f83e658807d84d00a37ffe">get_track0_sense</a> ()=0</td></tr>
 <tr class="memdesc:a447bbcabe0f83e658807d84d00a37ffe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check whether the track0 sensor is active.  <a href="#a447bbcabe0f83e658807d84d00a37ffe">More...</a><br /></td></tr>
 <tr class="separator:a447bbcabe0f83e658807d84d00a37ffe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4f02fcf976f97b0de2c81b7b2cdb27c0"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a4f02fcf976f97b0de2c81b7b2cdb27c0">get_ready_sense</a> ()=0</td></tr>
+<tr class="memdesc:a4f02fcf976f97b0de2c81b7b2cdb27c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check whether the ready output is active.  <a href="#a4f02fcf976f97b0de2c81b7b2cdb27c0">More...</a><br /></td></tr>
+<tr class="separator:a4f02fcf976f97b0de2c81b7b2cdb27c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa895897dd9436aeac573f0ca25fa1428"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aa895897dd9436aeac573f0ca25fa1428">set_density</a> (bool high_density)=0</td></tr>
 <tr class="memdesc:aa895897dd9436aeac573f0ca25fa1428"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the density for flux reading and writing.  <a href="#aa895897dd9436aeac573f0ca25fa1428">More...</a><br /></td></tr>
 <tr class="separator:aa895897dd9436aeac573f0ca25fa1428"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -129,9 +132,9 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:a7132aa4cba4f674e59928f253e25dcbd"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a7132aa4cba4f674e59928f253e25dcbd">encode_track_mfm</a> (const uint8_t *sectors, size_t n_sectors, uint8_t *pulses, size_t max_pulses, float nominal_bit_time_us)</td></tr>
 <tr class="memdesc:a7132aa4cba4f674e59928f253e25dcbd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Encode one track of previously captured MFM data.  <a href="#a7132aa4cba4f674e59928f253e25dcbd">More...</a><br /></td></tr>
 <tr class="separator:a7132aa4cba4f674e59928f253e25dcbd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4d9cbd08ce57bb87ed6f0a7a029104ee"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a4d9cbd08ce57bb87ed6f0a7a029104ee">capture_track</a> (volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
-<tr class="memdesc:a4d9cbd08ce57bb87ed6f0a7a029104ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#a4d9cbd08ce57bb87ed6f0a7a029104ee">More...</a><br /></td></tr>
-<tr class="separator:a4d9cbd08ce57bb87ed6f0a7a029104ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ac9d7948eb4ac80c851d0fa2e4b39bf23">capture_track</a> (volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0, uint32_t index_wait_ms=250) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
+<tr class="memdesc:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#ac9d7948eb4ac80c851d0fa2e4b39bf23">More...</a><br /></td></tr>
+<tr class="separator:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a82e0b5da0c4f3984a76234a8aefb323a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a82e0b5da0c4f3984a76234a8aefb323a">write_track</a> (uint8_t *pulses, size_t n_pulses, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:a82e0b5da0c4f3984a76234a8aefb323a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#a82e0b5da0c4f3984a76234a8aefb323a">More...</a><br /></td></tr>
 <tr class="separator:a82e0b5da0c4f3984a76234a8aefb323a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -148,7 +151,7 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a480b23a8ea972ac4620937d125c3e933"><td class="memItemLeft" align="right" valign="top"><a id="a480b23a8ea972ac4620937d125c3e933"></a>
-int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a480b23a8ea972ac4620937d125c3e933">led_pin</a> = LED_BUILTIN</td></tr>
+int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a480b23a8ea972ac4620937d125c3e933">led_pin</a> = -1</td></tr>
 <tr class="memdesc:a480b23a8ea972ac4620937d125c3e933"><td class="mdescLeft">&#160;</td><td class="mdescRight">Debug LED output for tracing. <br /></td></tr>
 <tr class="separator:a480b23a8ea972ac4620937d125c3e933"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac8460f5dfa05c3d97fc8022766c6f220"><td class="memItemLeft" align="right" valign="top"><a id="ac8460f5dfa05c3d97fc8022766c6f220"></a>
@@ -549,6 +552,37 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a4f02fcf976f97b0de2c81b7b2cdb27c0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4f02fcf976f97b0de2c81b7b2cdb27c0">&#9670;&nbsp;</a></span>get_ready_sense()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual bool Adafruit_FloppyBase::get_ready_sense </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">pure virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Check whether the ready output is active. </p>
+<dl class="section return"><dt>Returns</dt><dd>True if the ready sensor is active, false otherwise </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>On devices without a ready sensor, this always returns true </dd></dl>
+
+<p>Implemented in <a class="el" href="class_adafruit___apple2_floppy.html#a45aaf671822dea1f41c68180a8f48170">Adafruit_Apple2Floppy</a>, and <a class="el" href="class_adafruit___floppy.html#abb274035ac48543fa29f2be98ef5e8fb">Adafruit_Floppy</a>.</p>
+
+</div>
+</div>
 <a id="aa895897dd9436aeac573f0ca25fa1428"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa895897dd9436aeac573f0ca25fa1428">&#9670;&nbsp;</a></span>set_density()</h2>
 
@@ -718,8 +752,8 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a4d9cbd08ce57bb87ed6f0a7a029104ee"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4d9cbd08ce57bb87ed6f0a7a029104ee">&#9670;&nbsp;</a></span>capture_track()</h2>
+<a id="ac9d7948eb4ac80c851d0fa2e4b39bf23"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac9d7948eb4ac80c851d0fa2e4b39bf23">&#9670;&nbsp;</a></span>capture_track()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -752,7 +786,13 @@ Protected Member Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>capture_ms</em> = <code>0</code>&#160;</td>
+          <td class="paramname"><em>capture_ms</em> = <code>0</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>index_wait_ms</em> = <code>250</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -770,6 +810,7 @@ Protected Member Functions</h2></td></tr>
     <tr><td class="paramname">falling_index_offset</td><td>Pointer to a uint32_t where we will store the "flux index" where the second index pulse fell. usually we read 110-125% of one track so there is an overlap of index pulse reads </td></tr>
     <tr><td class="paramname">store_greaseweazle</td><td>Pass in true to pack long pulses with two bytes </td></tr>
     <tr><td class="paramname">capture_ms</td><td>If not zero, we will capture at least one revolution and extra time will be determined by this variable. e.g. 250ms means one revolution plus about 50 ms post-index </td></tr>
+    <tr><td class="paramname">index_wait_ms</td><td>If not zero, wait at most this many ms for an index pulse to arrive </td></tr>
   </table>
   </dd>
 </dl>

@@ -123,6 +123,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:ac1011884b6a9ea846faeb7e7646f3711"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ac1011884b6a9ea846faeb7e7646f3711">get_track0_sense</a> () override</td></tr>
 <tr class="memdesc:ac1011884b6a9ea846faeb7e7646f3711"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check whether the track0 sensor is active.  <a href="#ac1011884b6a9ea846faeb7e7646f3711">More...</a><br /></td></tr>
 <tr class="separator:ac1011884b6a9ea846faeb7e7646f3711"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abb274035ac48543fa29f2be98ef5e8fb"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#abb274035ac48543fa29f2be98ef5e8fb">get_ready_sense</a> () override</td></tr>
+<tr class="memdesc:abb274035ac48543fa29f2be98ef5e8fb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check whether the ready output is active.  <a href="#abb274035ac48543fa29f2be98ef5e8fb">More...</a><br /></td></tr>
+<tr class="separator:abb274035ac48543fa29f2be98ef5e8fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_class_adafruit___floppy_base"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_class_adafruit___floppy_base')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="class_adafruit___floppy_base.html">Adafruit_FloppyBase</a></td></tr>
 <tr class="memitem:abb5ab49a3c2b6d80f9b39f519afe5a27 inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#abb5ab49a3c2b6d80f9b39f519afe5a27">begin</a> (void)</td></tr>
 <tr class="memdesc:abb5ab49a3c2b6d80f9b39f519afe5a27 inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes the GPIO pins but do not start the motor or anything.  <a href="class_adafruit___floppy_base.html#abb5ab49a3c2b6d80f9b39f519afe5a27">More...</a><br /></td></tr>
@@ -133,9 +136,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:a7132aa4cba4f674e59928f253e25dcbd inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a7132aa4cba4f674e59928f253e25dcbd">encode_track_mfm</a> (const uint8_t *sectors, size_t n_sectors, uint8_t *pulses, size_t max_pulses, float nominal_bit_time_us)</td></tr>
 <tr class="memdesc:a7132aa4cba4f674e59928f253e25dcbd inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Encode one track of previously captured MFM data.  <a href="class_adafruit___floppy_base.html#a7132aa4cba4f674e59928f253e25dcbd">More...</a><br /></td></tr>
 <tr class="separator:a7132aa4cba4f674e59928f253e25dcbd inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4d9cbd08ce57bb87ed6f0a7a029104ee inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a4d9cbd08ce57bb87ed6f0a7a029104ee">capture_track</a> (volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
-<tr class="memdesc:a4d9cbd08ce57bb87ed6f0a7a029104ee inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="class_adafruit___floppy_base.html#a4d9cbd08ce57bb87ed6f0a7a029104ee">More...</a><br /></td></tr>
-<tr class="separator:a4d9cbd08ce57bb87ed6f0a7a029104ee inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac9d7948eb4ac80c851d0fa2e4b39bf23 inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ac9d7948eb4ac80c851d0fa2e4b39bf23">capture_track</a> (volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0, uint32_t index_wait_ms=250) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
+<tr class="memdesc:ac9d7948eb4ac80c851d0fa2e4b39bf23 inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="class_adafruit___floppy_base.html#ac9d7948eb4ac80c851d0fa2e4b39bf23">More...</a><br /></td></tr>
+<tr class="separator:ac9d7948eb4ac80c851d0fa2e4b39bf23 inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a82e0b5da0c4f3984a76234a8aefb323a inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a82e0b5da0c4f3984a76234a8aefb323a">write_track</a> (uint8_t *pulses, size_t n_pulses, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:a82e0b5da0c4f3984a76234a8aefb323a inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="class_adafruit___floppy_base.html#a82e0b5da0c4f3984a76234a8aefb323a">More...</a><br /></td></tr>
 <tr class="separator:a82e0b5da0c4f3984a76234a8aefb323a inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -153,7 +156,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 Additional Inherited Members</h2></td></tr>
 <tr class="inherit_header pub_attribs_class_adafruit___floppy_base"><td colspan="2" onclick="javascript:toggleInherit('pub_attribs_class_adafruit___floppy_base')"><img src="closed.png" alt="-"/>&#160;Public Attributes inherited from <a class="el" href="class_adafruit___floppy_base.html">Adafruit_FloppyBase</a></td></tr>
 <tr class="memitem:a480b23a8ea972ac4620937d125c3e933 inherit pub_attribs_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top"><a id="a480b23a8ea972ac4620937d125c3e933"></a>
-int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a480b23a8ea972ac4620937d125c3e933">led_pin</a> = LED_BUILTIN</td></tr>
+int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a480b23a8ea972ac4620937d125c3e933">led_pin</a> = -1</td></tr>
 <tr class="memdesc:a480b23a8ea972ac4620937d125c3e933 inherit pub_attribs_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Debug LED output for tracing. <br /></td></tr>
 <tr class="separator:a480b23a8ea972ac4620937d125c3e933 inherit pub_attribs_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac8460f5dfa05c3d97fc8022766c6f220 inherit pub_attribs_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top"><a id="ac8460f5dfa05c3d97fc8022766c6f220"></a>
@@ -651,6 +654,37 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 <dl class="section note"><dt>Note</dt><dd>On devices without a track0 sensor, this returns true when <a class="el" href="class_adafruit___floppy.html#a4ecf87f957e5cd09a8e75e890a53f66d" title="The current track location, based on internal caching. ">track()</a>==0 </dd></dl>
 
 <p>Implements <a class="el" href="class_adafruit___floppy_base.html#a447bbcabe0f83e658807d84d00a37ffe">Adafruit_FloppyBase</a>.</p>
+
+</div>
+</div>
+<a id="abb274035ac48543fa29f2be98ef5e8fb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abb274035ac48543fa29f2be98ef5e8fb">&#9670;&nbsp;</a></span>get_ready_sense()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Adafruit_Floppy::get_ready_sense </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">override</span><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Check whether the ready output is active. </p>
+<dl class="section return"><dt>Returns</dt><dd>True if the ready sensor is active, false otherwise </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>On devices without a ready sensor, this always returns true </dd></dl>
+
+<p>Implements <a class="el" href="class_adafruit___floppy_base.html#a4f02fcf976f97b0de2c81b7b2cdb27c0">Adafruit_FloppyBase</a>.</p>
 
 </div>
 </div>
