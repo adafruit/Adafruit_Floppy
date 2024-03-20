@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include <stdarg.h>
 
 #if !defined(DEBUG_PRINTF)
 #define DEBUG_PRINTF(...) ((void)0)
@@ -149,12 +149,12 @@ static bool skip_triple_sync_mark(mfm_io_t *io) {
 enum { mfm_io_crc_preload_value = 0xcdb4 };
 
 // Copy data into a series of buffers, returning the CRC.
-// This must be called right after sync_triple_sync_mark, because an assumption is made
-// about the code that's about to be read.
+// This must be called right after sync_triple_sync_mark, because an assumption
+// is made about the code that's about to be read.
 //
-// The "..." arguments must be pairs of (uint8_t *buf, size_t n), ending with a NULL buf.
-__attribute__((sentinel))
-static uint16_t receive_crc(mfm_io_t *io, ...) {
+// The "..." arguments must be pairs of (uint8_t *buf, size_t n), ending with a
+// NULL buf.
+__attribute__((sentinel)) static uint16_t receive_crc(mfm_io_t *io, ...) {
   // `tmp` holds up to 9 bits of data, in bits 6..15.
   unsigned tmp = 0, weight = 0x8000;
   uint16_t crc = mfm_io_crc_preload_value;
@@ -203,14 +203,15 @@ static uint16_t receive_crc(mfm_io_t *io, ...) {
     size_t n = va_arg(ap, size_t);
     while (n) {
       s = mfm_io_read_symbol(io);
-      PUT_BIT(state); // 'mfm_io_even' is 1, so record a '1' or '0' as appropriate
+      PUT_BIT(
+          state); // 'mfm_io_even' is 1, so record a '1' or '0' as appropriate
       if (s == mfm_io_pulse_1000) {
         PUT_BIT(0); // the other bit recorded for a 1000 is always a '0'
       }
       if (s == mfm_io_pulse_100) {
         if (state) {
           PUT_BIT(0);
-        }                            // If 'mfm_io_even', record an additional '0'
+        } // If 'mfm_io_even', record an additional '0'
         state = (mfm_state_t)!state; // the next symbol has opposite parity
       }
 
@@ -255,20 +256,16 @@ static size_t decode_track_mfm(mfm_io_t *io) {
   // floppies which always use 512 byte sectors
   while (!mfm_io_eof(io) && io->n_valid < io->n_sectors) {
     if (!skip_triple_sync_mark(io)) {
-        continue;
+      continue;
     }
 
-    uint16_t crc = receive_crc(io,
-        &mark, 1,
-        idam_buf, sizeof(idam_buf),
-        crc_buf, sizeof(crc_buf),
-        NULL);
+    uint16_t crc = receive_crc(io, &mark, 1, idam_buf, sizeof(idam_buf),
+                               crc_buf, sizeof(crc_buf), NULL);
 
     DEBUG_PRINTF("mark=%02x [expecting IDAM=%02x]\n", mark, MFM_IO_IDAM);
-    DEBUG_PRINTF("idam=%02x %02x %02x %02x\n",
-            idam_buf[0], idam_buf[1], idam_buf[2], idam_buf[3]);
-    DEBUG_PRINTF("crc_buf=%02x %02x\n",
-            crc_buf[0], crc_buf[1]);
+    DEBUG_PRINTF("idam=%02x %02x %02x %02x\n", idam_buf[0], idam_buf[1],
+                 idam_buf[2], idam_buf[3]);
+    DEBUG_PRINTF("crc_buf=%02x %02x\n", crc_buf[0], crc_buf[1]);
     DEBUG_PRINTF("crc=%04x [expecting 0]\n", crc);
     if (mark != MFM_IO_IDAM) {
       continue;
@@ -288,25 +285,22 @@ static size_t decode_track_mfm(mfm_io_t *io) {
     }
 
     if (!skip_triple_sync_mark(io)) {
-        continue;
+      continue;
     }
-    crc = receive_crc(io,
-        &mark, 1,
-        io->sectors + mfm_io_block_size * r, mfm_io_block_size,
-        crc_buf, sizeof(crc_buf),
-        NULL);
+    crc = receive_crc(io, &mark, 1, io->sectors + mfm_io_block_size * r,
+                      mfm_io_block_size, crc_buf, sizeof(crc_buf), NULL);
     DEBUG_PRINTF("mark=%02x [expecting DAM=%02x]\n", mark, MFM_IO_DAM);
-    DEBUG_PRINTF("crc_buf=%02x %02x\n",
-            crc_buf[0], crc_buf[1]);
+    DEBUG_PRINTF("crc_buf=%02x %02x\n", crc_buf[0], crc_buf[1]);
     DEBUG_PRINTF("crc=%04x [expecting 0]\n", crc);
     if (mark != MFM_IO_DAM) {
       continue;
     }
     if (crc != 0) {
-        continue;
+      continue;
     }
 
-    if (io->cylinder_ptr) *io->cylinder_ptr = idam_buf[0];
+    if (io->cylinder_ptr)
+      *io->cylinder_ptr = idam_buf[0];
     io->sector_validity[r] = 1;
     io->n_valid++;
   }
@@ -444,7 +438,7 @@ static void encode_track_mfm(mfm_io_t *io) {
   // sector_validity might end up reused for interleave?
   // memset(io->sector_validity, 0, io->n_sectors);
 
-  unsigned char buf[mfm_io_idam_size+1];
+  unsigned char buf[mfm_io_idam_size + 1];
 
   mfm_io_encode_iam(io);
 

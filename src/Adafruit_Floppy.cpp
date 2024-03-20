@@ -476,17 +476,15 @@ static void set_timings(uint32_t sampleFrequency, mfm_io_t &io,
    (double density) or 2.0f (high density)
     @param  clear_validity Whether to clear the validity flag. Set to false if
    re-reading a track with errors.
-    @param  logical_track If not NULL, updated with the logical track number of the last sector read. (track & side numbers are not otherwise verified)
+    @param  logical_track If not NULL, updated with the logical track number of
+   the last sector read. (track & side numbers are not otherwise verified)
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
-size_t Adafruit_FloppyBase::decode_track_mfm(uint8_t *sectors, size_t n_sectors,
-                                             uint8_t *sector_validity,
-                                             const uint8_t *pulses,
-                                             size_t n_pulses,
-                                             float nominal_bit_time_us,
-                                             bool clear_validity, 
-                                             uint8_t *logical_track) {
+size_t Adafruit_FloppyBase::decode_track_mfm(
+    uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity,
+    const uint8_t *pulses, size_t n_pulses, float nominal_bit_time_us,
+    bool clear_validity, uint8_t *logical_track) {
   mfm_io_t io;
 
   if (clear_validity)

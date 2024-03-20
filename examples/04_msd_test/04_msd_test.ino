@@ -127,7 +127,11 @@ volatile uint32_t flush_time;
 
 volatile uint32_t index_count;
 volatile uint32_t index_time, last_index_time;
-void count_index() { index_count += 1; last_index_time = index_time; index_time = millis(); }
+void count_index() {
+  index_count += 1;
+  last_index_time = index_time;
+  index_time = millis();
+}
 
 bool index_delayed, ready_delayed;
 uint32_t old_index_count;
@@ -150,13 +154,13 @@ void loop() {
   // ready pin fell or no index for 400ms: media removed
   // (the check for nonzero index count is an attempt to future-proof against
   // a no-index 3.5" drive)
-  bool removed = (!ready && ready_delayed)
-    || (index_count && time_since_index > 1200);
+  bool removed =
+      (!ready && ready_delayed) || (index_count && time_since_index > 1200);
 
   if (removed) {
     if (mfm_floppy.sectorCount() != 0) {
-        Serial.println("removed");
-        mfm_floppy.removed();
+      Serial.println("removed");
+      mfm_floppy.removed();
     }
   }
   if (new_index_count != old_index_count) {

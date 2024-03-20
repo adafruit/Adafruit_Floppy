@@ -158,8 +158,7 @@ public:
 
   size_t encode_track_mfm(const uint8_t *sectors, size_t n_sectors,
                           uint8_t *pulses, size_t max_pulses,
-                          float nominal_bit_time_us,
-                          uint8_t logical_track);
+                          float nominal_bit_time_us, uint8_t logical_track);
 
   size_t capture_track(volatile uint8_t *pulses, size_t max_pulses,
                        int32_t *falling_index_offset,

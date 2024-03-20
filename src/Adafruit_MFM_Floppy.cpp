@@ -106,8 +106,8 @@ uint32_t Adafruit_MFM_Floppy::size(void) const {
 /**************************************************************************/
 /*!
     @brief  Read one track's worth of data and MFM decode it
-    @param  logical_track the logical track number, 0 to whatever is the  max tracks for the given
-    format during instantiation (e.g. 40 for DD, 80 for HD)
+    @param  logical_track the logical track number, 0 to whatever is the  max
+   tracks for the given format during instantiation (e.g. 40 for DD, 80 for HD)
     @param  head which side to read, false for side 1, true for side 2
     @returns Number of sectors captured, or -1 if we couldn't seek
 */
@@ -117,7 +117,8 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t logical_track, bool head) {
 
   uint8_t physical_track = _double_step ? 2 * logical_track : logical_track;
 
-  Serial.printf("\t[readTrack] Seeking track %d [phys=%d] head %d...\r\n", logical_track, physical_track, head);
+  Serial.printf("\t[readTrack] Seeking track %d [phys=%d] head %d...\r\n",
+                logical_track, physical_track, head);
   if (!_floppy->goto_track(physical_track)) {
     // Serial.println("failed to seek to track");
     return -1;
@@ -141,8 +142,8 @@ int32_t Adafruit_MFM_Floppy::readTrack(uint8_t logical_track, bool head) {
 
   _track_has_errors = (captured_sectors != _sectors_per_track);
   if (_track_has_errors) {
-    Serial.printf("Track %d/%d has errors (%d != %d)\n", logical_track, head, captured_sectors,
-                  _sectors_per_track);
+    Serial.printf("Track %d/%d has errors (%d != %d)\n", logical_track, head,
+                  captured_sectors, _sectors_per_track);
   }
   _last_track_read = logical_track * FLOPPY_HEADS + head;
   return captured_sectors;
@@ -309,7 +310,8 @@ bool Adafruit_MFM_Floppy::syncDevice() {
   int head = _last_track_read % FLOPPY_HEADS;
 
   uint8_t physical_track = _double_step ? 2 * logical_track : logical_track;
-  Serial.printf("Flushing track %d [phys %d] side %d\r\n", logical_track, physical_track, head);
+  Serial.printf("Flushing track %d [phys %d] side %d\r\n", logical_track,
+                physical_track, head);
   // should be a no-op
   if (!_floppy->goto_track(physical_track)) {
     Serial.println("failed to seek to track");
@@ -332,7 +334,8 @@ bool Adafruit_MFM_Floppy::syncDevice() {
     return false;
   }
   _n_flux = _floppy->encode_track_mfm(track_data, _sectors_per_track, _flux,
-                                      sizeof(_flux), _high_density ? 1.f : 2.f, logical_track);
+                                      sizeof(_flux), _high_density ? 1.f : 2.f,
+                                      logical_track);
 
   if (!_floppy->write_track(_flux, _n_flux, false)) {
     Serial.println("failed to write track");
@@ -383,20 +386,21 @@ bool Adafruit_MFM_Floppy::autodetect() {
 
       if (_tracks_per_side <= 40) {
         _floppy->goto_track(2);
-        _n_flux = _floppy->capture_track(_flux, sizeof(_flux) / 16, &index_offset,
-                                         false, 220);
+        _n_flux = _floppy->capture_track(_flux, sizeof(_flux) / 16,
+                                         &index_offset, false, 220);
         uint8_t track_number;
-        auto captured_sectors =
-            _floppy->decode_track_mfm(track_data, 1, track_validity, _flux, _n_flux,
-                                      flux_rate_ns / 1000.f, true, &track_number);
+        auto captured_sectors = _floppy->decode_track_mfm(
+            track_data, 1, track_validity, _flux, _n_flux,
+            flux_rate_ns / 1000.f, true, &track_number);
         if (!captured_sectors) {
           Serial.printf("failed to read on physical track 2\r\n");
         }
         _double_step = (track_number == 1);
-        Serial.printf("on physical track 2, track_number=%d. _double_step <- %d\r\n",
-          track_number, _double_step);
+        Serial.printf(
+            "on physical track 2, track_number=%d. _double_step <- %d\r\n",
+            track_number, _double_step);
       } else {
-          _double_step = false;
+        _double_step = false;
       }
       Serial.printf("Detected flux rate %dns/bit\r\n%d/%d/%d C/H/S\r\n",
                     flux_rate_ns, _tracks_per_side, heads, _sectors_per_track);
