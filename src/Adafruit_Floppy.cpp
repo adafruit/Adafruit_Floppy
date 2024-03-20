@@ -476,6 +476,7 @@ static void set_timings(uint32_t sampleFrequency, mfm_io_t &io,
    (double density) or 2.0f (high density)
     @param  clear_validity Whether to clear the validity flag. Set to false if
    re-reading a track with errors.
+    @param  logical_track If not NULL, updated with the logical track number of the last sector read. (track & side numbers are not otherwise verified)
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
@@ -484,8 +485,8 @@ size_t Adafruit_FloppyBase::decode_track_mfm(uint8_t *sectors, size_t n_sectors,
                                              const uint8_t *pulses,
                                              size_t n_pulses,
                                              float nominal_bit_time_us,
-                                             bool clear_validity) {
-  unsigned char buf[512 + 3];
+                                             bool clear_validity, 
+                                             uint8_t *logical_track) {
   mfm_io_t io;
 
   if (clear_validity)
@@ -497,7 +498,7 @@ size_t Adafruit_FloppyBase::decode_track_mfm(uint8_t *sectors, size_t n_sectors,
   io.sectors = sectors;
   io.n_sectors = n_sectors;
   io.head = get_side();
-  io.cylinder = track() + 1;
+  io.cylinder_ptr = logical_track;
   io.sector_validity = sector_validity;
 
   return ::decode_track_mfm(&io);
@@ -514,14 +515,15 @@ size_t Adafruit_FloppyBase::decode_track_mfm(uint8_t *sectors, size_t n_sectors,
     @param  max_pulses The maximum number of pulses that may be stored
     @param  nominal_bit_time_us The nominal time of one MFM bit, usually 1.0f
    (double density) or 2.0f (high density)
+    @param  logical_track The logical track number, or -1 to use track()
     @return Number of pulses actually generated
 */
 /**************************************************************************/
 size_t Adafruit_FloppyBase::encode_track_mfm(const uint8_t *sectors,
                                              size_t n_sectors, uint8_t *pulses,
                                              size_t max_pulses,
-                                             float nominal_bit_time_us) {
-  unsigned char buf[512 + 3];
+                                             float nominal_bit_time_us,
+                                             uint8_t logical_track) {
   mfm_io_t io;
 
   set_timings(getSampleFrequency(), io, nominal_bit_time_us);
@@ -531,7 +533,7 @@ size_t Adafruit_FloppyBase::encode_track_mfm(const uint8_t *sectors,
   io.sectors = const_cast<uint8_t *>(sectors);
   io.n_sectors = n_sectors;
   io.head = get_side();
-  io.cylinder = track();
+  io.cylinder = logical_track;
   io.sector_validity = NULL;
 
   ::encode_track_mfm(&io);

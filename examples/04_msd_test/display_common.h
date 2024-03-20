@@ -25,7 +25,6 @@ void maybe_update_display(bool force_refresh, bool tick) {
 
   force_refresh = force_refresh || !ever_refreshed;
   if (force_refresh || (old_state != new_state) || tick) {
-    Serial.printf("P %d\n", new_state.trk);
     update_display(force_refresh);
     old_state = new_state;
     ever_refreshed = true;
