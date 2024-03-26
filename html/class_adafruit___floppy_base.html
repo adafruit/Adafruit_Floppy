@@ -126,12 +126,12 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:aa895897dd9436aeac573f0ca25fa1428"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aa895897dd9436aeac573f0ca25fa1428">set_density</a> (bool high_density)=0</td></tr>
 <tr class="memdesc:aa895897dd9436aeac573f0ca25fa1428"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the density for flux reading and writing.  <a href="#aa895897dd9436aeac573f0ca25fa1428">More...</a><br /></td></tr>
 <tr class="separator:aa895897dd9436aeac573f0ca25fa1428"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae36ad0d7faabc422e1f31c5f39f1da35"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ae36ad0d7faabc422e1f31c5f39f1da35">decode_track_mfm</a> (uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity, const uint8_t *pulses, size_t n_pulses, float nominal_bit_time_us, bool clear_validity=false)</td></tr>
-<tr class="memdesc:ae36ad0d7faabc422e1f31c5f39f1da35"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode one track of previously captured MFM data.  <a href="#ae36ad0d7faabc422e1f31c5f39f1da35">More...</a><br /></td></tr>
-<tr class="separator:ae36ad0d7faabc422e1f31c5f39f1da35"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7132aa4cba4f674e59928f253e25dcbd"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a7132aa4cba4f674e59928f253e25dcbd">encode_track_mfm</a> (const uint8_t *sectors, size_t n_sectors, uint8_t *pulses, size_t max_pulses, float nominal_bit_time_us)</td></tr>
-<tr class="memdesc:a7132aa4cba4f674e59928f253e25dcbd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Encode one track of previously captured MFM data.  <a href="#a7132aa4cba4f674e59928f253e25dcbd">More...</a><br /></td></tr>
-<tr class="separator:a7132aa4cba4f674e59928f253e25dcbd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3ed5fea8593eb1213439698539de899c"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a3ed5fea8593eb1213439698539de899c">decode_track_mfm</a> (uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity, const uint8_t *pulses, size_t n_pulses, float nominal_bit_time_us, bool clear_validity=false, uint8_t *logical_track=nullptr)</td></tr>
+<tr class="memdesc:a3ed5fea8593eb1213439698539de899c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode one track of previously captured MFM data.  <a href="#a3ed5fea8593eb1213439698539de899c">More...</a><br /></td></tr>
+<tr class="separator:a3ed5fea8593eb1213439698539de899c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a01da3a44b6dbcaf4f2ccbfc8e5f68bf4"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a01da3a44b6dbcaf4f2ccbfc8e5f68bf4">encode_track_mfm</a> (const uint8_t *sectors, size_t n_sectors, uint8_t *pulses, size_t max_pulses, float nominal_bit_time_us, uint8_t logical_track)</td></tr>
+<tr class="memdesc:a01da3a44b6dbcaf4f2ccbfc8e5f68bf4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Encode one track of previously captured MFM data.  <a href="#a01da3a44b6dbcaf4f2ccbfc8e5f68bf4">More...</a><br /></td></tr>
+<tr class="separator:a01da3a44b6dbcaf4f2ccbfc8e5f68bf4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ac9d7948eb4ac80c851d0fa2e4b39bf23">capture_track</a> (volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0, uint32_t index_wait_ms=250) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#ac9d7948eb4ac80c851d0fa2e4b39bf23">More...</a><br /></td></tr>
 <tr class="separator:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -178,7 +178,7 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
 <tr class="memdesc:ab91cd8a10c539cd7c7708fd784c83683"><td class="mdescLeft">&#160;</td><td class="mdescRight">what kind of floppy drive we're using <br /></td></tr>
 <tr class="separator:ab91cd8a10c539cd7c7708fd784c83683"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae62d5ad642c397e333b1bfe17c7ca1dd"><td class="memItemLeft" align="right" valign="top"><a id="ae62d5ad642c397e333b1bfe17c7ca1dd"></a>
-Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ae62d5ad642c397e333b1bfe17c7ca1dd">debug_serial</a> = NULL</td></tr>
+Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ae62d5ad642c397e333b1bfe17c7ca1dd">debug_serial</a> = nullptr</td></tr>
 <tr class="memdesc:ae62d5ad642c397e333b1bfe17c7ca1dd"><td class="mdescLeft">&#160;</td><td class="mdescRight">optional debug stream for serial output <br /></td></tr>
 <tr class="separator:ae62d5ad642c397e333b1bfe17c7ca1dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -620,8 +620,8 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ae36ad0d7faabc422e1f31c5f39f1da35"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae36ad0d7faabc422e1f31c5f39f1da35">&#9670;&nbsp;</a></span>decode_track_mfm()</h2>
+<a id="a3ed5fea8593eb1213439698539de899c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ed5fea8593eb1213439698539de899c">&#9670;&nbsp;</a></span>decode_track_mfm()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -666,7 +666,13 @@ Protected Member Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">bool&#160;</td>
-          <td class="paramname"><em>clear_validity</em> = <code>false</code>&#160;</td>
+          <td class="paramname"><em>clear_validity</em> = <code>false</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t *&#160;</td>
+          <td class="paramname"><em>logical_track</em> = <code>nullptr</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -686,6 +692,7 @@ Protected Member Functions</h2></td></tr>
     <tr><td class="paramname">n_pulses</td><td>An array of pulses from capture_track </td></tr>
     <tr><td class="paramname">nominal_bit_time_us</td><td>The nominal time of one MFM bit, usually 1.0f (double density) or 2.0f (high density) </td></tr>
     <tr><td class="paramname">clear_validity</td><td>Whether to clear the validity flag. Set to false if re-reading a track with errors. </td></tr>
+    <tr><td class="paramname">logical_track</td><td>If not NULL, updated with the logical track number of the last sector read. (track &amp; side numbers are not otherwise verified) </td></tr>
   </table>
   </dd>
 </dl>
@@ -693,8 +700,8 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a7132aa4cba4f674e59928f253e25dcbd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7132aa4cba4f674e59928f253e25dcbd">&#9670;&nbsp;</a></span>encode_track_mfm()</h2>
+<a id="a01da3a44b6dbcaf4f2ccbfc8e5f68bf4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a01da3a44b6dbcaf4f2ccbfc8e5f68bf4">&#9670;&nbsp;</a></span>encode_track_mfm()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -727,7 +734,13 @@ Protected Member Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">float&#160;</td>
-          <td class="paramname"><em>nominal_bit_time_us</em>&#160;</td>
+          <td class="paramname"><em>nominal_bit_time_us</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>logical_track</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -745,6 +758,7 @@ Protected Member Functions</h2></td></tr>
     <tr><td class="paramname">pulses</td><td>An array of pulses from capture_track </td></tr>
     <tr><td class="paramname">max_pulses</td><td>The maximum number of pulses that may be stored </td></tr>
     <tr><td class="paramname">nominal_bit_time_us</td><td>The nominal time of one MFM bit, usually 1.0f (double density) or 2.0f (high density) </td></tr>
+    <tr><td class="paramname">logical_track</td><td>The logical track number, or -1 to use <a class="el" href="class_adafruit___floppy_base.html#aea1825a4168ba557a488ab57ca3a6a20" title="The current track location, based on internal caching. ">track()</a> </td></tr>
   </table>
   </dd>
 </dl>

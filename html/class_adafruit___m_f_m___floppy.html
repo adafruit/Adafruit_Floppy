@@ -252,7 +252,7 @@ Public Attributes</h2></td></tr>
           <td class="memname">int32_t Adafruit_MFM_Floppy::readTrack </td>
           <td>(</td>
           <td class="paramtype">uint8_t&#160;</td>
-          <td class="paramname"><em>track</em>, </td>
+          <td class="paramname"><em>logical_track</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -271,8 +271,8 @@ Public Attributes</h2></td></tr>
 <p>Read one track's worth of data and MFM decode it. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">track</td><td>track number, 0 to whatever is the max tracks for the given </td></tr>
-    <tr><td class="paramname">head</td><td>which side to read, false for side 1, true for side 2 format during instantiation (e.g. 40 for DD, 80 for HD) </td></tr>
+    <tr><td class="paramname">logical_track</td><td>the logical track number, 0 to whatever is the max tracks for the given format during instantiation (e.g. 40 for DD, 80 for HD) </td></tr>
+    <tr><td class="paramname">head</td><td>which side to read, false for side 1, true for side 2 </td></tr>
   </table>
   </dd>
 </dl>
