@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -13,6 +14,7 @@
 #endif
 
 /// @cond false
+
 struct mfm_io {
   uint16_t T2_max; ///< MFM decoder max length of 2us pulse
   uint16_t T3_max; ///< MFM decoder max length of 3us pulse
@@ -29,6 +31,7 @@ struct mfm_io {
   size_t n_sectors;
 
   uint8_t *sector_validity;
+  uint8_t *cylinder_ptr;
   uint8_t head, cylinder;
   uint8_t pulse_len;
   uint8_t y;
@@ -49,10 +52,8 @@ enum { MFM_IO_IAM = 0xfc, MFM_IO_IDAM = 0xfe, MFM_IO_DAM = 0xfb };
 
 enum {
   mfm_io_block_size = 512,
-  mfm_io_overhead = 3,
-  mfm_io_idam_size = 5,
+  mfm_io_idam_size = 4,
   mfm_io_crc_size = 2,
-  mfm_io_idam_crc_size = mfm_io_idam_size + mfm_io_crc_size
 };
 
 enum {
@@ -86,44 +87,44 @@ static mfm_io_symbol_t mfm_io_read_symbol(mfm_io_t *io) {
 
 // Automatically generated CRC function
 // polynomial: 0x11021
-static uint16_t mfm_io_crc16(const uint8_t *data, int len, uint16_t crc) {
-  static const uint16_t table[256] = {
-      0x0000U, 0x1021U, 0x2042U, 0x3063U, 0x4084U, 0x50A5U, 0x60C6U, 0x70E7U,
-      0x8108U, 0x9129U, 0xA14AU, 0xB16BU, 0xC18CU, 0xD1ADU, 0xE1CEU, 0xF1EFU,
-      0x1231U, 0x0210U, 0x3273U, 0x2252U, 0x52B5U, 0x4294U, 0x72F7U, 0x62D6U,
-      0x9339U, 0x8318U, 0xB37BU, 0xA35AU, 0xD3BDU, 0xC39CU, 0xF3FFU, 0xE3DEU,
-      0x2462U, 0x3443U, 0x0420U, 0x1401U, 0x64E6U, 0x74C7U, 0x44A4U, 0x5485U,
-      0xA56AU, 0xB54BU, 0x8528U, 0x9509U, 0xE5EEU, 0xF5CFU, 0xC5ACU, 0xD58DU,
-      0x3653U, 0x2672U, 0x1611U, 0x0630U, 0x76D7U, 0x66F6U, 0x5695U, 0x46B4U,
-      0xB75BU, 0xA77AU, 0x9719U, 0x8738U, 0xF7DFU, 0xE7FEU, 0xD79DU, 0xC7BCU,
-      0x48C4U, 0x58E5U, 0x6886U, 0x78A7U, 0x0840U, 0x1861U, 0x2802U, 0x3823U,
-      0xC9CCU, 0xD9EDU, 0xE98EU, 0xF9AFU, 0x8948U, 0x9969U, 0xA90AU, 0xB92BU,
-      0x5AF5U, 0x4AD4U, 0x7AB7U, 0x6A96U, 0x1A71U, 0x0A50U, 0x3A33U, 0x2A12U,
-      0xDBFDU, 0xCBDCU, 0xFBBFU, 0xEB9EU, 0x9B79U, 0x8B58U, 0xBB3BU, 0xAB1AU,
-      0x6CA6U, 0x7C87U, 0x4CE4U, 0x5CC5U, 0x2C22U, 0x3C03U, 0x0C60U, 0x1C41U,
-      0xEDAEU, 0xFD8FU, 0xCDECU, 0xDDCDU, 0xAD2AU, 0xBD0BU, 0x8D68U, 0x9D49U,
-      0x7E97U, 0x6EB6U, 0x5ED5U, 0x4EF4U, 0x3E13U, 0x2E32U, 0x1E51U, 0x0E70U,
-      0xFF9FU, 0xEFBEU, 0xDFDDU, 0xCFFCU, 0xBF1BU, 0xAF3AU, 0x9F59U, 0x8F78U,
-      0x9188U, 0x81A9U, 0xB1CAU, 0xA1EBU, 0xD10CU, 0xC12DU, 0xF14EU, 0xE16FU,
-      0x1080U, 0x00A1U, 0x30C2U, 0x20E3U, 0x5004U, 0x4025U, 0x7046U, 0x6067U,
-      0x83B9U, 0x9398U, 0xA3FBU, 0xB3DAU, 0xC33DU, 0xD31CU, 0xE37FU, 0xF35EU,
-      0x02B1U, 0x1290U, 0x22F3U, 0x32D2U, 0x4235U, 0x5214U, 0x6277U, 0x7256U,
-      0xB5EAU, 0xA5CBU, 0x95A8U, 0x8589U, 0xF56EU, 0xE54FU, 0xD52CU, 0xC50DU,
-      0x34E2U, 0x24C3U, 0x14A0U, 0x0481U, 0x7466U, 0x6447U, 0x5424U, 0x4405U,
-      0xA7DBU, 0xB7FAU, 0x8799U, 0x97B8U, 0xE75FU, 0xF77EU, 0xC71DU, 0xD73CU,
-      0x26D3U, 0x36F2U, 0x0691U, 0x16B0U, 0x6657U, 0x7676U, 0x4615U, 0x5634U,
-      0xD94CU, 0xC96DU, 0xF90EU, 0xE92FU, 0x99C8U, 0x89E9U, 0xB98AU, 0xA9ABU,
-      0x5844U, 0x4865U, 0x7806U, 0x6827U, 0x18C0U, 0x08E1U, 0x3882U, 0x28A3U,
-      0xCB7DU, 0xDB5CU, 0xEB3FU, 0xFB1EU, 0x8BF9U, 0x9BD8U, 0xABBBU, 0xBB9AU,
-      0x4A75U, 0x5A54U, 0x6A37U, 0x7A16U, 0x0AF1U, 0x1AD0U, 0x2AB3U, 0x3A92U,
-      0xFD2EU, 0xED0FU, 0xDD6CU, 0xCD4DU, 0xBDAAU, 0xAD8BU, 0x9DE8U, 0x8DC9U,
-      0x7C26U, 0x6C07U, 0x5C64U, 0x4C45U, 0x3CA2U, 0x2C83U, 0x1CE0U, 0x0CC1U,
-      0xEF1FU, 0xFF3EU, 0xCF5DU, 0xDF7CU, 0xAF9BU, 0xBFBAU, 0x8FD9U, 0x9FF8U,
-      0x6E17U, 0x7E36U, 0x4E55U, 0x5E74U, 0x2E93U, 0x3EB2U, 0x0ED1U, 0x1EF0U,
-  };
+static const uint16_t mfm_io_crc16_table[256] = {
+    0x0000U, 0x1021U, 0x2042U, 0x3063U, 0x4084U, 0x50A5U, 0x60C6U, 0x70E7U,
+    0x8108U, 0x9129U, 0xA14AU, 0xB16BU, 0xC18CU, 0xD1ADU, 0xE1CEU, 0xF1EFU,
+    0x1231U, 0x0210U, 0x3273U, 0x2252U, 0x52B5U, 0x4294U, 0x72F7U, 0x62D6U,
+    0x9339U, 0x8318U, 0xB37BU, 0xA35AU, 0xD3BDU, 0xC39CU, 0xF3FFU, 0xE3DEU,
+    0x2462U, 0x3443U, 0x0420U, 0x1401U, 0x64E6U, 0x74C7U, 0x44A4U, 0x5485U,
+    0xA56AU, 0xB54BU, 0x8528U, 0x9509U, 0xE5EEU, 0xF5CFU, 0xC5ACU, 0xD58DU,
+    0x3653U, 0x2672U, 0x1611U, 0x0630U, 0x76D7U, 0x66F6U, 0x5695U, 0x46B4U,
+    0xB75BU, 0xA77AU, 0x9719U, 0x8738U, 0xF7DFU, 0xE7FEU, 0xD79DU, 0xC7BCU,
+    0x48C4U, 0x58E5U, 0x6886U, 0x78A7U, 0x0840U, 0x1861U, 0x2802U, 0x3823U,
+    0xC9CCU, 0xD9EDU, 0xE98EU, 0xF9AFU, 0x8948U, 0x9969U, 0xA90AU, 0xB92BU,
+    0x5AF5U, 0x4AD4U, 0x7AB7U, 0x6A96U, 0x1A71U, 0x0A50U, 0x3A33U, 0x2A12U,
+    0xDBFDU, 0xCBDCU, 0xFBBFU, 0xEB9EU, 0x9B79U, 0x8B58U, 0xBB3BU, 0xAB1AU,
+    0x6CA6U, 0x7C87U, 0x4CE4U, 0x5CC5U, 0x2C22U, 0x3C03U, 0x0C60U, 0x1C41U,
+    0xEDAEU, 0xFD8FU, 0xCDECU, 0xDDCDU, 0xAD2AU, 0xBD0BU, 0x8D68U, 0x9D49U,
+    0x7E97U, 0x6EB6U, 0x5ED5U, 0x4EF4U, 0x3E13U, 0x2E32U, 0x1E51U, 0x0E70U,
+    0xFF9FU, 0xEFBEU, 0xDFDDU, 0xCFFCU, 0xBF1BU, 0xAF3AU, 0x9F59U, 0x8F78U,
+    0x9188U, 0x81A9U, 0xB1CAU, 0xA1EBU, 0xD10CU, 0xC12DU, 0xF14EU, 0xE16FU,
+    0x1080U, 0x00A1U, 0x30C2U, 0x20E3U, 0x5004U, 0x4025U, 0x7046U, 0x6067U,
+    0x83B9U, 0x9398U, 0xA3FBU, 0xB3DAU, 0xC33DU, 0xD31CU, 0xE37FU, 0xF35EU,
+    0x02B1U, 0x1290U, 0x22F3U, 0x32D2U, 0x4235U, 0x5214U, 0x6277U, 0x7256U,
+    0xB5EAU, 0xA5CBU, 0x95A8U, 0x8589U, 0xF56EU, 0xE54FU, 0xD52CU, 0xC50DU,
+    0x34E2U, 0x24C3U, 0x14A0U, 0x0481U, 0x7466U, 0x6447U, 0x5424U, 0x4405U,
+    0xA7DBU, 0xB7FAU, 0x8799U, 0x97B8U, 0xE75FU, 0xF77EU, 0xC71DU, 0xD73CU,
+    0x26D3U, 0x36F2U, 0x0691U, 0x16B0U, 0x6657U, 0x7676U, 0x4615U, 0x5634U,
+    0xD94CU, 0xC96DU, 0xF90EU, 0xE92FU, 0x99C8U, 0x89E9U, 0xB98AU, 0xA9ABU,
+    0x5844U, 0x4865U, 0x7806U, 0x6827U, 0x18C0U, 0x08E1U, 0x3882U, 0x28A3U,
+    0xCB7DU, 0xDB5CU, 0xEB3FU, 0xFB1EU, 0x8BF9U, 0x9BD8U, 0xABBBU, 0xBB9AU,
+    0x4A75U, 0x5A54U, 0x6A37U, 0x7A16U, 0x0AF1U, 0x1AD0U, 0x2AB3U, 0x3A92U,
+    0xFD2EU, 0xED0FU, 0xDD6CU, 0xCD4DU, 0xBDAAU, 0xAD8BU, 0x9DE8U, 0x8DC9U,
+    0x7C26U, 0x6C07U, 0x5C64U, 0x4C45U, 0x3CA2U, 0x2C83U, 0x1CE0U, 0x0CC1U,
+    0xEF1FU, 0xFF3EU, 0xCF5DU, 0xDF7CU, 0xAF9BU, 0xBFBAU, 0x8FD9U, 0x9FF8U,
+    0x6E17U, 0x7E36U, 0x4E55U, 0x5E74U, 0x2E93U, 0x3EB2U, 0x0ED1U, 0x1EF0U,
+};
 
+static uint16_t mfm_io_crc16(const uint8_t *data, int len, uint16_t crc) {
   while (len > 0) {
-    crc = table[*data ^ (uint8_t)(crc >> 8)] ^ (crc << 8);
+    crc = mfm_io_crc16_table[*data ^ (uint8_t)(crc >> 8)] ^ (crc << 8);
     data++;
     len--;
   }
@@ -147,16 +148,16 @@ static bool skip_triple_sync_mark(mfm_io_t *io) {
 // The MFM crc initialization value, _excluding the three 0xa1 sync bytes_
 enum { mfm_io_crc_preload_value = 0xcdb4 };
 
-// Compute the MFM CRC of the data, _assuming it was preceded by three 0xa1 sync
-// bytes_
-static int crc16_preloaded(unsigned char *buf, size_t n) {
-  return mfm_io_crc16((uint8_t *)buf, n, mfm_io_crc_preload_value);
-}
-
-// Copy 'n' bytes of data into 'buf'
-static void receive(mfm_io_t *io, unsigned char *buf, size_t n) {
+// Copy data into a series of buffers, returning the CRC.
+// This must be called right after sync_triple_sync_mark, because an assumption
+// is made about the code that's about to be read.
+//
+// The "..." arguments must be pairs of (uint8_t *buf, size_t n), ending with a
+// NULL buf.
+__attribute__((sentinel)) static uint16_t receive_crc(mfm_io_t *io, ...) {
   // `tmp` holds up to 9 bits of data, in bits 6..15.
   unsigned tmp = 0, weight = 0x8000;
+  uint16_t crc = mfm_io_crc_preload_value;
 
 #define PUT_BIT(x)                                                             \
   do {                                                                         \
@@ -195,39 +196,37 @@ static void receive(mfm_io_t *io, unsigned char *buf, size_t n) {
     break;
   }
 
-  while (n) {
-    s = mfm_io_read_symbol(io);
-    PUT_BIT(state); // 'mfm_io_even' is 1, so record a '1' or '0' as appropriate
-    if (s == mfm_io_pulse_1000) {
-      PUT_BIT(0); // the other bit recorded for a 1000 is always a '0'
-    }
-    if (s == mfm_io_pulse_100) {
-      if (state) {
-        PUT_BIT(0);
-      }                            // If 'mfm_io_even', record an additional '0'
-      state = (mfm_state_t)!state; // the next symbol has opposite parity
-    }
+  va_list ap;
+  va_start(ap, io);
+  uint8_t *buf;
+  while ((buf = va_arg(ap, uint8_t *)) != NULL) {
+    size_t n = va_arg(ap, size_t);
+    while (n) {
+      s = mfm_io_read_symbol(io);
+      PUT_BIT(
+          state); // 'mfm_io_even' is 1, so record a '1' or '0' as appropriate
+      if (s == mfm_io_pulse_1000) {
+        PUT_BIT(0); // the other bit recorded for a 1000 is always a '0'
+      }
+      if (s == mfm_io_pulse_100) {
+        if (state) {
+          PUT_BIT(0);
+        } // If 'mfm_io_even', record an additional '0'
+        state = (mfm_state_t)!state; // the next symbol has opposite parity
+      }
 
-    *buf = tmp >> 8; // store every time to make timing more mfm_io_even
-    if (weight <= 0x80) {
-      tmp <<= 8;
-      weight <<= 8;
-      buf++;
-      n--;
+      if (weight <= 0x80) {
+        *buf = tmp >> 8;
+        crc = mfm_io_crc16_table[*buf ^ (uint8_t)(crc >> 8)] ^ (crc << 8);
+        tmp <<= 8;
+        weight <<= 8;
+        buf++;
+        n--;
+      }
     }
   }
-}
-
-// Perform all the steps of receiving the next MFM_IO_IDAM, MFM_IO_DAM (or
-// DMFM_IO_DAM, but we don't use them)
-static bool skip_triple_sync_mark_receive_crc(mfm_io_t *io, void *buf,
-                                              size_t n) {
-  if (!skip_triple_sync_mark(io)) {
-    return false;
-  }
-  receive(io, (uint8_t *)buf, n);
-  unsigned crc = crc16_preloaded((uint8_t *)buf, n);
-  return crc == 0;
+  va_end(ap);
+  return crc;
 }
 
 // Read a whole track, setting validity[] for each sector actually read, up to
@@ -243,28 +242,40 @@ static size_t decode_track_mfm(mfm_io_t *io) {
     if (io->sector_validity[i])
       io->n_valid += 1;
 
-  // Metadata structure is:
-  //  * buf[0]: MFM_IO_IDAM
-  //  * buf[1]: cylinder
-  //  * buf[2]: head
-  //  * buf[3]: sector
-  //  * buf[4]: "n" (sector size shift)
-  //  * buf[5:6]: crc
+  uint8_t mark;
+  uint8_t idam_buf[mfm_io_idam_size];
+  uint8_t crc_buf[mfm_io_crc_size];
+
+  // IDAM structure is:
+  //  * buf[0]: cylinder
+  //  * buf[1]: head
+  //  * buf[2]: sector
+  //  * buf[3]: "n" (sector size shift) -- must be 2 for 512 bytes
   // Only the sector number is validated. In theory, the other values should be
-  // validated (but we don't have cylinder & head numbers at this layer) and we
-  // are only interested in working with DOS/Windows MFM floppies which always
-  // use 512 byte sectors
-  unsigned char buf[mfm_io_block_size + mfm_io_overhead];
+  // validated and we are only interested in working with DOS/Windows MFM
+  // floppies which always use 512 byte sectors
   while (!mfm_io_eof(io) && io->n_valid < io->n_sectors) {
-    if (!skip_triple_sync_mark_receive_crc(io, buf, mfm_io_idam_crc_size)) {
+    if (!skip_triple_sync_mark(io)) {
       continue;
     }
-    if (buf[0] != MFM_IO_IDAM) {
+
+    uint16_t crc = receive_crc(io, &mark, 1, idam_buf, sizeof(idam_buf),
+                               crc_buf, sizeof(crc_buf), NULL);
+
+    DEBUG_PRINTF("mark=%02x [expecting IDAM=%02x]\n", mark, MFM_IO_IDAM);
+    DEBUG_PRINTF("idam=%02x %02x %02x %02x\n", idam_buf[0], idam_buf[1],
+                 idam_buf[2], idam_buf[3]);
+    DEBUG_PRINTF("crc_buf=%02x %02x\n", crc_buf[0], crc_buf[1]);
+    DEBUG_PRINTF("crc=%04x [expecting 0]\n", crc);
+    if (mark != MFM_IO_IDAM) {
+      continue;
+    }
+    if (crc != 0) {
       continue;
     }
 
     // TODO: verify track & side numbers in IDAM
-    int r = (uint8_t)buf[3] - 1; // sectors are 1-based
+    int r = (uint8_t)idam_buf[2] - 1; // sectors are 1-based
     if (r >= io->n_sectors) {
       continue;
     }
@@ -273,19 +284,23 @@ static size_t decode_track_mfm(mfm_io_t *io) {
       continue;
     }
 
-    // Sector structure is:
-    //  * buf[0]: type (MFM_IO_DAM)
-    //  * buf[1:513]: payload
-    //  * buf[513:515]: crc16
-    if (!skip_triple_sync_mark_receive_crc(io, buf, sizeof(buf))) {
+    if (!skip_triple_sync_mark(io)) {
       continue;
     }
-    if (buf[0] != MFM_IO_DAM) {
+    crc = receive_crc(io, &mark, 1, io->sectors + mfm_io_block_size * r,
+                      mfm_io_block_size, crc_buf, sizeof(crc_buf), NULL);
+    DEBUG_PRINTF("mark=%02x [expecting DAM=%02x]\n", mark, MFM_IO_DAM);
+    DEBUG_PRINTF("crc_buf=%02x %02x\n", crc_buf[0], crc_buf[1]);
+    DEBUG_PRINTF("crc=%04x [expecting 0]\n", crc);
+    if (mark != MFM_IO_DAM) {
+      continue;
+    }
+    if (crc != 0) {
       continue;
     }
 
-    memcpy((char *)io->sectors + mfm_io_block_size * r, buf + 1,
-           mfm_io_block_size);
+    if (io->cylinder_ptr)
+      *io->cylinder_ptr = idam_buf[0];
     io->sector_validity[r] = 1;
     io->n_valid++;
   }
@@ -297,6 +312,7 @@ void mfm_io_flux_put(mfm_io_t *io, uint8_t len) {
     return;
   io->pulses[io->pos++] = len;
 }
+
 void mfm_io_flux_byte(mfm_io_t *io, uint8_t byte) {
   for (int i = 8; i-- > 0;) {
     if (byte & (1 << i)) {
@@ -370,11 +386,8 @@ void mfm_io_encode_gap(mfm_io_t *io, size_t n_gap) {
   }
 }
 
-#define POS(fmt, ...) DEBUG_PRINTF("[% 7zd] " fmt "\n", io->time, ##__VA_ARGS__)
 void mfm_io_encode_gap_and_presync(mfm_io_t *io, size_t n_gap) {
-  POS("gap %zd", n_gap);
   mfm_io_encode_gap(io, n_gap);
-  POS("presync");
   for (size_t i = 0; i < mfm_io_gap_presync; i++) {
     mfm_io_encode_byte(io, 0);
   }
@@ -382,13 +395,11 @@ void mfm_io_encode_gap_and_presync(mfm_io_t *io, size_t n_gap) {
 
 void mfm_io_encode_gap_and_sync(mfm_io_t *io, size_t n_gap) {
   mfm_io_encode_gap_and_presync(io, n_gap);
-  POS("A1 sync");
   mfm_io_encode_raw_buf(io, mfm_io_sync_bytes, sizeof(mfm_io_sync_bytes));
 }
 
 void mfm_io_encode_iam(mfm_io_t *io) {
   mfm_io_encode_gap_and_presync(io, mfm_io_gap_4a);
-  POS("C2 sync");
   mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes,
                         sizeof(mfm_io_iam_sync_bytes));
   mfm_io_encode_byte(io, MFM_IO_IAM);
@@ -427,16 +438,13 @@ static void encode_track_mfm(mfm_io_t *io) {
   // sector_validity might end up reused for interleave?
   // memset(io->sector_validity, 0, io->n_sectors);
 
-  unsigned char buf[mfm_io_idam_size];
+  unsigned char buf[mfm_io_idam_size + 1];
 
-  POS("pre-iam");
   mfm_io_encode_iam(io);
 
   mfm_io_encode_gap_and_sync(io, mfm_io_gap_1);
   for (size_t i = 0; i < io->n_sectors; i++) {
-    POS("pre-sector %zd", i);
     buf[0] = MFM_IO_IDAM;
-    POS("idam payload");
     buf[1] = io->cylinder;
     buf[2] = io->head;
     buf[3] = i + 1; // sectors are 1-based
@@ -449,7 +457,6 @@ static void encode_track_mfm(mfm_io_t *io) {
     mfm_io_encode_gap_and_sync(io, mfm_io_gap_2);
     mfm_io_crc_preload(io);
     mfm_io_encode_byte_crc(io, MFM_IO_DAM);
-    POS("dam payload");
     mfm_io_encode_buf_crc(io, &io->sectors[mfm_io_block_size * i], 512);
     mfm_io_encode_crc(io);
 

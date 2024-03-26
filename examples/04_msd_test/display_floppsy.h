@@ -73,7 +73,6 @@ void update_display(bool force_refresh) {
   int x = 3;
   int y = 3;
 
-  Serial.printf("%u\n", millis());
   if (force_refresh) {
     display.fillScreen(0);
   }
@@ -135,7 +134,7 @@ void update_display(bool force_refresh) {
   row += 2;
   if (force_refresh || new_state.dirty != old_state.dirty) {
     display.setTextColor(ST77XX_MAGENTA, 0);
-    display.setCursor(0, 5);
+    setCursor(0, row);
     display.print(new_state.dirty ? "dirty" : "     ");
   }
 
@@ -147,7 +146,6 @@ void update_display(bool force_refresh) {
     display.print(new_state.trk0 ? "TRK0" : "    ");
   };
 
-  Serial.printf("wp=%d\n", new_state.wp);
   if (force_refresh || new_state.wp != old_state.wp) {
     setCursor(5, row);
     display.setTextColor(ST77XX_MAGENTA, 0);

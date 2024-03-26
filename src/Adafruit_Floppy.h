@@ -153,11 +153,12 @@ public:
   size_t decode_track_mfm(uint8_t *sectors, size_t n_sectors,
                           uint8_t *sector_validity, const uint8_t *pulses,
                           size_t n_pulses, float nominal_bit_time_us,
-                          bool clear_validity = false);
+                          bool clear_validity = false,
+                          uint8_t *logical_track = nullptr);
 
   size_t encode_track_mfm(const uint8_t *sectors, size_t n_sectors,
                           uint8_t *pulses, size_t max_pulses,
-                          float nominal_bit_time_us);
+                          float nominal_bit_time_us, uint8_t logical_track);
 
   size_t capture_track(volatile uint8_t *pulses, size_t max_pulses,
                        int32_t *falling_index_offset,
@@ -188,7 +189,7 @@ public:
       1000; ///< quiescent time until drives reset (msecs)
   uint8_t bus_type = BUSTYPE_IBMPC; ///< what kind of floppy drive we're using
 
-  Stream *debug_serial = NULL; ///< optional debug stream for serial output
+  Stream *debug_serial = nullptr; ///< optional debug stream for serial output
 
 protected:
   bool read_index();
@@ -366,15 +367,15 @@ private:
 #if defined(PICO_BOARD) || defined(__RP2040__) || defined(ARDUINO_ARCH_RP2040)
   uint16_t _last;
 #endif
-  uint8_t NO_TRACK = UINT8_MAX;
+  static constexpr uint8_t NO_TRACK = UINT8_MAX;
   uint8_t _sectors_per_track = 0;
   uint8_t _tracks_per_side = 0;
   uint8_t _last_track_read = NO_TRACK; // last cached track
   uint16_t _bit_time_ns;
   bool _high_density = true;
   bool _dirty = false, _track_has_errors = false;
-  bool _forty_track_drive = false;
-  Adafruit_Floppy *_floppy = NULL;
+  bool _double_step = false;
+  Adafruit_Floppy *_floppy = nullptr;
   adafruit_floppy_disk_t _format = AUTODETECT;
 
   /**! The raw flux data from the last track read */
