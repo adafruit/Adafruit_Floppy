@@ -411,7 +411,9 @@ static void mfm_io_encode_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
   }
 }
 
-static void mfm_io_crc_preload(mfm_io_t *io) { io->crc = mfm_io_crc_preload_value; }
+static void mfm_io_crc_preload(mfm_io_t *io) {
+  io->crc = mfm_io_crc_preload_value;
+}
 
 static void mfm_io_encode_buf_crc(mfm_io_t *io, const uint8_t *buf, size_t n) {
   mfm_io_encode_buf(io, buf, n);
@@ -431,7 +433,8 @@ static void mfm_io_encode_crc(mfm_io_t *io) {
 // Convert a whole track into flux, up to n_sectors. indexing of data is
 // 0-based, mfm_io_even though MFM_IO_IDAMs store sectors as 1-based
 __attribute__((unused)) // may be unused
-static void encode_track_mfm(mfm_io_t *io) {
+static void
+encode_track_mfm(mfm_io_t *io) {
   io->pos = 0;
   io->pulse_len = 0;
   io->y = 0;
