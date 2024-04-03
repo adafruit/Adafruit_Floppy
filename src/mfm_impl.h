@@ -275,7 +275,7 @@ static size_t decode_track_mfm(mfm_io_t *io) {
     }
 
     // TODO: verify track & side numbers in IDAM
-    int r = (uint8_t)idam_buf[2] - 1; // sectors are 1-based
+    size_t r = (uint8_t)idam_buf[2] - 1; // sectors are 1-based
     if (r >= io->n_sectors) {
       continue;
     }
@@ -307,15 +307,15 @@ static size_t decode_track_mfm(mfm_io_t *io) {
   return io->n_valid;
 }
 
-void mfm_io_flux_put(mfm_io_t *io, uint8_t len) {
+static void mfm_io_flux_put(mfm_io_t *io, uint8_t len) {
   if (mfm_io_eof(io))
     return;
   io->pulses[io->pos++] = len;
 }
 
-void mfm_io_flux_byte(mfm_io_t *io, uint8_t byte) {
+static void mfm_io_flux_byte(mfm_io_t *io, uint8_t b) {
   for (int i = 8; i-- > 0;) {
-    if (byte & (1 << i)) {
+    if (b & (1 << i)) {
       io->time += io->pulse_len + 1;
       mfm_io_flux_put(io, (1 + io->pulse_len) * io->T1_nom);
       io->pulse_len = 0;
@@ -325,9 +325,9 @@ void mfm_io_flux_byte(mfm_io_t *io, uint8_t byte) {
   }
 }
 
-void mfm_io_encode_raw(mfm_io_t *io, uint8_t byte) {
-  uint16_t y = (io->y << 8) | byte;
-  if ((byte & 0xaa) == 0) {
+static void mfm_io_encode_raw(mfm_io_t *io, uint8_t b) {
+  uint16_t y = (io->y << 8) | b;
+  if ((b & 0xaa) == 0) {
     // if there are no clocks, synthesize them
     y |= ~((y >> 1) | (y << 1)) & 0xaaaa;
     y &= 0xff;
@@ -368,61 +368,63 @@ static const uint16_t mfm_encode_list[] = {
     0x5505, 0x5510, 0x5511, 0x5514, 0x5515, 0x5540, 0x5541, 0x5544, 0x5545,
     0x5550, 0x5551, 0x5554, 0x5555};
 
-void mfm_io_encode_byte(mfm_io_t *io, uint8_t byte) {
-  uint16_t encoded = mfm_encode_list[byte];
+static void mfm_io_encode_byte(mfm_io_t *io, uint8_t b) {
+  uint16_t encoded = mfm_encode_list[b];
   mfm_io_encode_raw(io, encoded >> 8);
   mfm_io_encode_raw(io, encoded & 0xff);
 }
 
-void mfm_io_encode_raw_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
+static void mfm_io_encode_raw_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
   for (size_t i = 0; i < n; i++) {
     mfm_io_encode_raw(io, buf[i]);
   }
 }
 
-void mfm_io_encode_gap(mfm_io_t *io, size_t n_gap) {
+static void mfm_io_encode_gap(mfm_io_t *io, size_t n_gap) {
   for (size_t i = 0; i < n_gap; i++) {
     mfm_io_encode_byte(io, MFM_IO_GAP_BYTE);
   }
 }
 
-void mfm_io_encode_gap_and_presync(mfm_io_t *io, size_t n_gap) {
+static void mfm_io_encode_gap_and_presync(mfm_io_t *io, size_t n_gap) {
   mfm_io_encode_gap(io, n_gap);
   for (size_t i = 0; i < mfm_io_gap_presync; i++) {
     mfm_io_encode_byte(io, 0);
   }
 }
 
-void mfm_io_encode_gap_and_sync(mfm_io_t *io, size_t n_gap) {
+static void mfm_io_encode_gap_and_sync(mfm_io_t *io, size_t n_gap) {
   mfm_io_encode_gap_and_presync(io, n_gap);
   mfm_io_encode_raw_buf(io, mfm_io_sync_bytes, sizeof(mfm_io_sync_bytes));
 }
 
-void mfm_io_encode_iam(mfm_io_t *io) {
+static void mfm_io_encode_iam(mfm_io_t *io) {
   mfm_io_encode_gap_and_presync(io, mfm_io_gap_4a);
   mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes,
                         sizeof(mfm_io_iam_sync_bytes));
   mfm_io_encode_byte(io, MFM_IO_IAM);
 }
 
-void mfm_io_encode_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
+static void mfm_io_encode_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
   for (size_t i = 0; i < n; i++) {
     mfm_io_encode_byte(io, buf[i]);
   }
 }
 
-void mfm_io_crc_preload(mfm_io_t *io) { io->crc = mfm_io_crc_preload_value; }
+static void mfm_io_crc_preload(mfm_io_t *io) {
+  io->crc = mfm_io_crc_preload_value;
+}
 
-void mfm_io_encode_buf_crc(mfm_io_t *io, const uint8_t *buf, size_t n) {
+static void mfm_io_encode_buf_crc(mfm_io_t *io, const uint8_t *buf, size_t n) {
   mfm_io_encode_buf(io, buf, n);
   io->crc = mfm_io_crc16(buf, n, io->crc);
 }
 
-void mfm_io_encode_byte_crc(mfm_io_t *io, uint8_t byte) {
-  mfm_io_encode_buf_crc(io, &byte, 1);
+static void mfm_io_encode_byte_crc(mfm_io_t *io, uint8_t b) {
+  mfm_io_encode_buf_crc(io, &b, 1);
 }
 
-void mfm_io_encode_crc(mfm_io_t *io) {
+static void mfm_io_encode_crc(mfm_io_t *io) {
   unsigned crc = io->crc;
   mfm_io_encode_byte(io, crc >> 8);
   mfm_io_encode_byte(io, crc & 0xff);
@@ -430,7 +432,9 @@ void mfm_io_encode_crc(mfm_io_t *io) {
 
 // Convert a whole track into flux, up to n_sectors. indexing of data is
 // 0-based, mfm_io_even though MFM_IO_IDAMs store sectors as 1-based
-static void encode_track_mfm(mfm_io_t *io) {
+__attribute__((unused)) // may be unused
+static void
+encode_track_mfm(mfm_io_t *io) {
   io->pos = 0;
   io->pulse_len = 0;
   io->y = 0;
