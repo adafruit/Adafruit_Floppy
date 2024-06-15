@@ -76,6 +76,8 @@ bool Adafruit_MFM_Floppy::begin(void) {
 
   if (_floppy->spin_motor(true)) {
     return inserted(_format);
+  } else {
+    return false;
   }
 
   return true;
