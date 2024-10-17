@@ -1,0 +1,15 @@
+.side_set 1
+
+    pull block                  side 0
+    in x, 32                    side 0
+                               
+loop_index_clear:              
+    out pins, 1                 side 0
+    jmp x--, loop_index_clear   side 0
+                               
+    pull block                  side 1
+    in x, 32                    side 1
+
+loop_index_set:
+    out pins, 1                 side 1
+    jmp x--, loop_index_clear   side 1
