@@ -56,8 +56,8 @@ static const uint16_t fluxwrite[] = {
     // loop_flux:
     0xe000, //     set pins, 0 ; drive pin low
     0x6030, //     out x, 16  ; get the next timing pulse information, may block
-            // ;; output the fixed on time.  16 is about 0.67us.
-            // ;; note that wdc1772 has varying low times, from 570 to 1380us
+            // ;; output the fixed on time.  16 is about 670ns.
+            // ;; note that wdc1772 has varying low times, from 570 to 1380ns
     0xae42, //     nop [14]
     0xe001, //     set pins, 1 ; drive pin high
             // loop_high:
