@@ -34,6 +34,17 @@ static void flux_bins(mfm_io_t *io) {
   printf("Flux bins: %d %d %d\n", bins[0], bins[1], bins[2]);
 }
 
+static void dump_flux_compact(const char *filename, mfm_io_t *io) {
+  FILE *f = fopen(filename, "w");
+  io->pos = 0;
+  while (!mfm_io_eof(io)) {
+    int b = io->pulses[io->pos++];
+    for (int i = 8; i-- > 0;) {
+        fputc('0' + ((b >> i) & 1), f); };
+    fputc(io->pos % 8 == 0 ? '\n' : ' ', f);
+  }
+  fclose(f);
+}
 static void dump_flux(const char *filename, mfm_io_t *io) {
   FILE *f = fopen(filename, "w");
   io->pos = 0;
@@ -53,11 +64,6 @@ static void dump_flux(const char *filename, mfm_io_t *io) {
       fprintf(f, "\n");
     }
   }
-#if 0
-    for(size_t i=0; i<io->num_pulses; i++) {
-        fprintf(f, "%d\n", io->pulses[i]);
-    }
-#endif
   fclose(f);
 }
 
@@ -75,7 +81,6 @@ int main() {
 #endif
 
   printf("Create new flux data\n");
-  (void)encode_track_mfm;
   encode_track_mfm(&io);
   dump_flux("flux1", &io);
 
@@ -87,5 +92,9 @@ int main() {
   size_t decoded = decode_track_mfm(&io);
   printf("Decoded %zd sectors\n", decoded);
 
+  io.encode_compact = true;
+  encode_track_mfm(&io);
+  dump_flux_compact("flux2", &io);
+  
   return decoded != 18;
 }

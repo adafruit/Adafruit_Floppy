@@ -16,6 +16,7 @@
 /// @cond false
 
 struct mfm_io {
+  bool encode_compact; ///< When writing flux, use compact form
   uint16_t T2_max; ///< MFM decoder max length of 2us pulse
   uint16_t T3_max; ///< MFM decoder max length of 3us pulse
   uint16_t T1_nom; ///< MFM nominal 1us pulse value
@@ -35,7 +36,9 @@ struct mfm_io {
   uint8_t head, cylinder;
   uint8_t pulse_len;
   uint8_t y;
+
   uint16_t crc;
+  void (*flux_byte)(struct mfm_io *, uint8_t);
 };
 
 typedef struct mfm_io mfm_io_t;
@@ -313,6 +316,12 @@ static void mfm_io_flux_put(mfm_io_t *io, uint8_t len) {
   io->pulses[io->pos++] = len;
 }
 
+static void mfm_io_flux_byte_compact(mfm_io_t *io, uint8_t b) {
+  if (mfm_io_eof(io))
+    return;
+  io->pulses[io->pos++] = b;
+}
+
 static void mfm_io_flux_byte(mfm_io_t *io, uint8_t b) {
   for (int i = 8; i-- > 0;) {
     if (b & (1 << i)) {
@@ -332,7 +341,7 @@ static void mfm_io_encode_raw(mfm_io_t *io, uint8_t b) {
     y |= ~((y >> 1) | (y << 1)) & 0xaaaa;
     y &= 0xff;
   }
-  mfm_io_flux_byte(io, y);
+  io->flux_byte(io, y);
   io->y = y;
 }
 
@@ -439,6 +448,8 @@ encode_track_mfm(mfm_io_t *io) {
   io->pulse_len = 0;
   io->y = 0;
   io->time = 0;
+  io->flux_byte = io->encode_compact ? mfm_io_flux_byte_compact : mfm_io_flux_byte;
+
   // sector_validity might end up reused for interleave?
   // memset(io->sector_validity, 0, io->n_sectors);
 
