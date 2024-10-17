@@ -40,7 +40,8 @@ static void dump_flux_compact(const char *filename, mfm_io_t *io) {
   while (!mfm_io_eof(io)) {
     int b = io->pulses[io->pos++];
     for (int i = 8; i-- > 0;) {
-        fputc('0' + ((b >> i) & 1), f); };
+      fputc('0' + ((b >> i) & 1), f);
+    };
     fputc(io->pos % 8 == 0 ? '\n' : ' ', f);
   }
   fclose(f);
@@ -95,6 +96,6 @@ int main() {
   io.encode_compact = true;
   encode_track_mfm(&io);
   dump_flux_compact("flux2", &io);
-  
+
   return decoded != 18;
 }
