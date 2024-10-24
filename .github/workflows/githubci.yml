@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-    - uses: actions/checkout@v2
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
          repository: adafruit/ci-arduino
          path: ci
@@ -36,7 +36,7 @@ jobs:
             for i in examples/*/build/*/*.uf2; do j=${i##*/}; j=${j%%*.}; mv $i build/$j-${{ matrix.arduino-platform }}.uf2; done
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ github.event.repository.name }}-${{ matrix.arduino-platform }}
         path: |
@@ -66,11 +66,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-    - uses: actions/checkout@v2
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
          repository: adafruit/ci-arduino
          path: ci
