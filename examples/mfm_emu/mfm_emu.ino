@@ -6,6 +6,13 @@
 volatile int trackno;
 volatile int cached_trackno = -1;
 
+/*
+8 - index - D11
+20 - step - D9
+18 - direction - D8
+30 - read data - D13
+26 - trk0 - D10
+*/
 #define DIRECTION_PIN (D8)
 #define STEP_PIN (D9)
 #define TRK0_PIN (D10)
