@@ -13,6 +13,10 @@
 #define DEBUG_PRINTF(...) ((void)0)
 #endif
 
+#if !defined(DEBUG_ASSERT)
+#define DEBUG_ASSERT(x) assert(x)
+#endif
+
 /// @cond false
 
 struct mfm_io {
@@ -478,7 +482,7 @@ encode_track_mfm(mfm_io_t *io) {
 
     mfm_io_encode_gap_and_sync(io, mfm_io_gap_3);
   }
-  assert(!mfm_io_eof(io));
+  DEBUG_ASSERT(!mfm_io_eof(io));
 
   while (!mfm_io_eof(io)) {
     mfm_io_encode_byte(io, MFM_IO_GAP_BYTE);

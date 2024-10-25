@@ -1,4 +1,7 @@
 #include "drive.pio.h"
+#define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
+#define DEBUG_ASSERT(x) do { if (!(x)) { Serial.printf(__FILE__ ":%d: Assert fail: " #x "\n", __LINE__); } } while(0)
+#include "mfm_impl.h"
 
 volatile int trackno;
 volatile int cached_trackno = -1;
@@ -10,9 +13,13 @@ volatile int cached_trackno = -1;
 #define FLUX_PIN (D13)
 #define STEP_IN (HIGH)
 
-enum { track_max_bits = 200000 };
+enum { flux_max_bits = 200000 }; // 300RPM (200ms rotational time), 1us bit times
+// enum { flux_max_bits = 10000 }; // 300RPM (200ms rotational time), 1us bit times
 
-uint32_t track_data[(track_max_bits + 31) / 32];
+enum { sector_count=18, track_max_bytes = sector_count * mfm_io_block_size };
+
+uint8_t track_data[track_max_bytes];
+uint32_t flux_data[(flux_max_bits + 31) / 32];
 
 volatile bool updated = false;
 volatile bool driveConnected = false;
@@ -86,7 +93,7 @@ void setup() {
   pinMode(TRK0_PIN, OUTPUT);
   // pinMode(INDEX_PIN, OUTPUT);
 
-  for(auto &d : track_data) d = 0xaa55cc11;
+  for(auto &d : flux_data) d = 0xaa55cc11;
   
   Serial.begin(115200);                                                                      
   while (!Serial) {                                                                          
@@ -118,29 +125,49 @@ void setup() {
 volatile int revs;
 
 #define flux_valid() (cached_trackno == trackno)
-void loop1() {
+void __not_in_flash_func(loop1)() {
     static bool once;
     if(flux_valid()) {
-        while(!pio_sm_is_tx_fifo_empty(pio, sm_fluxout)) { /* NOTHING */ }
-        
         pio_sm_put_blocking(pio, sm_index_pulse, 4000); // ??? put index high for 4ms (out of 200ms)
         revs++;
-        for(auto d : track_data) {
+        for(auto d : flux_data) {
             if (!flux_valid()) break;
-            pio_sm_put_blocking(pio, sm_fluxout, d);
+            pio_sm_put_blocking(pio, sm_fluxout, __builtin_bswap32(d));
         }
     }
 }
 
+static void encode_track_mfm(uint8_t head, uint8_t cylinder, uint8_t n_sectors) {
+
+    mfm_io_t io = {
+        .encode_compact = true,
+        .T2_max = 5,
+        .T3_max = 7,
+        .T1_nom = 2,
+        .pulses = reinterpret_cast<uint8_t*>(flux_data),
+        .n_pulses = sizeof(flux_data),
+        //.pos = 0,
+        .sectors = track_data,
+        .n_sectors = n_sectors,
+        //.sector_validity = NULL,
+        .head = head,
+        .cylinder = cylinder,
+    };
+
+    encode_track_mfm(&io);
+Serial.printf("encoded to %zu bits\n", io.pos * CHAR_BIT);
+}
+ 
 int old_revs =-1;
 void loop() {
     {
         auto tmp = trackno;
         if(tmp != cached_trackno) {
             Serial.printf("Stepped to track %d\n", tmp);
-            delay(100); // simulate reading time
+            std::fill(track_data, std::end(track_data), trackno);
+            encode_track_mfm(0, tmp, sector_count);
             cached_trackno = tmp;
-        }    
+        }
     }
 
     {
