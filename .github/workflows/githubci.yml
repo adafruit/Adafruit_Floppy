@@ -82,7 +82,7 @@ jobs:
       run: git clone --quiet https://github.com/adafruit/SdFat.git /home/runner/Arduino/libraries/SdFat
 
     - name: clang
-      run: python3 ci/run-clang-format.py -e "ci/*" -e "bin/*" -r . 
+      run: python3 ci/run-clang-format.py -e "ci/*" -e "bin/*" -e "*.pio.h" -r .
 
     - name: doxygen
       env:
