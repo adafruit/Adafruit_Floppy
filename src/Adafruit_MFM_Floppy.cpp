@@ -86,7 +86,6 @@ bool Adafruit_MFM_Floppy::begin(void) {
 /**************************************************************************/
 /*!
     @brief  Spin down and deselect the motor and drive
-    @returns True always
 */
 /**************************************************************************/
 void Adafruit_MFM_Floppy::end(void) {

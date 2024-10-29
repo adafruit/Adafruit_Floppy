@@ -482,7 +482,7 @@ encode_track_mfm(mfm_io_t *io) {
 
     mfm_io_encode_gap_and_sync(io, mfm_io_gap_3);
   }
-  size_t result = io->pos; 
+  size_t result = io->pos;
   DEBUG_ASSERT(!mfm_io_eof(io));
 
   while (!mfm_io_eof(io)) {
