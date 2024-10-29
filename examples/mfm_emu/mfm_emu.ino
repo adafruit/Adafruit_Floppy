@@ -3,6 +3,55 @@
 #define DEBUG_ASSERT(x) do { if (!(x)) { Serial.printf(__FILE__ ":%d: Assert fail: " #x "\n", __LINE__); } } while(0)
 #include "mfm_impl.h"
 
+#if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
+#define DENSITY_PIN A1 // IDC 2
+#define INDEX_PIN A5   // IDC 8
+#define SELECT_PIN A0  // IDC 12
+#define MOTOR_PIN A2   // IDC 16
+#define DIR_PIN A3     // IDC 18
+#define STEP_PIN A4    // IDC 20
+#define WRDATA_PIN 13  // IDC 22
+#define WRGATE_PIN 12  // IDC 24
+#define TRK0_PIN 10    // IDC 26
+#define PROT_PIN 11    // IDC 28
+#define READ_PIN 9     // IDC 30
+#define SIDE_PIN 6     // IDC 32
+#define READY_PIN 5    // IDC 34
+#elif defined(ARDUINO_ADAFRUIT_FEATHER_RP2040)
+#define DENSITY_PIN A1 // IDC 2
+#define INDEX_PIN 25   // IDC 8
+#define SELECT_PIN A0  // IDC 12
+#define MOTOR_PIN A2   // IDC 16
+#define DIR_PIN A3     // IDC 18
+#define STEP_PIN 24    // IDC 20
+#define WRDATA_PIN 13  // IDC 22
+#define WRGATE_PIN 12  // IDC 24
+#define TRK0_PIN 10    // IDC 26
+#define PROT_PIN 11    // IDC 28
+#define READ_PIN 9     // IDC 30
+#define SIDE_PIN 8     // IDC 32
+#define READY_PIN 7    // IDC 34
+#elif defined(ARDUINO_RASPBERRY_PI_PICO)
+#define DENSITY_PIN 2 // IDC 2
+#define INDEX_PIN 3   // IDC 8
+#define SELECT_PIN 4  // IDC 12
+#define MOTOR_PIN 5   // IDC 16
+#define DIR_PIN 6     // IDC 18
+#define STEP_PIN 7    // IDC 20
+#define WRDATA_PIN 8  // IDC 22 (not used during read)
+#define WRGATE_PIN 9  // IDC 24 (not used during read)
+#define TRK0_PIN 10   // IDC 26
+#define PROT_PIN 11   // IDC 28
+#define READ_PIN 12   // IDC 30
+#define SIDE_PIN 13   // IDC 32
+#define READY_PIN 14  // IDC 34
+#elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
+// Yay built in pin definitions!
+#else
+#error "Please set up pin definitions!"
+#endif
+
+
 volatile int trackno;
 volatile int cached_trackno = -1;
 
@@ -13,11 +62,7 @@ volatile int cached_trackno = -1;
 30 - read data - D13
 26 - trk0 - D10
 */
-#define DIRECTION_PIN (D8)
-#define STEP_PIN (D9)
-#define TRK0_PIN (D10)
-#define INDEX_PIN (D11)
-#define FLUX_PIN (D13)
+#define FLUX_OUT_PIN (READ_PIN) // "read pin" is named from the controller's POV
 #define STEP_IN (HIGH)
 
 enum { flux_max_bits = 200000 }; // 300RPM (200ms rotational time), 1us bit times
@@ -56,7 +101,7 @@ bool mountable(uint32_t i) {
 #endif
 
 void stepped() {
-    auto direction = digitalRead(DIRECTION_PIN);
+    auto direction = digitalRead(DIR_PIN);
     int new_track = trackno;
     if(direction == STEP_IN) {
         if (new_track > 0) new_track--;
@@ -74,7 +119,7 @@ uint sm_index_pulse, offset_index_pulse;
 void setupPio() {
    offset_fluxout = pio_add_program(pio, &fluxout_compact_program);
    sm_fluxout = pio_claim_unused_sm(pio, true);
-   fluxout_compact_program_init(pio, sm_fluxout, offset_fluxout, FLUX_PIN, 1000);
+   fluxout_compact_program_init(pio, sm_fluxout, offset_fluxout, FLUX_OUT_PIN, 1000);
 
    offset_index_pulse = pio_add_program(pio, &index_pulse_program);
    sm_index_pulse = pio_claim_unused_sm(pio, true);
@@ -95,10 +140,15 @@ void setup1() {
 }
 
 void setup() {
-  pinMode(DIRECTION_PIN, INPUT_PULLUP);
+  pinMode(DIR_PIN, INPUT_PULLUP);
   pinMode(STEP_PIN, INPUT_PULLUP);
   pinMode(TRK0_PIN, OUTPUT);
   // pinMode(INDEX_PIN, OUTPUT);
+
+#if defined(FLOPPY_DIRECTION_PIN)
+  pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
+  digitalWrite(FLOPPY_DIRECTION_PIN, LOW); // we are emulating a floppy
+#endif
 
   for(auto &d : flux_data) d = 0xaa55cc11;
   
