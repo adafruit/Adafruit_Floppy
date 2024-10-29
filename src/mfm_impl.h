@@ -446,7 +446,7 @@ static void mfm_io_encode_crc(mfm_io_t *io) {
 // Convert a whole track into flux, up to n_sectors. indexing of data is
 // 0-based, mfm_io_even though MFM_IO_IDAMs store sectors as 1-based
 __attribute__((unused)) // may be unused
-static void
+static size_t
 encode_track_mfm(mfm_io_t *io) {
   io->pos = 0;
   io->pulse_len = 0;
@@ -482,11 +482,13 @@ encode_track_mfm(mfm_io_t *io) {
 
     mfm_io_encode_gap_and_sync(io, mfm_io_gap_3);
   }
+  size_t result = io->pos; 
   DEBUG_ASSERT(!mfm_io_eof(io));
 
   while (!mfm_io_eof(io)) {
     mfm_io_encode_byte(io, MFM_IO_GAP_BYTE);
   }
+  return result;
 }
 
 // Encoding sectors in MFM:

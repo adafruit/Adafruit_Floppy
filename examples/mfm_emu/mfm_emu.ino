@@ -1,3 +1,4 @@
+#include "SdFat.h"
 #include "drive.pio.h"
 #define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
 #define DEBUG_ASSERT(x) do { if (!(x)) { Serial.printf(__FILE__ ":%d: Assert fail: " #x "\n", __LINE__); } } while(0)
@@ -51,6 +52,7 @@
 #error "Please set up pin definitions!"
 #endif
 
+SdFat SD;
 
 volatile int trackno;
 volatile int cached_trackno = -1;
@@ -159,6 +161,13 @@ void setup() {
   // delay(5000);                                                                               
   attachInterrupt(digitalPinToInterrupt(STEP_PIN), stepped, FALLING);
 
+    Serial.println("about to init sd");
+  if (!SD.begin(PIN_CARD_CS)) {
+    Serial.println("initialization failed!");
+    return;
+  }
+    Serial.println("sd init done");
+
 #if 0
                                                                                              
   if (!FatFS.begin()) {                                                                      
@@ -211,28 +220,28 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder, uint8_t n_sectors) 
         .cylinder = cylinder,
     };
 
-    encode_track_mfm(&io);
-Serial.printf("encoded to %zu bits\n", io.pos * CHAR_BIT);
+    size_t pos = encode_track_mfm(&io);
+    Serial.printf("encoded to %zu bits\n", pos * CHAR_BIT);
 }
  
 int old_revs =-1;
 void loop() {
     {
-        auto tmp = trackno;
-        if(tmp != cached_trackno) {
-            Serial.printf("Stepped to track %d\n", tmp);
-            std::fill(track_data, std::end(track_data), trackno);
-            encode_track_mfm(0, tmp, sector_count);
-            cached_trackno = tmp;
+        auto new_trackno = trackno;
+        if(new_trackno != cached_trackno /* and head selection! */ ) { 
+            Serial.printf("Stepped to track %d\n", new_trackno);
+
+            FsFile file;
+            int r = file.open("disk.img");
+            file.seek(512 * sector_count * (2 * new_trackno /* plus head number */) );
+            int n = file.read(track_data, 512 * sector_count);
+            if(n != 512 * sector_count) {
+                Serial.printf("Read failed");
+                std::fill(track_data, std::end(track_data), trackno);
+            }
+
+            encode_track_mfm(0, new_trackno, sector_count);
+            cached_trackno = new_trackno;
         }
     }
-
-    {
-        auto tmp = revs; 
-        if(tmp != old_revs) {
-            printf("%d revs\n", tmp);
-            old_revs = tmp;
-        }   
-    }
-// Serial.printf("%2d\r", (int)digitalRead(STEP_PIN));
 }
