@@ -60,7 +60,7 @@
 SdFat SD;
 
 volatile int trackno;
-volatile int cached_trackno = -1;
+volatile int fluxout;
 
 /*
 8 - index - D11
@@ -111,6 +111,8 @@ bool mountable(uint32_t i) {
 #endif
 
 void stepped() {
+  auto enabled =
+      !digitalRead(SELECT_PIN); // motor need not be enabled to seek tracks
   auto direction = digitalRead(DIR_PIN);
   int new_track = trackno;
   if (direction == STEP_IN) {
@@ -119,6 +121,9 @@ void stepped() {
   } else {
     if (new_track < 79)
       new_track++;
+  }
+  if (!enabled) {
+    return;
   }
   Serial.printf("stepped direction=%d new track=%d\n", direction, new_track);
   trackno = new_track;
@@ -156,7 +161,12 @@ void setup1() {
 void setup() {
   pinMode(DIR_PIN, INPUT_PULLUP);
   pinMode(STEP_PIN, INPUT_PULLUP);
+  pinMode(SIDE_PIN, INPUT_PULLUP);
+  pinMode(MOTOR_PIN, INPUT_PULLUP);
+  pinMode(SELECT_PIN, INPUT_PULLUP);
   pinMode(TRK0_PIN, OUTPUT);
+  pinMode(PROT_PIN, OUTPUT);
+  digitalWrite(PROT_PIN, LOW); // always write-protected, no write support
   // pinMode(INDEX_PIN, OUTPUT);
 
 #if defined(FLOPPY_DIRECTION_PIN)
@@ -174,6 +184,7 @@ void setup() {
   // delay(5000);
   attachInterrupt(digitalPinToInterrupt(STEP_PIN), stepped, FALLING);
 
+#if defined(PIN_CARD_CS)
   Serial.println("about to init sd");
   if (!SD.begin(PIN_CARD_CS)) {
     Serial.println("initialization failed!");
@@ -203,6 +214,8 @@ void setup() {
     Serial.println();
     file.close();
   }
+#endif
+
 #if 0
                                                                                              
   if (!FatFS.begin()) {                                                                      
@@ -224,15 +237,14 @@ void setup() {
 
 volatile int revs;
 
-#define flux_valid() (cached_trackno == trackno)
 void __not_in_flash_func(loop1)() {
   static bool once;
-  if (flux_valid()) {
+  if (fluxout) {
     pio_sm_put_blocking(pio, sm_index_pulse,
                         4000); // ??? put index high for 4ms (out of 200ms)
     revs++;
     for (auto d : flux_data) {
-      if (!flux_valid())
+      if (!fluxout)
         break;
       pio_sm_put_blocking(pio, sm_fluxout, __builtin_bswap32(d));
     }
@@ -261,24 +273,35 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
   Serial.printf("encoded to %zu bits\n", pos * CHAR_BIT);
 }
 
-int old_revs = -1;
 void loop() {
-  {
-    auto new_trackno = trackno;
-    if (new_trackno != cached_trackno /* and head selection! */) {
-      Serial.printf("Stepped to track %d\n", new_trackno);
+  static int cached_trackno = -1, cached_side = -1;
+  auto new_trackno = trackno;
+  int motor_pin = digitalRead(MOTOR_PIN);
+  int select_pin = digitalRead(SELECT_PIN);
+  int side_pin = digitalRead(SIDE_PIN);
+  auto new_side = !side_pin;
 
-      FsFile file;
-      int r = file.open("disk.img");
-      file.seek(512 * sector_count * (2 * new_trackno /* plus head number */));
-      int n = file.read(track_data, 512 * sector_count);
-      if (n != 512 * sector_count) {
-        Serial.printf("Read failed");
-        std::fill(track_data, std::end(track_data), trackno);
-      }
+  auto enabled = !motor_pin && !select_pin;
+  if (enabled && new_trackno != cached_trackno || new_side != cached_side) {
+    fluxout = 0;
+    Serial.printf("C%dS%d\n", new_trackno, new_side);
 
-      encode_track_mfm(0, new_trackno, sector_count);
-      cached_trackno = new_trackno;
+#if defined(PIN_CARD_CS)
+    FsFile file;
+    int r = file.open("disk.img");
+    file.seek(512 * sector_count * (2 * new_trackno + new_side));
+    int n = file.read(track_data, 512 * sector_count);
+    if (n != 512 * sector_count) {
+      Serial.println("Read failed");
+      std::fill(track_data, std::end(track_data), new_trackno);
     }
+#else
+    std::fill(track_data, std::end(track_data), new_trackno * 2 + new_side);
+#endif
+
+    encode_track_mfm(new_side, new_trackno, sector_count);
+    cached_trackno = new_trackno;
+    cached_side = new_side;
   }
+  fluxout = cached_trackno == trackno && cached_side == new_side && enabled;
 }
