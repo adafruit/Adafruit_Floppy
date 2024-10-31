@@ -1,4 +1,3 @@
-#include "SdFat.h"
 #include "drive.pio.h"
 #define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
 #define DEBUG_ASSERT(x)                                                        \
@@ -57,8 +56,6 @@
 #error "Please set up pin definitions!"
 #endif
 
-SdFat SD;
-
 volatile int trackno;
 volatile int fluxout;
 
@@ -80,38 +77,18 @@ enum {
 
 enum { sector_count = 18, track_max_bytes = sector_count * mfm_io_block_size };
 
+enum { flux_count = (flux_max_bits + 31) / 32 };
 uint8_t track_data[track_max_bytes];
-uint32_t flux_data[(flux_max_bits + 31) / 32];
+uint32_t flux_data[2][flux_count];
 
 volatile bool updated = false;
 volatile bool driveConnected = false;
 volatile bool appUsing = false;
 
-#if defined(PIN_CARD_SD)
+#if defined(PIN_CARD_CS)
+#define USE_SDFAT (1)
 #include "SdFat.h"
 SdFat SD;
-#if 0
-#endif
-// Called by FatFSUSB when the drive is released.  We note this, restart FatFS, and tell the main loop to rescan.
-void unplug(uint32_t i) {
-  (void) i;
-  driveConnected = false;
-  updated = true;
-  FatFS.begin();
-}
-
-// Called by FatFSUSB when the drive is mounted by the PC.  Have to stop FatFS, since the drive data can change, note it, and continue.
-void plug(uint32_t i) {
-  (void) i;
-  driveConnected = true;
-  FatFS.end();
-}
-
-// Called by FatFSUSB to determine if it is safe to let the PC mount the USB drive.  If we're accessing the FS in any way, have any Files open, etc. then it's not safe to let the PC mount the drive.
-bool mountable(uint32_t i) {
-  (void) i;
-  return !appUsing;
-}
 #endif
 
 void stepped() {
@@ -174,9 +151,6 @@ void setup() {
   digitalWrite(FLOPPY_DIRECTION_PIN, LOW); // we are emulating a floppy
 #endif
 
-  for (auto &d : flux_data)
-    d = 0xaa55cc11;
-
   Serial.begin(115200);
   while (!Serial) {
     delay(1);
@@ -215,39 +189,21 @@ void setup() {
     file.close();
   }
 #endif
-
-#if 0
-                                                                                             
-  if (!FatFS.begin()) {                                                                      
-    Serial.println("FatFS initialization failed!");                                          
-    while (1) {                                                                              
-      delay(1);                                                                              
-    }                                                                                        
-  }
-  Serial.println("FatFS initialization done.");
-
-  FatFSUSB.onUnplug(unplug);
-  FatFSUSB.onPlug(plug);
-  FatFSUSB.driveReady(mountable);
-
-  Serial.println("FatFSUSB started.");
-  Serial.println("Connect drive via USB to upload/erase files and re-display");
-#endif
 }
-
-volatile int revs;
 
 void __not_in_flash_func(loop1)() {
   static bool once;
-  if (fluxout) {
+  if (fluxout >= 0) {
     pio_sm_put_blocking(pio, sm_index_pulse,
                         4000); // ??? put index high for 4ms (out of 200ms)
-    revs++;
-    for (auto d : flux_data) {
-      if (!fluxout)
-        break;
+    for (size_t i=0; i<flux_count; i++) {
+      int f = fluxout;
+      if (f < 0) break;
+      auto d = flux_data[fluxout][i];
       pio_sm_put_blocking(pio, sm_fluxout, __builtin_bswap32(d));
     }
+    // terminate index pulse if ongoing
+    pio_sm_exec(pio, sm_index_pulse, 0 | offset_index_pulse); // JMP to the first instruction
   }
 }
 
@@ -259,8 +215,8 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
       .T2_max = 5,
       .T3_max = 7,
       .T1_nom = 2,
-      .pulses = reinterpret_cast<uint8_t *>(flux_data),
-      .n_pulses = sizeof(flux_data),
+      .pulses = reinterpret_cast<uint8_t *>(flux_data[head]),
+      .n_pulses = sizeof(flux_data[head]),
       //.pos = 0,
       .sectors = track_data,
       .n_sectors = n_sectors,
@@ -274,20 +230,18 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
 }
 
 void loop() {
-  static int cached_trackno = -1, cached_side = -1;
+  static int cached_trackno = -1;
   auto new_trackno = trackno;
-  int motor_pin = digitalRead(MOTOR_PIN);
-  int select_pin = digitalRead(SELECT_PIN);
-  int side_pin = digitalRead(SIDE_PIN);
-  auto new_side = !side_pin;
-
-  auto enabled = !motor_pin && !select_pin;
-  if (enabled && new_trackno != cached_trackno || new_side != cached_side) {
-    fluxout = 0;
-    Serial.printf("C%dS%d\n", new_trackno, new_side);
-    size_t offset = 512 * sector_count * (2 * new_trackno + new_side);
+  int motor_pin = !digitalRead(MOTOR_PIN);
+  int select_pin = !digitalRead(SELECT_PIN);
+  int side = !digitalRead(SIDE_PIN);
+  auto enabled = motor_pin && select_pin;
+  if (new_trackno != cached_trackno) {
+    fluxout = -1;
+    Serial.printf("T%d\n", new_trackno);
+    size_t offset = 512 * sector_count * 2 * new_trackno;
     size_t count = 512 * sector_count;
-    int dummy_byte = new_trackno * 2 + new_side;
+    int dummy_byte = new_trackno * 2;
 #if USE_SDFAT
     FsFile file;
     int r = file.open("disk.img");
@@ -297,15 +251,22 @@ void loop() {
       Serial.println("Read failed -- using dummy data");
       std::fill(track_data, track_data + count, dummy_byte);
     }
+    encode_track_mfm(0, new_trackno, sector_count);
+    n = file.read(track_data, count);
+    if (n != count) {
+      Serial.println("Read failed -- using dummy data");
+      std::fill(track_data, track_data + count, dummy_byte + 1);
     }
+    encode_track_mfm(1, new_trackno, sector_count);
 #else
     Serial.println("No filesystem - using dummy data");
-    std::fill(track_data, track_data + count, new_trackno * 2 + new_side);
+    std::fill(track_data, track_data + count, dummy_byte);
+    encode_track_mfm(flux_data[0], new_side, new_trackno, sector_count);
+    std::fill(track_data, track_data + count, dummy_byte + 1);
+    encode_track_mfm(flux_data[1], new_side, new_trackno, sector_count);
 #endif
 
-    encode_track_mfm(new_side, new_trackno, sector_count);
     cached_trackno = new_trackno;
-    cached_side = new_side;
   }
-  fluxout = cached_trackno == trackno && cached_side == new_side && enabled;
+  fluxout = (enabled && cached_trackno == trackno) ? side : -1;
 }
