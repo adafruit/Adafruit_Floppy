@@ -87,7 +87,11 @@ volatile bool updated = false;
 volatile bool driveConnected = false;
 volatile bool appUsing = false;
 
+#if defined(PIN_CARD_SD)
+#include "SdFat.h"
+SdFat SD;
 #if 0
+#endif
 // Called by FatFSUSB when the drive is released.  We note this, restart FatFS, and tell the main loop to rescan.
 void unplug(uint32_t i) {
   (void) i;
@@ -125,7 +129,6 @@ void stepped() {
   if (!enabled) {
     return;
   }
-  Serial.printf("stepped direction=%d new track=%d\n", direction, new_track);
   trackno = new_track;
   digitalWrite(TRK0_PIN, trackno != 0); // active LOW
 }
@@ -144,17 +147,12 @@ void setupPio() {
   sm_index_pulse = pio_claim_unused_sm(pio, true);
   index_pulse_program_init(pio, sm_index_pulse, offset_index_pulse, INDEX_PIN,
                            1000);
-
-  Serial.printf("fluxout sm%d offset%d\n", sm_fluxout, offset_fluxout);
-  Serial.printf("index_pulse sm%d offset%d\n", sm_index_pulse,
-                offset_index_pulse);
 }
 
 void setup1() {
   while (!Serial) {
     delay(1);
   }
-  Serial.println("(in setup1, naughty)");
   setupPio();
 }
 
@@ -165,8 +163,10 @@ void setup() {
   pinMode(MOTOR_PIN, INPUT_PULLUP);
   pinMode(SELECT_PIN, INPUT_PULLUP);
   pinMode(TRK0_PIN, OUTPUT);
+#if defined(PROT_PIN)
   pinMode(PROT_PIN, OUTPUT);
   digitalWrite(PROT_PIN, LOW); // always write-protected, no write support
+#endif
   // pinMode(INDEX_PIN, OUTPUT);
 
 #if defined(FLOPPY_DIRECTION_PIN)
@@ -184,7 +184,7 @@ void setup() {
   // delay(5000);
   attachInterrupt(digitalPinToInterrupt(STEP_PIN), stepped, FALLING);
 
-#if defined(PIN_CARD_CS)
+#if USE_SDFAT
   Serial.println("about to init sd");
   if (!SD.begin(PIN_CARD_CS)) {
     Serial.println("initialization failed!");
@@ -285,18 +285,22 @@ void loop() {
   if (enabled && new_trackno != cached_trackno || new_side != cached_side) {
     fluxout = 0;
     Serial.printf("C%dS%d\n", new_trackno, new_side);
-
-#if defined(PIN_CARD_CS)
+    size_t offset = 512 * sector_count * (2 * new_trackno + new_side);
+    size_t count = 512 * sector_count;
+    int dummy_byte = new_trackno * 2 + new_side;
+#if USE_SDFAT
     FsFile file;
     int r = file.open("disk.img");
-    file.seek(512 * sector_count * (2 * new_trackno + new_side));
-    int n = file.read(track_data, 512 * sector_count);
-    if (n != 512 * sector_count) {
-      Serial.println("Read failed");
-      std::fill(track_data, std::end(track_data), new_trackno);
+    file.seek(offset);
+    int n = file.read(track_data, count);
+    if (n != count) {
+      Serial.println("Read failed -- using dummy data");
+      std::fill(track_data, track_data + count, dummy_byte);
+    }
     }
 #else
-    std::fill(track_data, std::end(track_data), new_trackno * 2 + new_side);
+    Serial.println("No filesystem - using dummy data");
+    std::fill(track_data, track_data + count, new_trackno * 2 + new_side);
 #endif
 
     encode_track_mfm(new_side, new_trackno, sector_count);
