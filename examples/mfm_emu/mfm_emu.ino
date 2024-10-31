@@ -1,14 +1,8 @@
-#include "drive.pio.h"
-#define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
-#define DEBUG_ASSERT(x)                                                        \
-  do {                                                                         \
-    if (!(x)) {                                                                \
-      Serial.printf(__FILE__ ":%d: Assert fail: " #x "\n", __LINE__);          \
-    }                                                                          \
-  } while (0)
-#include "mfm_impl.h"
 
-#if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
+#if __has_include("custom_pinout.h")
+#warning Using custom pinout
+#include "custom_pinout.h"
+#elif defined(ADAFRUIT_FEATHER_M4_EXPRESS)
 #define DENSITY_PIN A1 // IDC 2
 #define INDEX_PIN A5   // IDC 8
 #define SELECT_PIN A0  // IDC 12
@@ -56,6 +50,16 @@
 #error "Please set up pin definitions!"
 #endif
 
+#include "drive.pio.h"
+#define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
+#define DEBUG_ASSERT(x)                                                        \
+  do {                                                                         \
+    if (!(x)) {                                                                \
+      Serial.printf(__FILE__ ":%d: Assert fail: " #x "\n", __LINE__);          \
+    }                                                                          \
+  } while (0)
+#include "mfm_impl.h"
+
 volatile int trackno;
 volatile int fluxout;
 
@@ -70,16 +74,21 @@ volatile int fluxout;
 #define STEP_IN (HIGH)
 
 enum {
-  flux_max_bits = 200000
+  max_flux_bits = 200000
 }; // 300RPM (200ms rotational time), 1us bit times
 // enum { flux_max_bits = 10000 }; // 300RPM (200ms rotational time), 1us bit
 // times
 
-enum { sector_count = 18, track_max_bytes = sector_count * mfm_io_block_size };
+enum {
+  max_sector_count = 18,
+  track_max_bytes = max_sector_count * mfm_io_block_size
+};
 
-enum { flux_count = (flux_max_bits + 31) / 32 };
+enum { max_flux_count_long = (max_flux_bits + 31) / 32 };
+volatile size_t flux_count_long =
+    max_flux_count_long; // in units of uint32_ts (longs)
 uint8_t track_data[track_max_bytes];
-uint32_t flux_data[2][flux_count];
+uint32_t flux_data[2][max_flux_count_long];
 
 volatile bool updated = false;
 volatile bool driveConnected = false;
@@ -133,6 +142,86 @@ void setup1() {
   setupPio();
 }
 
+FsFile dir;
+FsFile file;
+
+struct floppy_format_info_t {
+  uint8_t cylinders, sectors;
+  uint16_t bit_time_ns;
+  size_t flux_count_bit;
+};
+
+const struct floppy_format_info_t format_info[] = {
+    {40, 9, 2000, 100000},  // 5.25" 360kB, 300RPM
+    {80, 15, 1000, 167000}, // 5.25" 1200kB, 360RPM
+
+    {80, 9, 2000, 100000},  // 3.5" 720kB, 300RPM
+    {80, 18, 1000, 200000}, // 3.5" 1440kB, 300RPM
+};
+
+const floppy_format_info_t *cur_format = &format_info[0];
+
+void pio_sm_set_clk_ns(PIO pio, uint sm, uint time_ns) {
+  float f = clock_get_hz(clk_sys) * 1e-9 * time_ns;
+  int scaled_clkdiv = (int)roundf(f * 256);
+  pio_sm_set_clkdiv_int_frac(pio, sm, scaled_clkdiv / 256, scaled_clkdiv % 256);
+  Serial.printf("Note: set clock divisor to %d + %d/256\n", scaled_clkdiv / 256,
+                scaled_clkdiv % 256);
+}
+
+bool setFormat(size_t size) {
+  cur_format = NULL;
+  for (const auto &i : format_info) {
+    auto img_size = (size_t)i.sectors * i.cylinders * 2 * 512;
+    Serial.printf("image size %zd\n", img_size);
+    if (size != img_size)
+      continue;
+    cur_format = &i;
+    pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns);
+    flux_count_long = (i.flux_count_bit + 31) / 32;
+    Serial.printf("matched format #%zd flux_count=%zu\n", cur_format - &i,
+                  flux_count_long);
+    return true;
+  }
+  return false;
+}
+
+void openNextImage() {
+  bool rewound = false;
+  while (true) {
+    auto res = file.openNext(&dir, O_RDONLY);
+    if (!res) {
+      if (rewound) {
+        Serial.println("rewound twice, failing");
+        return;
+      }
+      dir.rewind();
+      Serial.println("reopening first file");
+      rewound = true;
+      res = file.openNext(&dir, O_RDONLY);
+    }
+    if (!res) {
+      Serial.println("file.openNext failed");
+      return;
+    }
+    file.printFileSize(&Serial);
+    Serial.write(' ');
+    file.printModifyDateTime(&Serial);
+    Serial.write(' ');
+    file.printName(&Serial);
+    if (file.isDir()) {
+      // Indicate a directory.
+      Serial.write('/');
+    }
+    Serial.println();
+    if (setFormat(file.fileSize())) {
+      return;
+    } else {
+      Serial.println("Unrecognized file length");
+    }
+  }
+}
+
 void setup() {
   pinMode(DIR_PIN, INPUT_PULLUP);
   pinMode(STEP_PIN, INPUT_PULLUP);
@@ -143,6 +232,9 @@ void setup() {
 #if defined(PROT_PIN)
   pinMode(PROT_PIN, OUTPUT);
   digitalWrite(PROT_PIN, LOW); // always write-protected, no write support
+#endif
+#if defined(PROT_PIN)
+  pinMode(DISKCHANGE_PIN, INPUT_PULLUP);
 #endif
   // pinMode(INDEX_PIN, OUTPUT);
 
@@ -166,28 +258,10 @@ void setup() {
   }
   Serial.println("sd init done");
 
-  FsFile dir;
-  FsFile file;
-
   if (!dir.open("/")) {
     Serial.println("dir.open failed");
   }
-  // Open next file in root.
-  // Warning, openNext starts at the current position of dir so a
-  // rewind may be necessary in your application.
-  while (file.openNext(&dir, O_RDONLY)) {
-    file.printFileSize(&Serial);
-    Serial.write(' ');
-    file.printModifyDateTime(&Serial);
-    Serial.write(' ');
-    file.printName(&Serial);
-    if (file.isDir()) {
-      // Indicate a directory.
-      Serial.write('/');
-    }
-    Serial.println();
-    file.close();
-  }
+  openNextImage();
 #endif
 }
 
@@ -196,14 +270,16 @@ void __not_in_flash_func(loop1)() {
   if (fluxout >= 0) {
     pio_sm_put_blocking(pio, sm_index_pulse,
                         4000); // ??? put index high for 4ms (out of 200ms)
-    for (size_t i=0; i<flux_count; i++) {
+    for (size_t i = 0; i < flux_count_long; i++) {
       int f = fluxout;
-      if (f < 0) break;
+      if (f < 0)
+        break;
       auto d = flux_data[fluxout][i];
       pio_sm_put_blocking(pio, sm_fluxout, __builtin_bswap32(d));
     }
     // terminate index pulse if ongoing
-    pio_sm_exec(pio, sm_index_pulse, 0 | offset_index_pulse); // JMP to the first instruction
+    pio_sm_exec(pio, sm_index_pulse,
+                0 | offset_index_pulse); // JMP to the first instruction
   }
 }
 
@@ -216,7 +292,7 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
       .T3_max = 7,
       .T1_nom = 2,
       .pulses = reinterpret_cast<uint8_t *>(flux_data[head]),
-      .n_pulses = sizeof(flux_data[head]),
+      .n_pulses = flux_count_long * sizeof(long),
       //.pos = 0,
       .sectors = track_data,
       .n_sectors = n_sectors,
@@ -226,7 +302,8 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
   };
 
   size_t pos = encode_track_mfm(&io);
-  Serial.printf("encoded to %zu bits\n", pos * CHAR_BIT);
+  Serial.printf("encoded %d data bytes to %zu MFM bits\n", 512 * n_sectors,
+                pos * CHAR_BIT);
 }
 
 void loop() {
@@ -236,15 +313,27 @@ void loop() {
   int select_pin = !digitalRead(SELECT_PIN);
   int side = !digitalRead(SIDE_PIN);
   auto enabled = motor_pin && select_pin;
-  if (new_trackno != cached_trackno) {
+
+#if defined(DISKCHANGE_PIN)
+  int diskchange_pin = digitalRead(DISKCHANGE_PIN);
+  static int diskchange_pin_delayed = false;
+  auto diskchange = diskchange_pin_delayed && !diskchange_pin;
+  diskchange_pin_delayed = diskchange_pin;
+  if (diskchange) {
+    fluxout = -1;
+    cached_trackno = -1;
+    openNextImage();
+  }
+#endif
+
+  if (cur_format && new_trackno != cached_trackno) {
     fluxout = -1;
     Serial.printf("T%d\n", new_trackno);
+    int sector_count = cur_format->sectors;
     size_t offset = 512 * sector_count * 2 * new_trackno;
     size_t count = 512 * sector_count;
     int dummy_byte = new_trackno * 2;
 #if USE_SDFAT
-    FsFile file;
-    int r = file.open("disk.img");
     file.seek(offset);
     int n = file.read(track_data, count);
     if (n != count) {
@@ -268,5 +357,6 @@ void loop() {
 
     cached_trackno = new_trackno;
   }
-  fluxout = (enabled && cached_trackno == trackno) ? side : -1;
+  fluxout =
+      (cur_format != NULL && enabled && cached_trackno == trackno) ? side : -1;
 }

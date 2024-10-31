@@ -45,7 +45,6 @@ void sm_config_set_clk_ns(pio_sm_config *c, uint time_ns) {
     float f = clock_get_hz(clk_sys) * 1e-9 * time_ns;
     int scaled_clkdiv = (int)roundf(f * 256);
     sm_config_set_clkdiv_int_frac(c, scaled_clkdiv / 256, scaled_clkdiv % 256);
-    Serial.printf("Note: set clock to %d + %d/256\n", scaled_clkdiv / 256, scaled_clkdiv % 256);
 }
 static inline void fluxout_compact_program_init(PIO pio, uint sm, uint offset, uint pin, uint bit_time_ns) {
     pio_sm_config c = fluxout_compact_program_get_default_config(offset);
