@@ -60,52 +60,80 @@
   } while (0)
 #include "mfm_impl.h"
 
-volatile int trackno;
-volatile int fluxout;
-
-/*
-8 - index - D11
-20 - step - D9
-18 - direction - D8
-30 - read data - D13
-26 - trk0 - D10
-*/
-#define FLUX_OUT_PIN (READ_PIN) // "read pin" is named from the controller's POV
-#define STEP_IN (HIGH)
-
 enum {
-  max_flux_bits = 200000
-}; // 300RPM (200ms rotational time), 1us bit times
-// enum { flux_max_bits = 10000 }; // 300RPM (200ms rotational time), 1us bit
-// times
+  max_flux_bits = 200000 // 300RPM (200ms rotational time), 1us bit times
+};
+enum { max_flux_count_long = (max_flux_bits + 31) / 32 };
+
+// Data shared between the two CPU cores
+volatile int fluxout; // side number 0/1 or -1 if no flux should be generated
+volatile size_t flux_count_long =
+    max_flux_count_long; // in units of uint32_ts (longs)
+volatile uint32_t flux_data[2]
+                           [max_flux_count_long]; // one track of flux data for
+                                                  // both sides of the disk
+
+////////////////////////////////
+// Code & data for core 1
+// Generate index pulses & flux
+////////////////////////////////
+#define FLUX_OUT_PIN (READ_PIN) // "read pin" is named from the controller's POV
+
+PIO pio = pio0;
+uint sm_fluxout, offset_fluxout;
+uint sm_index_pulse, offset_index_pulse;
+
+void setup1() {
+  offset_fluxout = pio_add_program(pio, &fluxout_compact_program);
+  sm_fluxout = pio_claim_unused_sm(pio, true);
+  fluxout_compact_program_init(pio, sm_fluxout, offset_fluxout, FLUX_OUT_PIN,
+                               1000);
+
+  offset_index_pulse = pio_add_program(pio, &index_pulse_program);
+  sm_index_pulse = pio_claim_unused_sm(pio, true);
+  index_pulse_program_init(pio, sm_index_pulse, offset_index_pulse, INDEX_PIN,
+                           1000);
+}
+
+void __not_in_flash_func(loop1)() {
+  static bool once;
+  if (fluxout >= 0) {
+    pio_sm_put_blocking(pio, sm_index_pulse,
+                        4000); // ??? put index high for 4ms (out of 200ms)
+    for (size_t i = 0; i < flux_count_long; i++) {
+      int f = fluxout;
+      if (f < 0)
+        break;
+      auto d = flux_data[fluxout][i];
+      pio_sm_put_blocking(pio, sm_fluxout, __builtin_bswap32(d));
+    }
+    // terminate index pulse if ongoing
+    pio_sm_exec(pio, sm_index_pulse,
+                0 | offset_index_pulse); // JMP to the first instruction
+  }
+}
+
+////////////////////////////////////////////////
+// Code & data for core 0
+// "UI", control signal handling & MFM encoding
+////////////////////////////////////////////////
+
+// Set via IRQ so must be volatile
+volatile int trackno;
 
 enum {
   max_sector_count = 18,
   track_max_bytes = max_sector_count * mfm_io_block_size
 };
 
-enum { max_flux_count_long = (max_flux_bits + 31) / 32 };
-volatile size_t flux_count_long =
-    max_flux_count_long; // in units of uint32_ts (longs)
 uint8_t track_data[track_max_bytes];
-uint32_t flux_data[2][max_flux_count_long];
 
-volatile bool updated = false;
-volatile bool driveConnected = false;
-volatile bool appUsing = false;
-
-#if defined(PIN_CARD_CS)
-#define USE_SDFAT (1)
-#include "SdFat.h"
-SdFat SD;
-#endif
-
-void stepped() {
+void onStep() {
   auto enabled =
       !digitalRead(SELECT_PIN); // motor need not be enabled to seek tracks
   auto direction = digitalRead(DIR_PIN);
   int new_track = trackno;
-  if (direction == STEP_IN) {
+  if (direction) {
     if (new_track > 0)
       new_track--;
   } else {
@@ -119,29 +147,10 @@ void stepped() {
   digitalWrite(TRK0_PIN, trackno != 0); // active LOW
 }
 
-PIO pio = pio0;
-uint sm_fluxout, offset_fluxout;
-uint sm_index_pulse, offset_index_pulse;
-
-void setupPio() {
-  offset_fluxout = pio_add_program(pio, &fluxout_compact_program);
-  sm_fluxout = pio_claim_unused_sm(pio, true);
-  fluxout_compact_program_init(pio, sm_fluxout, offset_fluxout, FLUX_OUT_PIN,
-                               1000);
-
-  offset_index_pulse = pio_add_program(pio, &index_pulse_program);
-  sm_index_pulse = pio_claim_unused_sm(pio, true);
-  index_pulse_program_init(pio, sm_index_pulse, offset_index_pulse, INDEX_PIN,
-                           1000);
-}
-
-void setup1() {
-  while (!Serial) {
-    delay(1);
-  }
-  setupPio();
-}
-
+#if defined(PIN_CARD_CS)
+#define USE_SDFAT (1)
+#include "SdFat.h"
+SdFat SD;
 FsFile dir;
 FsFile file;
 
@@ -165,22 +174,17 @@ void pio_sm_set_clk_ns(PIO pio, uint sm, uint time_ns) {
   float f = clock_get_hz(clk_sys) * 1e-9 * time_ns;
   int scaled_clkdiv = (int)roundf(f * 256);
   pio_sm_set_clkdiv_int_frac(pio, sm, scaled_clkdiv / 256, scaled_clkdiv % 256);
-  Serial.printf("Note: set clock divisor to %d + %d/256\n", scaled_clkdiv / 256,
-                scaled_clkdiv % 256);
 }
 
 bool setFormat(size_t size) {
   cur_format = NULL;
   for (const auto &i : format_info) {
     auto img_size = (size_t)i.sectors * i.cylinders * 2 * 512;
-    Serial.printf("image size %zd\n", img_size);
     if (size != img_size)
       continue;
     cur_format = &i;
     pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns);
     flux_count_long = (i.flux_count_bit + 31) / 32;
-    Serial.printf("matched format #%zd flux_count=%zu\n", cur_format - &i,
-                  flux_count_long);
     return true;
   }
   return false;
@@ -192,17 +196,12 @@ void openNextImage() {
     auto res = file.openNext(&dir, O_RDONLY);
     if (!res) {
       if (rewound) {
-        Serial.println("rewound twice, failing");
+        Serial.println("No image found");
         return;
       }
       dir.rewind();
-      Serial.println("reopening first file");
       rewound = true;
-      res = file.openNext(&dir, O_RDONLY);
-    }
-    if (!res) {
-      Serial.println("file.openNext failed");
-      return;
+      continue;
     }
     file.printFileSize(&Serial);
     Serial.write(' ');
@@ -211,16 +210,18 @@ void openNextImage() {
     file.printName(&Serial);
     if (file.isDir()) {
       // Indicate a directory.
-      Serial.write('/');
+      Serial.println("/");
+      continue;
     }
-    Serial.println();
     if (setFormat(file.fileSize())) {
+      Serial.printf(": Valid floppy image\n");
       return;
     } else {
-      Serial.println("Unrecognized file length");
+      Serial.println(": Unrecognized file length\n");
     }
   }
 }
+#endif
 
 void setup() {
   pinMode(DIR_PIN, INPUT_PULLUP);
@@ -244,43 +245,20 @@ void setup() {
 #endif
 
   Serial.begin(115200);
-  while (!Serial) {
-    delay(1);
-  }
-  // delay(5000);
-  attachInterrupt(digitalPinToInterrupt(STEP_PIN), stepped, FALLING);
+  attachInterrupt(digitalPinToInterrupt(STEP_PIN), onStep, FALLING);
 
 #if USE_SDFAT
-  Serial.println("about to init sd");
   if (!SD.begin(PIN_CARD_CS)) {
-    Serial.println("initialization failed!");
+    Serial.println("SD card initialization failed");
     return;
   }
-  Serial.println("sd init done");
 
   if (!dir.open("/")) {
-    Serial.println("dir.open failed");
+    Serial.println("SD card directory could not be read");
+    return;
   }
   openNextImage();
 #endif
-}
-
-void __not_in_flash_func(loop1)() {
-  static bool once;
-  if (fluxout >= 0) {
-    pio_sm_put_blocking(pio, sm_index_pulse,
-                        4000); // ??? put index high for 4ms (out of 200ms)
-    for (size_t i = 0; i < flux_count_long; i++) {
-      int f = fluxout;
-      if (f < 0)
-        break;
-      auto d = flux_data[fluxout][i];
-      pio_sm_put_blocking(pio, sm_fluxout, __builtin_bswap32(d));
-    }
-    // terminate index pulse if ongoing
-    pio_sm_exec(pio, sm_index_pulse,
-                0 | offset_index_pulse); // JMP to the first instruction
-  }
 }
 
 static void encode_track_mfm(uint8_t head, uint8_t cylinder,
@@ -291,7 +269,7 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
       .T2_max = 5,
       .T3_max = 7,
       .T1_nom = 2,
-      .pulses = reinterpret_cast<uint8_t *>(flux_data[head]),
+      .pulses = (uint8_t *)flux_data[head],
       .n_pulses = flux_count_long * sizeof(long),
       //.pos = 0,
       .sectors = track_data,
@@ -302,8 +280,6 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
   };
 
   size_t pos = encode_track_mfm(&io);
-  Serial.printf("encoded %d data bytes to %zu MFM bits\n", 512 * n_sectors,
-                pos * CHAR_BIT);
 }
 
 void loop() {
@@ -314,12 +290,15 @@ void loop() {
   int side = !digitalRead(SIDE_PIN);
   auto enabled = motor_pin && select_pin;
 
-#if defined(DISKCHANGE_PIN)
+#if defined(DISKCHANGE_PIN) && USE_SDFAT
   int diskchange_pin = digitalRead(DISKCHANGE_PIN);
   static int diskchange_pin_delayed = false;
   auto diskchange = diskchange_pin_delayed && !diskchange_pin;
   diskchange_pin_delayed = diskchange_pin;
   if (diskchange) {
+    delay(20);
+    while (!digitalRead(DISKCHANGE_PIN)) { /* NOTHING */
+    }
     fluxout = -1;
     cached_trackno = -1;
     openNextImage();
@@ -328,7 +307,7 @@ void loop() {
 
   if (cur_format && new_trackno != cached_trackno) {
     fluxout = -1;
-    Serial.printf("T%d\n", new_trackno);
+    Serial.printf("Preparing MFM data for track %d\n", new_trackno);
     int sector_count = cur_format->sectors;
     size_t offset = 512 * sector_count * 2 * new_trackno;
     size_t count = 512 * sector_count;
