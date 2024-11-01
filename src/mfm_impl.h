@@ -19,33 +19,64 @@
 
 /// @cond false
 
+typedef struct mfm_io mfm_io_t;
+
+static void mfm_io_encode_byte_mfm(mfm_io_t *io, uint8_t b);
+static void mfm_io_encode_byte_fm(mfm_io_t *io, uint8_t b);
+
+struct mfm_io_timings {
+  uint16_t gap_1, gap_2;
+  uint16_t gap3[8]; // indexed by 'n', the sector size control
+  uint16_t gap_4a;
+  uint16_t gap_presync;
+  uint8_t gap_byte;
+};
+
+static const mfm_io_timings standard_mfm = {
+    50, 22,
+    { 32, 54, 84, 116, 255, 255, 255, 255 },
+    80,
+    12,
+    0x4e,
+};
+
+static const mfm_io_timings standard_fm = {
+    26, 11,
+    { 27, 42, 58, 138, 255, 255, 255, 255 },
+    40,
+    6,
+    0xff,
+};
+
 struct mfm_io {
   bool encode_compact; ///< When writing flux, use compact form
   uint16_t T2_max;     ///< MFM decoder max length of 2us pulse
   uint16_t T3_max;     ///< MFM decoder max length of 3us pulse
   uint16_t T1_nom;     ///< MFM nominal 1us pulse value
 
-  size_t n_valid;
+  size_t n_valid;      ///< Count of valid sectors decoded
 
-  uint8_t *pulses;
-  size_t n_pulses;
-  size_t pos;
-  size_t time;
+  uint8_t *pulses;     ///< Encoded track data
+  size_t n_pulses;     ///< Total size of encoded track data
+  size_t pos;          ///< Position within encoded track data
+  size_t time;         ///< Total track time in flux units (set by encoder)
 
-  uint8_t *sectors;
-  size_t n_sectors;
+  uint8_t *sectors;    ///< Pointer to decoded data
+  size_t n_sectors;    ///< Number of sectors on track
 
-  uint8_t *sector_validity;
-  uint8_t *cylinder_ptr;
-  uint8_t head, cylinder;
-  uint8_t pulse_len;
-  uint8_t y;
+  uint8_t *sector_validity; ///< Which sectors decoded successfully
+  uint8_t *cylinder_ptr; ///< When decoding, the cylinder number read is stored here
+  uint8_t head, cylinder; ///< Location of the track on disk
+  uint8_t pulse_len;   ///< bookkeeping value used by MFM decoder
+  uint8_t y;           ///< bookkeeping value used by MFM encoder
+  uint8_t n;           ///< Sector size value. Sector is (128<<n) bytes big. Valid values are 0..7
 
-  uint16_t crc;
-  void (*flux_byte)(struct mfm_io *, uint8_t);
+  uint16_t crc;        ///< bookkeeping value used by encoder & decoder
+  const mfm_io_timings *timings; ///< gap timings, used by encoder
+  void (*flux_byte)(struct mfm_io *, uint8_t); ///< can be mfm_io_flux_put or mfm_io_flux_put_compact
+  void (*encode_byte)(mfm_io_t *io, uint8_t b); ///< can be mfm_io_encode_byte_fm or mfm_io_encode_byte_mfm
 };
 
-typedef struct mfm_io mfm_io_t;
 
 typedef enum {
   mfm_io_pulse_10,
