@@ -495,6 +495,7 @@ size_t Adafruit_FloppyBase::decode_track_mfm(
   io.n_pulses = n_pulses;
   io.sectors = sectors;
   io.n_sectors = n_sectors;
+  io.n = 2;
   io.head = get_side();
   io.cylinder_ptr = logical_track;
   io.sector_validity = sector_validity;
@@ -530,6 +531,7 @@ size_t Adafruit_FloppyBase::encode_track_mfm(const uint8_t *sectors,
   io.n_pulses = max_pulses;
   io.sectors = const_cast<uint8_t *>(sectors);
   io.n_sectors = n_sectors;
+  io.n = 2;
   io.head = get_side();
   io.cylinder = logical_track;
   io.sector_validity = NULL;

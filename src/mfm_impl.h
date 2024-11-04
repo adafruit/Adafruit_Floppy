@@ -19,33 +19,41 @@
 
 /// @cond false
 
+#define MFM_MAYBE_UNUSED __attribute__((unused))
+
 typedef struct mfm_io mfm_io_t;
 
-static void mfm_io_encode_byte_mfm(mfm_io_t *io, uint8_t b);
-static void mfm_io_encode_byte_fm(mfm_io_t *io, uint8_t b);
+MFM_MAYBE_UNUSED
+static void mfm_io_encode_raw_mfm(mfm_io_t *io, uint8_t b);
 
-struct mfm_io_timings {
+MFM_MAYBE_UNUSED
+static void mfm_io_encode_raw_fm(mfm_io_t *io, uint8_t b);
+
+typedef struct mfm_io_settings {
   uint16_t gap_1, gap_2;
-  uint16_t gap3[8]; // indexed by 'n', the sector size control
+  uint16_t gap_3[8]; // indexed by 'n', the sector size control
   uint16_t gap_4a;
   uint16_t gap_presync;
   uint8_t gap_byte;
-};
+  bool is_fm;
+} mfm_io_settings_t;
 
-static const mfm_io_timings standard_mfm = {
+static const mfm_io_settings_t standard_mfm = {
     50, 22,
     { 32, 54, 84, 116, 255, 255, 255, 255 },
     80,
     12,
     0x4e,
+    false,
 };
 
-static const mfm_io_timings standard_fm = {
+static const mfm_io_settings_t standard_fm = {
     26, 11,
     { 27, 42, 58, 138, 255, 255, 255, 255 },
     40,
     6,
     0xff,
+    true,
 };
 
 struct mfm_io {
@@ -72,9 +80,9 @@ struct mfm_io {
   uint8_t n;           ///< Sector size value. Sector is (128<<n) bytes big. Valid values are 0..7
 
   uint16_t crc;        ///< bookkeeping value used by encoder & decoder
-  const mfm_io_timings *timings; ///< gap timings, used by encoder
+  const mfm_io_settings_t *settings; ///< various settings, used by encoder
   void (*flux_byte)(struct mfm_io *, uint8_t); ///< can be mfm_io_flux_put or mfm_io_flux_put_compact
-  void (*encode_byte)(mfm_io_t *io, uint8_t b); ///< can be mfm_io_encode_byte_fm or mfm_io_encode_byte_mfm
+  void (*encode_raw)(mfm_io_t *io, uint8_t b); ///< can be mfm_io_encode_raw_fm or mfm_io_encode_raw_mfm
 };
 
 
@@ -86,28 +94,24 @@ typedef enum {
 
 typedef enum { mfm_io_odd = 0, mfm_io_even = 1 } mfm_state_t;
 
+// FM and MFM use the same marker nubmers
 enum { MFM_IO_IAM = 0xfc, MFM_IO_IDAM = 0xfe, MFM_IO_DAM = 0xfb };
 
 enum {
-  mfm_io_block_size = 512,
   mfm_io_idam_size = 4,
   mfm_io_crc_size = 2,
 };
 
-enum {
-  mfm_io_gap_1 = 50,
-  mfm_io_gap_2 = 22,
-  mfm_io_gap_3 = 84,
-  mfm_io_gap_4a = 68, // spec says 80, GW does 68
-  mfm_io_gap_presync = 12
-};
-enum { mfm_io_n = 2 }; // = 512 byte sectors
-enum { MFM_IO_GAP_BYTE = 0x4e };
 // static const char sync_bytes[] = "\x44\x89\x44\x89\x44\x89";
 // a1 a1 a1 but with special timing bits
-static const uint8_t mfm_io_sync_bytes[] = {0x44, 0x89, 0x44, 0x89, 0x44, 0x89};
-static const uint8_t mfm_io_iam_sync_bytes[] = {0x52, 0x24, 0x52,
+static const uint8_t mfm_io_sync_bytes_mfm[] = {0x44, 0x89, 0x44, 0x89, 0x44, 0x89};
+static const uint8_t mfm_io_iam_sync_bytes_mfm[] = {0x52, 0x24, 0x52,
                                                 0x24, 0x52, 0x24};
+
+static const uint8_t mfm_io_sync_bytes_fm[] = {};
+static const uint8_t mfm_io_iam_sync_bytes_fm[] = { 0xaa, 0xaa, 0xf7, 0x7a };
+
+enum { fm_default_sync_clk = 0xc7 };
 
 static int mfm_io_eof(mfm_io_t *io) { return io->pos >= io->n_pulses; }
 
@@ -270,6 +274,7 @@ __attribute__((sentinel)) static uint16_t receive_crc(mfm_io_t *io, ...) {
 // Read a whole track, setting validity[] for each sector actually read, up to
 // n_sectors indexing of validity & data is 0-based, mfm_io_even though
 // MFM_IO_IDAMs store sectors as 1-based
+MFM_MAYBE_UNUSED
 static size_t decode_track_mfm(mfm_io_t *io) {
   io->pos = 0;
 
@@ -325,8 +330,9 @@ static size_t decode_track_mfm(mfm_io_t *io) {
     if (!skip_triple_sync_mark(io)) {
       continue;
     }
-    crc = receive_crc(io, &mark, 1, io->sectors + mfm_io_block_size * r,
-                      mfm_io_block_size, crc_buf, sizeof(crc_buf), NULL);
+    size_t io_block_size = 128 << io->n;
+    crc = receive_crc(io, &mark, 1, io->sectors + io_block_size * r,
+                      io_block_size, crc_buf, sizeof(crc_buf), NULL);
     DEBUG_PRINTF("mark=%02x [expecting DAM=%02x]\n", mark, MFM_IO_DAM);
     DEBUG_PRINTF("crc_buf=%02x %02x\n", crc_buf[0], crc_buf[1]);
     DEBUG_PRINTF("crc=%04x [expecting 0]\n", crc);
@@ -369,7 +375,14 @@ static void mfm_io_flux_byte(mfm_io_t *io, uint8_t b) {
   }
 }
 
-static void mfm_io_encode_raw(mfm_io_t *io, uint8_t b) {
+static void mfm_io_encode_raw_fm(mfm_io_t *io, uint8_t b) {
+  if ((b & 0xaa) == 0) {
+    b |= 0xaa;
+  }
+  io->flux_byte(io, b);
+}
+
+static void mfm_io_encode_raw_mfm(mfm_io_t *io, uint8_t b) {
   uint16_t y = (io->y << 8) | b;
   if ((b & 0xaa) == 0) {
     // if there are no clocks, synthesize them
@@ -412,40 +425,62 @@ static const uint16_t mfm_encode_list[] = {
     0x5505, 0x5510, 0x5511, 0x5514, 0x5515, 0x5540, 0x5541, 0x5544, 0x5545,
     0x5550, 0x5551, 0x5554, 0x5555};
 
+static void mfm_io_encode_fm_sync(mfm_io_t *io, uint8_t data, uint8_t clock) {
+  uint16_t encoded = 0;
+  // can this be done with two lookups in encoded[] ?
+  for(size_t i=0; i<8; i++) {
+    encoded <<= 1;
+    encoded |= (clock >> (7-i)) & 1;
+    encoded <<= 1;
+    encoded |= (data >> (7-i)) & 1;
+  }
+  io->encode_raw(io, encoded >> 8);
+  io->encode_raw(io, encoded & 0xff);
+}
+
 static void mfm_io_encode_byte(mfm_io_t *io, uint8_t b) {
   uint16_t encoded = mfm_encode_list[b];
-  mfm_io_encode_raw(io, encoded >> 8);
-  mfm_io_encode_raw(io, encoded & 0xff);
+  io->encode_raw(io, encoded >> 8);
+  io->encode_raw(io, encoded & 0xff);
 }
 
 static void mfm_io_encode_raw_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
   for (size_t i = 0; i < n; i++) {
-    mfm_io_encode_raw(io, buf[i]);
+    io->encode_raw(io, buf[i]);
   }
 }
 
 static void mfm_io_encode_gap(mfm_io_t *io, size_t n_gap) {
   for (size_t i = 0; i < n_gap; i++) {
-    mfm_io_encode_byte(io, MFM_IO_GAP_BYTE);
+    mfm_io_encode_byte(io, io->settings->gap_byte);
   }
 }
 
 static void mfm_io_encode_gap_and_presync(mfm_io_t *io, size_t n_gap) {
   mfm_io_encode_gap(io, n_gap);
-  for (size_t i = 0; i < mfm_io_gap_presync; i++) {
+  for (size_t i = 0; i < io->settings->gap_presync; i++) {
     mfm_io_encode_byte(io, 0);
   }
 }
 
 static void mfm_io_encode_gap_and_sync(mfm_io_t *io, size_t n_gap) {
   mfm_io_encode_gap_and_presync(io, n_gap);
-  mfm_io_encode_raw_buf(io, mfm_io_sync_bytes, sizeof(mfm_io_sync_bytes));
+  if (io->settings->is_fm) {
+      mfm_io_encode_raw_buf(io, mfm_io_sync_bytes_fm, sizeof(mfm_io_sync_bytes_fm));
+  } else {
+      mfm_io_encode_raw_buf(io, mfm_io_sync_bytes_mfm, sizeof(mfm_io_sync_bytes_mfm));
+  }
 }
 
 static void mfm_io_encode_iam(mfm_io_t *io) {
-  mfm_io_encode_gap_and_presync(io, mfm_io_gap_4a);
-  mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes,
-                        sizeof(mfm_io_iam_sync_bytes));
+  mfm_io_encode_gap_and_presync(io, io->settings->gap_4a);
+  if (io->settings->is_fm) {
+      mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes_fm,
+                            sizeof(mfm_io_iam_sync_bytes_fm));
+  } else {
+  mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes_mfm,
+                        sizeof(mfm_io_iam_sync_bytes_mfm));
+  }
   mfm_io_encode_byte(io, MFM_IO_IAM);
 }
 
@@ -476,7 +511,7 @@ static void mfm_io_encode_crc(mfm_io_t *io) {
 
 // Convert a whole track into flux, up to n_sectors. indexing of data is
 // 0-based, mfm_io_even though MFM_IO_IDAMs store sectors as 1-based
-__attribute__((unused)) // may be unused
+MFM_MAYBE_UNUSED
 static size_t
 encode_track_mfm(mfm_io_t *io) {
   io->pos = 0;
@@ -485,6 +520,8 @@ encode_track_mfm(mfm_io_t *io) {
   io->time = 0;
   io->flux_byte =
       io->encode_compact ? mfm_io_flux_byte_compact : mfm_io_flux_byte;
+  io->encode_raw =
+      io->settings->is_fm ? mfm_io_encode_raw_fm : mfm_io_encode_raw_mfm;
 
   // sector_validity might end up reused for interleave?
   // memset(io->sector_validity, 0, io->n_sectors);
@@ -493,31 +530,38 @@ encode_track_mfm(mfm_io_t *io) {
 
   mfm_io_encode_iam(io);
 
-  mfm_io_encode_gap_and_sync(io, mfm_io_gap_1);
+  mfm_io_encode_gap_and_sync(io, io->settings->gap_1);
   for (size_t i = 0; i < io->n_sectors; i++) {
     buf[0] = MFM_IO_IDAM;
     buf[1] = io->cylinder;
     buf[2] = io->head;
     buf[3] = i + 1; // sectors are 1-based
-    buf[4] = mfm_io_n;
+    buf[4] = io->n;
 
     mfm_io_crc_preload(io);
-    mfm_io_encode_buf_crc(io, buf, sizeof(buf));
+    if(io->settings->is_fm) {
+      io->crc = mfm_io_crc16(buf, 1, io->crc);
+      mfm_io_encode_fm_sync(io, MFM_IO_IDAM, fm_default_sync_clk);
+      mfm_io_encode_buf_crc(io, buf+1, sizeof(buf)-1);
+    } else {
+      mfm_io_encode_buf_crc(io, buf, sizeof(buf));
+    }
     mfm_io_encode_crc(io);
 
-    mfm_io_encode_gap_and_sync(io, mfm_io_gap_2);
+    mfm_io_encode_gap_and_sync(io, io->settings->gap_2);
     mfm_io_crc_preload(io);
     mfm_io_encode_byte_crc(io, MFM_IO_DAM);
-    mfm_io_encode_buf_crc(io, &io->sectors[mfm_io_block_size * i], 512);
+    size_t io_block_size = 128 << io->n;
+    mfm_io_encode_buf_crc(io, &io->sectors[io_block_size * i], io_block_size);
     mfm_io_encode_crc(io);
 
-    mfm_io_encode_gap_and_sync(io, mfm_io_gap_3);
+    mfm_io_encode_gap_and_sync(io, io->settings->gap_3[io->n]);
   }
   size_t result = io->pos;
   DEBUG_ASSERT(!mfm_io_eof(io));
 
   while (!mfm_io_eof(io)) {
-    mfm_io_encode_byte(io, MFM_IO_GAP_BYTE);
+    mfm_io_encode_byte(io, io->settings->gap_byte);
   }
   return result;
 }
