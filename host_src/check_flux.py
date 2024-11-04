@@ -1,30 +1,39 @@
 import sys
+import pathlib
+sys.path.insert(0, str(
+    pathlib.Path(__file__).parent / "greaseweazle/scripts"))
 import click
 from greaseweazle.track import MasterTrack
 from greaseweazle.codec.ibm.mfm import IBM_MFM
+from greaseweazle.codec.ibm.fm import IBM_FM
 from bitarray import bitarray
 
 
 @click.command
-@click.option("--compact/--no-compact", is_flag=True)
+@click.option("--fm/--no-fm", is_flag=True)
 @click.argument("flux-file")
-def main(flux_file, compact=False):
-    assert not compact
+def main(flux_file, fm=False):
+    print(f"{flux_file=!r}")
     with open(flux_file) as flux1:
         content = bitarray("".join(c for c in flux1.read() if c in "01"))
 
-    nominal_bitrate = 1_000_000
+    print(content.count(0), content.count(1))
 
-    master = MasterTrack(content[:200_000], 0.2)
-    print(master.flux().list[:25])
-    track = IBM_MFM(0,0)
-    track.time_per_rev = 0.2
-    track.clock = 1e-6
+    if fm:
+        master = MasterTrack(content[:41_750], .167)
+        track = IBM_FM(0,0)
+        track.time_per_rev = .166
+        track.clock = 4e-6
+    else:
+        master = MasterTrack(content[:200_000], 0.2)
+        track = IBM_MFM(0,0)
+        track.time_per_rev = 0.2
+        track.clock = 1e-6
 
 
     track.decode_raw(master)
-    print(sys.argv[1], track.summary_string(), file=sys.stderr)
-    print(sys.argv[1], track.summary_string())
+    print(flux_file, track.summary_string(), file=sys.stderr)
+    print(flux_file, track.summary_string())
     print("".join("E."[sec.crc == 0] for sec in track.sectors))
     for i in track.iams:
         print(i)

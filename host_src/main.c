@@ -10,8 +10,8 @@ uint8_t flux[] = {
 };
 
 enum { sector_count = 18 };
-
-uint8_t track_buf[sector_count * mfm_io_block_size];
+enum { ibmpc_io_block_size = 512 };
+uint8_t track_buf[sector_count * ibmpc_io_block_size];
 uint8_t validity[sector_count];
 
 mfm_io_t io = {
@@ -22,7 +22,10 @@ mfm_io_t io = {
     .n_pulses = sizeof(flux),
     .sectors = track_buf,
     .sector_validity = validity,
-    .n_sectors = sizeof(track_buf) / mfm_io_block_size,
+    .n_sectors = sector_count,
+    .n = 2,
+    .settings = &standard_mfm,
+    .encode_raw = mfm_io_encode_raw_mfm,
 };
 
 static void flux_bins(mfm_io_t *io) {

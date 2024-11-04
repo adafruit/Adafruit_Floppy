@@ -1,4 +1,8 @@
 import sys
+import pathlib
+sys.path.insert(0, str(
+    pathlib.Path(__file__).parent / "greaseweazle/scripts"))
+
 from greaseweazle.codec.ibm.mfm import IBM_MFM_1440
 
 track = IBM_MFM_1440(0, 0)
