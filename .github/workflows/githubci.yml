@@ -36,7 +36,7 @@ jobs:
             for i in examples/*/build/*/*.uf2; do j=${i##*/}; j=${j%%*.}; mv $i build/$j-${{ matrix.arduino-platform }}.uf2; done
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ github.event.repository.name }}-${{ matrix.arduino-platform }}
         path: |
