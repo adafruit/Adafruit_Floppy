@@ -7,7 +7,7 @@ from greaseweazle.track import MasterTrack
 from greaseweazle.codec.ibm.mfm import IBM_MFM
 from greaseweazle.codec.ibm.fm import IBM_FM
 from bitarray import bitarray
-
+from make_flux_fm import RX01
 
 @click.command
 @click.option("--fm/--no-fm", is_flag=True)
@@ -21,7 +21,7 @@ def main(flux_file, fm=False):
 
     if fm:
         master = MasterTrack(content[:41_750], .167)
-        track = IBM_FM(0,0)
+        track = RX01(0,0)
         track.time_per_rev = .166
         track.clock = 4e-6
     else:

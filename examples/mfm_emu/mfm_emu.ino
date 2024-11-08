@@ -1,5 +1,5 @@
 
-#if __has_include("custom_pinout.h")
+#if 0 // __has_include("custom_pinout.h")
 #warning Using custom pinout
 #include "custom_pinout.h"
 #elif defined(ADAFRUIT_FEATHER_M4_EXPRESS)
@@ -48,6 +48,20 @@
 // Yay built in pin definitions!
 #else
 #error "Please set up pin definitions!"
+#endif
+
+#if defined(NEOPIXEL_PIN)
+#include <Adafruit_NeoPixel.h>
+
+#ifndef NEOPIXEL_COUNT
+#define NEOPIXEL_COUNT (1)
+#endif
+
+#ifndef NEOPIXEL_FORMAT
+#define NEOPIXEL_FORMAT NEO_GRB + NEO_KHZ800
+#endif
+
+Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 #endif
 
 #include "drive.pio.h"
@@ -123,6 +137,7 @@ volatile int trackno;
 
 enum {
   max_sector_count = 18,
+  mfm_io_block_size = 512,
   track_max_bytes = max_sector_count * mfm_io_block_size
 };
 
@@ -224,6 +239,7 @@ void openNextImage() {
 #endif
 
 void setup() {
+  // index pin direction is set in setup1
   pinMode(DIR_PIN, INPUT_PULLUP);
   pinMode(STEP_PIN, INPUT_PULLUP);
   pinMode(SIDE_PIN, INPUT_PULLUP);
@@ -234,14 +250,17 @@ void setup() {
   pinMode(PROT_PIN, OUTPUT);
   digitalWrite(PROT_PIN, LOW); // always write-protected, no write support
 #endif
-#if defined(PROT_PIN)
+#if defined(DISKCHANGE_PIN)
   pinMode(DISKCHANGE_PIN, INPUT_PULLUP);
 #endif
-  // pinMode(INDEX_PIN, OUTPUT);
 
 #if defined(FLOPPY_DIRECTION_PIN)
   pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
   digitalWrite(FLOPPY_DIRECTION_PIN, LOW); // we are emulating a floppy
+#endif
+#if defined(FLOPPY_ENABLE_PIN)
+  pinMode(FLOPPY_ENABLE_PIN, OUTPUT);
+  digitalWrite(FLOPPY_ENABLE_PIN, LOW); // do second after setting direction
 #endif
 
   Serial.begin(115200);
@@ -258,6 +277,10 @@ void setup() {
     return;
   }
   openNextImage();
+#endif
+
+#if defined(NEOPIXEL_PIN)
+  strip.begin();
 #endif
 }
 
@@ -277,6 +300,9 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
       //.sector_validity = NULL,
       .head = head,
       .cylinder = cylinder,
+      .n = 2,
+      .settings = &standard_mfm,
+      .encode_raw = mfm_io_encode_raw_mfm,
   };
 
   size_t pos = encode_track_mfm(&io);
@@ -289,7 +315,12 @@ void loop() {
   int select_pin = !digitalRead(SELECT_PIN);
   int side = !digitalRead(SIDE_PIN);
   auto enabled = motor_pin && select_pin;
+  static bool old_enabled = false;
 
+  if(enabled != old_enabled) {
+    Serial.printf("enabled -> %s\n", enabled ? "true" : "false");
+    old_enabled = enabled;
+  }
 #if defined(DISKCHANGE_PIN) && USE_SDFAT
   int diskchange_pin = digitalRead(DISKCHANGE_PIN);
   static int diskchange_pin_delayed = false;
@@ -329,13 +360,17 @@ void loop() {
 #else
     Serial.println("No filesystem - using dummy data");
     std::fill(track_data, track_data + count, dummy_byte);
-    encode_track_mfm(flux_data[0], new_side, new_trackno, sector_count);
+    encode_track_mfm(0, new_trackno, sector_count);
     std::fill(track_data, track_data + count, dummy_byte + 1);
-    encode_track_mfm(flux_data[1], new_side, new_trackno, sector_count);
+    encode_track_mfm(1, new_trackno, sector_count);
 #endif
 
     cached_trackno = new_trackno;
   }
   fluxout =
       (cur_format != NULL && enabled && cached_trackno == trackno) ? side : -1;
+#if defined(NEOPIXEL_PIN)
+  strip.fill(motor_pin ? 0xffffffff : 0);    
+  strip.show();
+#endif
 }
