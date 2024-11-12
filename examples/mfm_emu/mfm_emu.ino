@@ -46,6 +46,7 @@
 #define READY_PIN 14  // IDC 34
 #elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
 // Yay built in pin definitions!
+#define NEOPIXEL_PIN PIN_NEOPIXEL
 #else
 #error "Please set up pin definitions!"
 #endif
@@ -61,7 +62,14 @@
 #define NEOPIXEL_FORMAT NEO_GRB + NEO_KHZ800
 #endif
 
-Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEOPIXEL_FORMAT);
+
+#define STATUS_RGB(r,g,b) do { \
+  strip.fill(strip.Color(r,g,b));     \
+  strip.show(); \
+} while(0)
+#else
+#define STATUS_RGB(r,g,b) do {} while(0)
 #endif
 
 #include "drive.pio.h"
@@ -176,11 +184,11 @@ struct floppy_format_info_t {
 };
 
 const struct floppy_format_info_t format_info[] = {
-    {40, 9, 2000, 100000},  // 5.25" 360kB, 300RPM
-    {80, 15, 1000, 167000}, // 5.25" 1200kB, 360RPM
-
-    {80, 9, 2000, 100000},  // 3.5" 720kB, 300RPM
     {80, 18, 1000, 200000}, // 3.5" 1440kB, 300RPM
+    {80, 9, 2000, 100000},  // 3.5" 720kB, 300RPM
+
+    {80, 15, 1000, 167000}, // 5.25" 1200kB, 360RPM
+    {40, 9, 2000, 100000},  // 5.25" 360kB, 300RPM
 };
 
 const floppy_format_info_t *cur_format = &format_info[0];
@@ -239,21 +247,6 @@ void openNextImage() {
 #endif
 
 void setup() {
-  // index pin direction is set in setup1
-  pinMode(DIR_PIN, INPUT_PULLUP);
-  pinMode(STEP_PIN, INPUT_PULLUP);
-  pinMode(SIDE_PIN, INPUT_PULLUP);
-  pinMode(MOTOR_PIN, INPUT_PULLUP);
-  pinMode(SELECT_PIN, INPUT_PULLUP);
-  pinMode(TRK0_PIN, OUTPUT);
-#if defined(PROT_PIN)
-  pinMode(PROT_PIN, OUTPUT);
-  digitalWrite(PROT_PIN, LOW); // always write-protected, no write support
-#endif
-#if defined(DISKCHANGE_PIN)
-  pinMode(DISKCHANGE_PIN, INPUT_PULLUP);
-#endif
-
 #if defined(FLOPPY_DIRECTION_PIN)
   pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
   digitalWrite(FLOPPY_DIRECTION_PIN, LOW); // we are emulating a floppy
@@ -263,24 +256,49 @@ void setup() {
   digitalWrite(FLOPPY_ENABLE_PIN, LOW); // do second after setting direction
 #endif
 
+  // index pin direction is set in setup1
+  pinMode(DIR_PIN, INPUT_PULLUP);
+  pinMode(STEP_PIN, INPUT_PULLUP);
+  pinMode(SIDE_PIN, INPUT_PULLUP);
+  pinMode(MOTOR_PIN, INPUT_PULLUP);
+  pinMode(SELECT_PIN, INPUT_PULLUP);
+  pinMode(TRK0_PIN, OUTPUT);
+  pinMode(READY_PIN, OUTPUT);
+  digitalWrite(READY_PIN, HIGH); // active low
+#if defined(PROT_PIN)
+  pinMode(PROT_PIN, OUTPUT);
+  digitalWrite(PROT_PIN, LOW); // always write-protected, no write support
+#endif
+#if defined(DISKCHANGE_PIN)
+  pinMode(DISKCHANGE_PIN, INPUT_PULLUP);
+#endif
+
   Serial.begin(115200);
+#define WAIT_SERIAL 
+#if defined(WAIT_SERIAL)
+  while(!Serial) {}
+  Serial.println("Serial connected");
+#endif
+
   attachInterrupt(digitalPinToInterrupt(STEP_PIN), onStep, FALLING);
+
+#if defined(NEOPIXEL_PIN)
+  strip.begin();
+#endif
 
 #if USE_SDFAT
   if (!SD.begin(PIN_CARD_CS)) {
     Serial.println("SD card initialization failed");
-    return;
-  }
-
-  if (!dir.open("/")) {
+    STATUS_RGB(255,0,0);
+    delay(2000);
+  } else if (!dir.open("/")) {
     Serial.println("SD card directory could not be read");
-    return;
+    STATUS_RGB(255,255,0);
+    delay(2000);
+  } else {
+    STATUS_RGB(0,0,255);
+    openNextImage();
   }
-  openNextImage();
-#endif
-
-#if defined(NEOPIXEL_PIN)
-  strip.begin();
 #endif
 }
 
@@ -308,6 +326,21 @@ static void encode_track_mfm(uint8_t head, uint8_t cylinder,
   size_t pos = encode_track_mfm(&io);
 }
 
+// As an easter egg, the dummy disk image embeds the boot sector Tetris implementation
+// from https://github.com/daniel-e/tetros (source available under MIT license)
+const uint8_t tetros[] = {
+#include "tetros.h"
+};
+
+static void make_dummy_data(uint8_t head, uint8_t cylinder, size_t n_bytes) {
+    uint8_t dummy_byte = head * 2 + cylinder;
+    std::fill(track_data, track_data + n_bytes, dummy_byte);
+    if(head == 0 && cylinder == 0 && n_bytes >= 512) {
+      Serial.println("Injecting tetros in boot sector");
+        std::copy(tetros, std::end(tetros), track_data);
+    }
+}
+
 void loop() {
   static int cached_trackno = -1;
   auto new_trackno = trackno;
@@ -315,7 +348,16 @@ void loop() {
   int select_pin = !digitalRead(SELECT_PIN);
   int side = !digitalRead(SIDE_PIN);
   auto enabled = motor_pin && select_pin;
-  static bool old_enabled = false;
+  static bool old_enabled = false, old_select_pin=false, old_motor_pin=false;
+
+  if(motor_pin != old_motor_pin) {
+    Serial.printf("motor_pin -> %s\n", motor_pin ? "true" : "false");
+    old_motor_pin = motor_pin;
+  }
+  if(select_pin != old_select_pin) {
+    Serial.printf("select_pin -> %s\n", select_pin ? "true" : "false");
+    old_select_pin = select_pin;
+  }
 
   if(enabled != old_enabled) {
     Serial.printf("enabled -> %s\n", enabled ? "true" : "false");
@@ -337,6 +379,7 @@ void loop() {
 #endif
 
   if (cur_format && new_trackno != cached_trackno) {
+    STATUS_RGB(0,255,255);
     fluxout = -1;
     Serial.printf("Preparing MFM data for track %d\n", new_trackno);
     int sector_count = cur_format->sectors;
@@ -348,29 +391,34 @@ void loop() {
     int n = file.read(track_data, count);
     if (n != count) {
       Serial.println("Read failed -- using dummy data");
-      std::fill(track_data, track_data + count, dummy_byte);
+      make_dummy_data(0, new_trackno, count);
     }
     encode_track_mfm(0, new_trackno, sector_count);
     n = file.read(track_data, count);
     if (n != count) {
       Serial.println("Read failed -- using dummy data");
-      std::fill(track_data, track_data + count, dummy_byte + 1);
+      make_dummy_data(1, new_trackno, count);
     }
     encode_track_mfm(1, new_trackno, sector_count);
 #else
     Serial.println("No filesystem - using dummy data");
-    std::fill(track_data, track_data + count, dummy_byte);
+    make_dummy_data(0, new_trackno, count);
     encode_track_mfm(0, new_trackno, sector_count);
-    std::fill(track_data, track_data + count, dummy_byte + 1);
+    make_dummy_data(1, new_trackno, count);
     encode_track_mfm(1, new_trackno, sector_count);
 #endif
 
+    Serial.println("MFM data prepared");
     cached_trackno = new_trackno;
   }
   fluxout =
       (cur_format != NULL && enabled && cached_trackno == trackno) ? side : -1;
 #if defined(NEOPIXEL_PIN)
-  strip.fill(motor_pin ? 0xffffffff : 0);    
-  strip.show();
+  if(fluxout >= 0) { STATUS_RGB(0,255,0); } else { STATUS_RGB(0,0,0); }
 #endif
+
+  // this is not correct handling of the ready/disk change flag. on my test
+  // computer, just leaving the pin HIGH works, while immediately reporting LOW on the
+  // "ready / disk change
+  // digitalWrite(READY_PIN, !motor_pin);
 }
