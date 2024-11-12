@@ -1,5 +1,9 @@
 
-#if 0 // __has_include("custom_pinout.h")
+
+// #define WAIT_SERIAL 
+// #define USE_CUSTOM_PINOUT
+
+#if defined(USE_CUSTOM_PINOUT) && __has_include("custom_pinout.h")
 #warning Using custom pinout
 #include "custom_pinout.h"
 #elif defined(ADAFRUIT_FEATHER_M4_EXPRESS)
@@ -274,7 +278,6 @@ void setup() {
 #endif
 
   Serial.begin(115200);
-#define WAIT_SERIAL 
 #if defined(WAIT_SERIAL)
   while(!Serial) {}
   Serial.println("Serial connected");
