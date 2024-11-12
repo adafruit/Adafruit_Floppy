@@ -39,21 +39,11 @@ typedef struct mfm_io_settings {
 } mfm_io_settings_t;
 
 static const mfm_io_settings_t standard_mfm = {
-    50, 22,
-    { 32, 54, 84, 116, 255, 255, 255, 255 },
-    80,
-    12,
-    0x4e,
-    false,
+    50, 22, {32, 54, 84, 116, 255, 255, 255, 255}, 80, 12, 0x4e, false,
 };
 
 static const mfm_io_settings_t standard_fm = {
-    26, 11,
-    { 27, 42, 58, 138, 255, 255, 255, 255 },
-    40,
-    6,
-    0xff,
-    true,
+    26, 11, {27, 42, 58, 138, 255, 255, 255, 255}, 40, 6, 0xff, true,
 };
 
 struct mfm_io {
@@ -62,29 +52,34 @@ struct mfm_io {
   uint16_t T3_max;     ///< MFM decoder max length of 3us pulse
   uint16_t T1_nom;     ///< MFM nominal 1us pulse value
 
-  size_t n_valid;      ///< Count of valid sectors decoded
+  size_t n_valid; ///< Count of valid sectors decoded
 
-  uint8_t *pulses;     ///< Encoded track data
-  size_t n_pulses;     ///< Total size of encoded track data
-  size_t pos;          ///< Position within encoded track data
-  size_t time;         ///< Total track time in flux units (set by encoder)
+  uint8_t *pulses; ///< Encoded track data
+  size_t n_pulses; ///< Total size of encoded track data
+  size_t pos;      ///< Position within encoded track data
+  size_t time;     ///< Total track time in flux units (set by encoder)
 
-  uint8_t *sectors;    ///< Pointer to decoded data
-  size_t n_sectors;    ///< Number of sectors on track
+  uint8_t *sectors; ///< Pointer to decoded data
+  size_t n_sectors; ///< Number of sectors on track
 
   uint8_t *sector_validity; ///< Which sectors decoded successfully
-  uint8_t *cylinder_ptr; ///< When decoding, the cylinder number read is stored here
+  uint8_t
+      *cylinder_ptr; ///< When decoding, the cylinder number read is stored here
   uint8_t head, cylinder; ///< Location of the track on disk
-  uint8_t pulse_len;   ///< bookkeeping value used by MFM decoder
-  uint8_t y;           ///< bookkeeping value used by MFM encoder
-  uint8_t n;           ///< Sector size value. Sector is (128<<n) bytes big. Valid values are 0..7
+  uint8_t pulse_len;      ///< bookkeeping value used by MFM decoder
+  uint8_t y;              ///< bookkeeping value used by MFM encoder
+  uint8_t n; ///< Sector size value. Sector is (128<<n) bytes big. Valid values
+             ///< are 0..7
 
-  uint16_t crc;        ///< bookkeeping value used by encoder & decoder
+  uint16_t crc; ///< bookkeeping value used by encoder & decoder
   const mfm_io_settings_t *settings; ///< various settings, used by encoder
-  void (*flux_byte)(struct mfm_io *, uint8_t); ///< can be mfm_io_flux_put or mfm_io_flux_put_compact
-  void (*encode_raw)(mfm_io_t *io, uint8_t b); ///< can be mfm_io_encode_raw_fm or mfm_io_encode_raw_mfm
+  void (*flux_byte)(
+      struct mfm_io *,
+      uint8_t); ///< can be mfm_io_flux_put or mfm_io_flux_put_compact
+  void (*encode_raw)(
+      mfm_io_t *io,
+      uint8_t b); ///< can be mfm_io_encode_raw_fm or mfm_io_encode_raw_mfm
 };
-
 
 typedef enum {
   mfm_io_pulse_10,
@@ -104,12 +99,13 @@ enum {
 
 // static const char sync_bytes[] = "\x44\x89\x44\x89\x44\x89";
 // a1 a1 a1 but with special timing bits
-static const uint8_t mfm_io_sync_bytes_mfm[] = {0x44, 0x89, 0x44, 0x89, 0x44, 0x89};
+static const uint8_t mfm_io_sync_bytes_mfm[] = {0x44, 0x89, 0x44,
+                                                0x89, 0x44, 0x89};
 static const uint8_t mfm_io_iam_sync_bytes_mfm[] = {0x52, 0x24, 0x52,
-                                                0x24, 0x52, 0x24};
+                                                    0x24, 0x52, 0x24};
 
 static const uint8_t mfm_io_sync_bytes_fm[] = {};
-static const uint8_t mfm_io_iam_sync_bytes_fm[] = { 0xaa, 0xaa, 0xf7, 0x7a };
+static const uint8_t mfm_io_iam_sync_bytes_fm[] = {0xaa, 0xaa, 0xf7, 0x7a};
 
 enum { fm_default_sync_clk = 0xc7 };
 
@@ -428,11 +424,11 @@ static const uint16_t mfm_encode_list[] = {
 static void mfm_io_encode_fm_sync(mfm_io_t *io, uint8_t data, uint8_t clock) {
   uint16_t encoded = 0;
   // can this be done with two lookups in encoded[] ?
-  for(size_t i=0; i<8; i++) {
+  for (size_t i = 0; i < 8; i++) {
     encoded <<= 1;
-    encoded |= (clock >> (7-i)) & 1;
+    encoded |= (clock >> (7 - i)) & 1;
     encoded <<= 1;
-    encoded |= (data >> (7-i)) & 1;
+    encoded |= (data >> (7 - i)) & 1;
   }
   io->encode_raw(io, encoded >> 8);
   io->encode_raw(io, encoded & 0xff);
@@ -466,20 +462,22 @@ static void mfm_io_encode_gap_and_presync(mfm_io_t *io, size_t n_gap) {
 static void mfm_io_encode_gap_and_sync(mfm_io_t *io, size_t n_gap) {
   mfm_io_encode_gap_and_presync(io, n_gap);
   if (io->settings->is_fm) {
-      mfm_io_encode_raw_buf(io, mfm_io_sync_bytes_fm, sizeof(mfm_io_sync_bytes_fm));
+    mfm_io_encode_raw_buf(io, mfm_io_sync_bytes_fm,
+                          sizeof(mfm_io_sync_bytes_fm));
   } else {
-      mfm_io_encode_raw_buf(io, mfm_io_sync_bytes_mfm, sizeof(mfm_io_sync_bytes_mfm));
+    mfm_io_encode_raw_buf(io, mfm_io_sync_bytes_mfm,
+                          sizeof(mfm_io_sync_bytes_mfm));
   }
 }
 
 static void mfm_io_encode_iam(mfm_io_t *io) {
   mfm_io_encode_gap_and_presync(io, io->settings->gap_4a);
   if (io->settings->is_fm) {
-      mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes_fm,
-                            sizeof(mfm_io_iam_sync_bytes_fm));
+    mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes_fm,
+                          sizeof(mfm_io_iam_sync_bytes_fm));
   } else {
-  mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes_mfm,
-                        sizeof(mfm_io_iam_sync_bytes_mfm));
+    mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes_mfm,
+                          sizeof(mfm_io_iam_sync_bytes_mfm));
   }
   mfm_io_encode_byte(io, MFM_IO_IAM);
 }
@@ -512,8 +510,7 @@ static void mfm_io_encode_crc(mfm_io_t *io) {
 // Convert a whole track into flux, up to n_sectors. indexing of data is
 // 0-based, mfm_io_even though MFM_IO_IDAMs store sectors as 1-based
 MFM_MAYBE_UNUSED
-static size_t
-encode_track_mfm(mfm_io_t *io) {
+static size_t encode_track_mfm(mfm_io_t *io) {
   io->pos = 0;
   io->pulse_len = 0;
   io->y = 0;
@@ -539,10 +536,10 @@ encode_track_mfm(mfm_io_t *io) {
     buf[4] = io->n;
 
     mfm_io_crc_preload(io);
-    if(io->settings->is_fm) {
+    if (io->settings->is_fm) {
       io->crc = mfm_io_crc16(buf, 1, io->crc);
       mfm_io_encode_fm_sync(io, MFM_IO_IDAM, fm_default_sync_clk);
-      mfm_io_encode_buf_crc(io, buf+1, sizeof(buf)-1);
+      mfm_io_encode_buf_crc(io, buf + 1, sizeof(buf) - 1);
     } else {
       mfm_io_encode_buf_crc(io, buf, sizeof(buf));
     }
