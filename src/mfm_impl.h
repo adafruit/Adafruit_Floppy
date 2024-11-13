@@ -434,6 +434,11 @@ static void mfm_io_encode_fm_sync(mfm_io_t *io, uint8_t data, uint8_t clock) {
   io->encode_raw(io, encoded & 0xff);
 }
 
+static void mfm_io_encode_fm_sync_crc(mfm_io_t *io, uint8_t data, uint8_t clock) {
+    mfm_io_encode_fm_sync(io, data, clock);
+  io->crc = mfm_io_crc16(&data, 1, io->crc);
+}
+
 static void mfm_io_encode_byte(mfm_io_t *io, uint8_t b) {
   uint16_t encoded = mfm_encode_list[b];
   io->encode_raw(io, encoded >> 8);
@@ -489,7 +494,11 @@ static void mfm_io_encode_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
 }
 
 static void mfm_io_crc_preload(mfm_io_t *io) {
-  io->crc = mfm_io_crc_preload_value;
+  if (io->settings->is_fm) {
+      io->crc = 0xffff;
+  } else {
+      io->crc = mfm_io_crc_preload_value;
+  }
 }
 
 static void mfm_io_encode_buf_crc(mfm_io_t *io, const uint8_t *buf, size_t n) {
@@ -503,8 +512,9 @@ static void mfm_io_encode_byte_crc(mfm_io_t *io, uint8_t b) {
 
 static void mfm_io_encode_crc(mfm_io_t *io) {
   unsigned crc = io->crc;
-  mfm_io_encode_byte(io, crc >> 8);
-  mfm_io_encode_byte(io, crc & 0xff);
+  mfm_io_encode_byte_crc(io, crc >> 8);
+  mfm_io_encode_byte_crc(io, crc & 0xff);
+  DEBUG_ASSERT(io->crc == 0);
 }
 
 // Convert a whole track into flux, up to n_sectors. indexing of data is
@@ -536,18 +546,25 @@ static size_t encode_track_mfm(mfm_io_t *io) {
     buf[4] = io->n;
 
     mfm_io_crc_preload(io);
+    printf("crc=%04x\n", io->crc);
     if (io->settings->is_fm) {
-      io->crc = mfm_io_crc16(buf, 1, io->crc);
-      mfm_io_encode_fm_sync(io, MFM_IO_IDAM, fm_default_sync_clk);
-      mfm_io_encode_buf_crc(io, buf + 1, sizeof(buf) - 1);
+        mfm_io_encode_fm_sync_crc(io, buf[0], fm_default_sync_clk);
+        printf("crc=%04x\n", io->crc);
+        mfm_io_encode_buf_crc(io, buf + 1, sizeof(buf) - 1);
+        printf("crc=%04x\n", io->crc);
     } else {
       mfm_io_encode_buf_crc(io, buf, sizeof(buf));
     }
     mfm_io_encode_crc(io);
+    printf("crc=%04x\n\n", io->crc);
 
     mfm_io_encode_gap_and_sync(io, io->settings->gap_2);
     mfm_io_crc_preload(io);
-    mfm_io_encode_byte_crc(io, MFM_IO_DAM);
+    if(io->settings->is_fm) {
+      mfm_io_encode_fm_sync_crc(io, MFM_IO_DAM, fm_default_sync_clk);
+    } else {
+      mfm_io_encode_byte_crc(io, MFM_IO_DAM);
+    }
     size_t io_block_size = 128 << io->n;
     mfm_io_encode_buf_crc(io, &io->sectors[io_block_size * i], io_block_size);
     mfm_io_encode_crc(io);
