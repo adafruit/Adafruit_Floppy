@@ -1,7 +1,7 @@
 import sys
 import pathlib
 sys.path.insert(0, str(
-    pathlib.Path(__file__).parent / "greaseweazle/scripts"))
+    pathlib.Path(__file__).parent / "greaseweazle/src"))
     
 from greaseweazle.codec.ibm.fm import IBM_FM_Predefined
 

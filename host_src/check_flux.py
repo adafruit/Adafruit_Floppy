@@ -1,13 +1,11 @@
 import sys
 import pathlib
 sys.path.insert(0, str(
-    pathlib.Path(__file__).parent / "greaseweazle/scripts"))
+    pathlib.Path(__file__).parent / "greaseweazle/src"))
 import click
-from greaseweazle.track import MasterTrack
-from greaseweazle.codec.ibm.mfm import IBM_MFM
-from greaseweazle.codec.ibm.fm import IBM_FM
+from greaseweazle.codec.codec import get_diskdef
+from greaseweazle.track import MasterTrack, PLLTrack
 from bitarray import bitarray
-from make_flux_fm import RX01
 
 @click.command
 @click.option("--fm/--no-fm", is_flag=True)
@@ -20,18 +18,22 @@ def main(flux_file, fm=False):
     print(content.count(0), content.count(1))
 
     if fm:
-        master = MasterTrack(content[:41_750], .167)
-        track = RX01(0,0)
+        master = MasterTrack(content[:41_750], .166)
+        track = get_diskdef("dec.rx01").mk_track(0,0)
         track.time_per_rev = .166
         track.clock = 4e-6
     else:
-        master = MasterTrack(content[:200_000], 0.2)
-        track = IBM_MFM(0,0)
+        master = MasterTrack(content[:200_000], .200)
+        track = get_diskdef("ibm.1440").mk_track(0,0)
         track.time_per_rev = 0.2
         track.clock = 1e-6
 
+    #pll = PLLTrack(track.clock, master.flux())
 
-    track.decode_raw(master)
+    #print(track)
+    #print(pll)
+
+    track.decode_flux(master, None)
     print(flux_file, track.summary_string(), file=sys.stderr)
     print(flux_file, track.summary_string())
     print("".join("E."[sec.crc == 0] for sec in track.sectors))
