@@ -185,17 +185,21 @@ FsFile dir;
 FsFile file;
 
 struct floppy_format_info_t {
-  uint8_t cylinders, sectors;
+  uint8_t cylinders, sectors, sides; // number of sides may be 1 or 2
   uint16_t bit_time_ns;
   size_t flux_count_bit;
+  uint8_t n; // sector size is 128<<n
+  bool is_fm;
 };
 
 const struct floppy_format_info_t format_info[] = {
-    {80, 18, 1000, 200000}, // 3.5" 1440kB, 300RPM
-    {80, 9, 2000, 100000},  // 3.5" 720kB, 300RPM
+    {80, 18, 2, 1000, 200000, 2, false}, // 3.5" 1440kB, 300RPM
+    {80, 9, 2, 2000, 100000, 2, false},  // 3.5" 720kB, 300RPM
 
-    {80, 15, 1000, 167000}, // 5.25" 1200kB, 360RPM
-    {40, 9, 2000, 100000},  // 5.25" 360kB, 300RPM
+    {80, 15, 2, 1000, 166667, 2, false}, // 5.25" 1200kB, 360RPM
+    {40, 9, 2, 2000, 100000, 2, false},  // 5.25" 360kB, 300RPM
+
+    {77, 26, 1, 2000, 80000, 0, true},  // 8" 256kB, 360RPM
 };
 
 const floppy_format_info_t *cur_format = &format_info[0];
@@ -209,7 +213,7 @@ void pio_sm_set_clk_ns(PIO pio, uint sm, uint time_ns) {
 bool setFormat(size_t size) {
   cur_format = NULL;
   for (const auto &i : format_info) {
-    auto img_size = (size_t)i.sectors * i.cylinders * 2 * 512;
+    auto img_size = (size_t)i.sectors * i.cylinders * i.sides * (128 << i.n);
     if (size != img_size)
       continue;
     cur_format = &i;
@@ -287,6 +291,14 @@ void setup() {
   Serial.println("Serial connected");
 #endif
 
+#if defined(XEROX_820)
+  pinMode(DENSITY_PIN, OUTPUT);
+  digitalWrite(DENSITY_PIN, HIGH); // Xerox 820 density select HIGH means 8" floppy
+  pinMode(READY_PIN, OUTPUT);
+  digitalWrite(READY_PIN, LOW); // Drive always reports readiness
+  Serial.println("Configured for Xerox 820 8\" floppy emulation");
+#endif
+
   attachInterrupt(digitalPinToInterrupt(STEP_PIN), onStep, FALLING);
 
 #if defined(NEOPIXEL_PIN)
@@ -309,28 +321,22 @@ void setup() {
 #endif
 }
 
-static void encode_track_mfm(uint8_t head, uint8_t cylinder,
-                             uint8_t n_sectors) {
+static void encode_track(uint8_t head, uint8_t cylinder) {
 
   mfm_io_t io = {
       .encode_compact = true,
-      .T2_max = 5,
-      .T3_max = 7,
-      .T1_nom = 2,
       .pulses = (uint8_t *)flux_data[head],
       .n_pulses = flux_count_long * sizeof(long),
-      //.pos = 0,
       .sectors = track_data,
-      .n_sectors = n_sectors,
-      //.sector_validity = NULL,
+      .n_sectors = cur_format->sectors,
       .head = head,
       .cylinder = cylinder,
-      .n = 2,
-      .settings = &standard_mfm,
-      .encode_raw = mfm_io_encode_raw_mfm,
+      .n = cur_format->n,
+      .settings = cur_format->is_fm ? &standard_fm : &standard_mfm,
   };
 
   size_t pos = encode_track_mfm(&io);
+Serial.printf("Encoded to %zu flux\n", pos);
 }
 
 // As an easter egg, the dummy disk image embeds the boot sector Tetris
@@ -390,34 +396,32 @@ void loop() {
   if (cur_format && new_trackno != cached_trackno) {
     STATUS_RGB(0, 255, 255);
     fluxout = -1;
-    Serial.printf("Preparing MFM data for track %d\n", new_trackno);
+    Serial.printf("Preparing flux data for track %d\n", new_trackno);
     int sector_count = cur_format->sectors;
-    size_t offset = 512 * sector_count * 2 * new_trackno;
-    size_t count = 512 * sector_count;
-    int dummy_byte = new_trackno * 2;
+    int side_count = cur_format->sides;
+    int sector_size = 128 << cur_format->n;
+    size_t offset = sector_size * sector_count * side_count * new_trackno;
+    size_t count = sector_size * sector_count;
+    int dummy_byte = new_trackno * side_count;
 #if USE_SDFAT
     file.seek(offset);
-    int n = file.read(track_data, count);
-    if (n != count) {
-      Serial.println("Read failed -- using dummy data");
-      make_dummy_data(0, new_trackno, count);
+    for(auto side = 0; side<side_count; side++) {
+        int n = file.read(track_data, count);
+        if (n != count) {
+          Serial.println("Read failed -- using dummy data");
+          make_dummy_data(side, new_trackno, count);
+        }
+        encode_track(side, new_trackno);
     }
-    encode_track_mfm(0, new_trackno, sector_count);
-    n = file.read(track_data, count);
-    if (n != count) {
-      Serial.println("Read failed -- using dummy data");
-      make_dummy_data(1, new_trackno, count);
-    }
-    encode_track_mfm(1, new_trackno, sector_count);
 #else
     Serial.println("No filesystem - using dummy data");
-    make_dummy_data(0, new_trackno, count);
-    encode_track_mfm(0, new_trackno, sector_count);
-    make_dummy_data(1, new_trackno, count);
-    encode_track_mfm(1, new_trackno, sector_count);
+    for(auto side = 0; side<side_count; side++) {
+        make_dummy_data(side, new_trackno, count);
+        encode_track(side, new_trackno);
+    }
 #endif
 
-    Serial.println("MFM data prepared");
+    Serial.println("flux data prepared");
     cached_trackno = new_trackno;
   }
   fluxout =
@@ -432,5 +436,8 @@ void loop() {
 
   // this is not correct handling of the ready/disk change flag. on my test
   // computer, just leaving the pin HIGH works, while immediately reporting LOW
-  // on the "ready / disk change digitalWrite(READY_PIN, !motor_pin);
+  // on the "ready / disk change:
+#if 0
+  digitalWrite(READY_PIN, !motor_pin);
+#endif
 }
