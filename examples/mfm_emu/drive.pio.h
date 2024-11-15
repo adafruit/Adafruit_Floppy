@@ -20,12 +20,13 @@ static const uint16_t fluxout_compact_program_instructions[] = {
             //     .wrap_target
     0x6001, //  0: out    pins, 1                    
             //     .wrap
+    0xe000, //  1: set    pins, 0                    
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program fluxout_compact_program = {
     .instructions = fluxout_compact_program_instructions,
-    .length = 1,
+    .length = 2,
     .origin = -1,
     .pio_version = 0,
 #if PICO_PIO_VERSION > 0
@@ -49,6 +50,7 @@ void sm_config_set_clk_ns(pio_sm_config *c, uint time_ns) {
 static inline void fluxout_compact_program_init(PIO pio, uint sm, uint offset, uint pin, uint bit_time_ns) {
     pio_sm_config c = fluxout_compact_program_get_default_config(offset);
     sm_config_set_out_pins(&c, pin, 1);
+    sm_config_set_set_pins(&c, pin, 1);
     sm_config_set_clk_ns(&c, bit_time_ns);
     pio_gpio_init(pio, pin);
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);

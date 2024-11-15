@@ -546,17 +546,13 @@ static size_t encode_track_mfm(mfm_io_t *io) {
     buf[4] = io->n;
 
     mfm_io_crc_preload(io);
-    printf("crc=%04x\n", io->crc);
     if (io->settings->is_fm) {
         mfm_io_encode_fm_sync_crc(io, buf[0], fm_default_sync_clk);
-        printf("crc=%04x\n", io->crc);
         mfm_io_encode_buf_crc(io, buf + 1, sizeof(buf) - 1);
-        printf("crc=%04x\n", io->crc);
     } else {
       mfm_io_encode_buf_crc(io, buf, sizeof(buf));
     }
     mfm_io_encode_crc(io);
-    printf("crc=%04x\n\n", io->crc);
 
     mfm_io_encode_gap_and_sync(io, io->settings->gap_2);
     mfm_io_crc_preload(io);

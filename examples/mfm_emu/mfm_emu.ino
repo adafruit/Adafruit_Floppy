@@ -1,6 +1,7 @@
 
 
-// #define WAIT_SERIAL
+#define WAIT_SERIAL
+// #define XEROX_820
 // #define USE_CUSTOM_PINOUT
 
 #if defined(USE_CUSTOM_PINOUT) && __has_include("custom_pinout.h")
@@ -205,6 +206,7 @@ const struct floppy_format_info_t format_info[] = {
 const floppy_format_info_t *cur_format = &format_info[0];
 
 void pio_sm_set_clk_ns(PIO pio, uint sm, uint time_ns) {
+Serial.printf("set_clk_ns %u\n", time_ns);
   float f = clock_get_hz(clk_sys) * 1e-9 * time_ns;
   int scaled_clkdiv = (int)roundf(f * 256);
   pio_sm_set_clkdiv_int_frac(pio, sm, scaled_clkdiv / 256, scaled_clkdiv % 256);
@@ -217,7 +219,13 @@ bool setFormat(size_t size) {
     if (size != img_size)
       continue;
     cur_format = &i;
-    pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns);
+    if (cur_format->is_fm) {
+        pio_sm_set_wrap(pio, sm_fluxout, offset_fluxout, offset_fluxout + 1);
+        pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns/2);
+    } else {
+        pio_sm_set_wrap(pio, sm_fluxout, offset_fluxout, offset_fluxout + 0);
+        pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns);
+    }
     flux_count_long = (i.flux_count_bit + 31) / 32;
     return true;
   }
