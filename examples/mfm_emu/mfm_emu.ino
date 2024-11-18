@@ -1,7 +1,7 @@
 
 
 #define WAIT_SERIAL
-// #define XEROX_820
+#define XEROX_820
 // #define USE_CUSTOM_PINOUT
 
 #if defined(USE_CUSTOM_PINOUT) && __has_include("custom_pinout.h")
@@ -113,16 +113,10 @@ PIO pio = pio0;
 uint sm_fluxout, offset_fluxout;
 uint sm_index_pulse, offset_index_pulse;
 
-void setup1() {
-  offset_fluxout = pio_add_program(pio, &fluxout_compact_program);
-  sm_fluxout = pio_claim_unused_sm(pio, true);
-  fluxout_compact_program_init(pio, sm_fluxout, offset_fluxout, FLUX_OUT_PIN,
-                               1000);
+volatile bool early_setup_done;
 
-  offset_index_pulse = pio_add_program(pio, &index_pulse_program);
-  sm_index_pulse = pio_claim_unused_sm(pio, true);
-  index_pulse_program_init(pio, sm_index_pulse, offset_index_pulse, INDEX_PIN,
-                           1000);
+void setup1() {
+while(!early_setup_done) {}
 }
 
 void __not_in_flash_func(loop1)() {
@@ -275,7 +269,17 @@ void setup() {
   digitalWrite(FLOPPY_ENABLE_PIN, LOW); // do second after setting direction
 #endif
 
-  // index pin direction is set in setup1
+  offset_fluxout = pio_add_program(pio, &fluxout_compact_program);
+  sm_fluxout = pio_claim_unused_sm(pio, true);
+  fluxout_compact_program_init(pio, sm_fluxout, offset_fluxout, FLUX_OUT_PIN,
+                               1000);
+
+  offset_index_pulse = pio_add_program(pio, &index_pulse_program);
+  sm_index_pulse = pio_claim_unused_sm(pio, true);
+  index_pulse_program_init(pio, sm_index_pulse, offset_index_pulse, INDEX_PIN,
+                           1000);
+  early_setup_done = true;
+
   pinMode(DIR_PIN, INPUT_PULLUP);
   pinMode(STEP_PIN, INPUT_PULLUP);
   pinMode(SIDE_PIN, INPUT_PULLUP);
@@ -369,9 +373,18 @@ void loop() {
   int motor_pin = !digitalRead(MOTOR_PIN);
   int select_pin = !digitalRead(SELECT_PIN);
   int side = !digitalRead(SIDE_PIN);
+
+#if defined(XEROX_820)
+// no separate motor pin on this baby
+  motor_pin = true;
+// only one side
+  side = 0;
+#endif
+
   auto enabled = motor_pin && select_pin;
   static bool old_enabled = false, old_select_pin = false,
               old_motor_pin = false;
+
 
   if (motor_pin != old_motor_pin) {
     Serial.printf("motor_pin -> %s\n", motor_pin ? "true" : "false");
@@ -436,12 +449,18 @@ void loop() {
       (cur_format != NULL && enabled && cached_trackno == trackno) ? side : -1;
 #if defined(NEOPIXEL_PIN)
   if (fluxout >= 0) {
-    STATUS_RGB(0, 255, 0);
+    STATUS_RGB(0, 1, 0);
   } else {
     STATUS_RGB(0, 0, 0);
   }
 #endif
 
+static int i, j=1;
+if(i ++ % j == 0) {
+Serial.printf("ok i=%d\n", i);
+if(j < 1000) 
+j *= 10;
+}
   // this is not correct handling of the ready/disk change flag. on my test
   // computer, just leaving the pin HIGH works, while immediately reporting LOW
   // on the "ready / disk change:
