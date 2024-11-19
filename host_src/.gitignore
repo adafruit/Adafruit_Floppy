@@ -1,5 +1,9 @@
 test_flux.h
 main
-flux[01]
-check[01]
-decode[01]
+main_fm
+flux[0-9]
+fluxfm*
+check[0-9]
+checkfm*
+decode[0-9]
+decodefm*

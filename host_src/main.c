@@ -10,8 +10,8 @@ uint8_t flux[] = {
 };
 
 enum { sector_count = 18 };
-
-uint8_t track_buf[sector_count * mfm_io_block_size];
+enum { ibmpc_io_block_size = 512 };
+uint8_t track_buf[sector_count * ibmpc_io_block_size];
 uint8_t validity[sector_count];
 
 mfm_io_t io = {
@@ -22,7 +22,10 @@ mfm_io_t io = {
     .n_pulses = sizeof(flux),
     .sectors = track_buf,
     .sector_validity = validity,
-    .n_sectors = sizeof(track_buf) / mfm_io_block_size,
+    .n_sectors = sector_count,
+    .n = 2,
+    .settings = &standard_mfm,
+    .encode_raw = mfm_io_encode_raw_mfm,
 };
 
 static void flux_bins(mfm_io_t *io) {
@@ -34,6 +37,18 @@ static void flux_bins(mfm_io_t *io) {
   printf("Flux bins: %d %d %d\n", bins[0], bins[1], bins[2]);
 }
 
+static void dump_flux_compact(const char *filename, mfm_io_t *io) {
+  FILE *f = fopen(filename, "w");
+  io->pos = 0;
+  while (!mfm_io_eof(io)) {
+    int b = io->pulses[io->pos++];
+    for (int i = 8; i-- > 0;) {
+      fputc('0' + ((b >> i) & 1), f);
+    };
+    fputc(io->pos % 8 == 0 ? '\n' : ' ', f);
+  }
+  fclose(f);
+}
 static void dump_flux(const char *filename, mfm_io_t *io) {
   FILE *f = fopen(filename, "w");
   io->pos = 0;
@@ -53,11 +68,6 @@ static void dump_flux(const char *filename, mfm_io_t *io) {
       fprintf(f, "\n");
     }
   }
-#if 0
-    for(size_t i=0; i<io->num_pulses; i++) {
-        fprintf(f, "%d\n", io->pulses[i]);
-    }
-#endif
   fclose(f);
 }
 
@@ -75,7 +85,6 @@ int main() {
 #endif
 
   printf("Create new flux data\n");
-  (void)encode_track_mfm;
   encode_track_mfm(&io);
   dump_flux("flux1", &io);
 
@@ -86,6 +95,10 @@ int main() {
   flux_bins(&io);
   size_t decoded = decode_track_mfm(&io);
   printf("Decoded %zd sectors\n", decoded);
+
+  io.encode_compact = true;
+  encode_track_mfm(&io);
+  dump_flux_compact("flux2", &io);
 
   return decoded != 18;
 }

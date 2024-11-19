@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-    - uses: actions/checkout@v2
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
          repository: adafruit/ci-arduino
          path: ci
@@ -66,11 +66,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-    - uses: actions/checkout@v2
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
          repository: adafruit/ci-arduino
          path: ci
@@ -82,7 +82,7 @@ jobs:
       run: git clone --quiet https://github.com/adafruit/SdFat.git /home/runner/Arduino/libraries/SdFat
 
     - name: clang
-      run: python3 ci/run-clang-format.py -e "ci/*" -e "bin/*" -r . 
+      run: python3 ci/run-clang-format.py -e "ci/*" -e "bin/*" -e "*.pio.h" -r .
 
     - name: doxygen
       env:

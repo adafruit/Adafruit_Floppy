@@ -1,0 +1,51 @@
+; When updating this file, you must manually run `pioasm drive.pio > drive.pio.h`!
+; The Arduino IDE does not do this step!
+
+.program fluxout_compact
+.pio_version 0
+.out 1 left auto 32
+
+.wrap_target
+    out pins, 1
+.wrap
+    set pins, 0 [3] ;; for FM fluxing, the wrap point is moved just after this one
+
+%c-sdk {
+void sm_config_set_clk_ns(pio_sm_config *c, uint time_ns) {
+    float f = clock_get_hz(clk_sys) * 1e-9 * time_ns;
+    int scaled_clkdiv = (int)roundf(f * 256);
+    sm_config_set_clkdiv_int_frac(c, scaled_clkdiv / 256, scaled_clkdiv % 256);
+}
+
+static inline void fluxout_compact_program_init(PIO pio, uint sm, uint offset, uint pin, uint bit_time_ns) {
+    pio_sm_config c = fluxout_compact_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, pin, 1);
+    sm_config_set_set_pins(&c, pin, 1);
+    sm_config_set_clk_ns(&c, bit_time_ns);
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
+
+.program index_pulse
+.side_set 1
+
+    pull block                  side 1
+    mov x, osr                  side 0
+loop:
+    jmp x--, loop               side 0
+
+% c-sdk {
+static inline void index_pulse_program_init(PIO pio, uint sm, uint offset, uint pin, uint bit_time_ns) {
+    pio_sm_config c = index_pulse_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, pin);
+    sm_config_set_sideset(&c, 1, /* optional */ false, /* pin direction */ false);
+    sm_config_set_clk_ns(&c, bit_time_ns);
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, /* is_out */ true);
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}

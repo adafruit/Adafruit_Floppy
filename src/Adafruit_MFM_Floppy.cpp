@@ -14,7 +14,7 @@ static const adafruit_floppy_format_info_t _format_info[] = {
     /* IBMPC360K */
     {40, 9, 2000, 167},
     /* IBMPC1200K */
-    {80, 18, 1000, 200},
+    {80, 15, 1000, 200},
 
     /* IBMPC720K */
     {80, 9, 1000, 200},
@@ -86,7 +86,6 @@ bool Adafruit_MFM_Floppy::begin(void) {
 /**************************************************************************/
 /*!
     @brief  Spin down and deselect the motor and drive
-    @returns True always
 */
 /**************************************************************************/
 void Adafruit_MFM_Floppy::end(void) {
