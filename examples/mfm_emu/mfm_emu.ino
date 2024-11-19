@@ -458,12 +458,6 @@ void loop() {
   }
 #endif
 
-  static int i, j = 1;
-  if (i++ % j == 0) {
-    Serial.printf("ok i=%d\n", i);
-    if (j < 1000)
-      j *= 10;
-  }
   // this is not correct handling of the ready/disk change flag. on my test
   // computer, just leaving the pin HIGH works, while immediately reporting LOW
   // on the "ready / disk change:
