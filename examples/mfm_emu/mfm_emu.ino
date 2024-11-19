@@ -116,7 +116,8 @@ uint sm_index_pulse, offset_index_pulse;
 volatile bool early_setup_done;
 
 void setup1() {
-while(!early_setup_done) {}
+  while (!early_setup_done) {
+  }
 }
 
 void __not_in_flash_func(loop1)() {
@@ -194,13 +195,13 @@ const struct floppy_format_info_t format_info[] = {
     {80, 15, 2, 1000, 166667, 2, false}, // 5.25" 1200kB, 360RPM
     {40, 9, 2, 2000, 100000, 2, false},  // 5.25" 360kB, 300RPM
 
-    {77, 26, 1, 2000, 80000, 0, true},  // 8" 256kB, 360RPM
+    {77, 26, 1, 2000, 80000, 0, true}, // 8" 256kB, 360RPM
 };
 
 const floppy_format_info_t *cur_format = &format_info[0];
 
 void pio_sm_set_clk_ns(PIO pio, uint sm, uint time_ns) {
-Serial.printf("set_clk_ns %u\n", time_ns);
+  Serial.printf("set_clk_ns %u\n", time_ns);
   float f = clock_get_hz(clk_sys) * 1e-9 * time_ns;
   int scaled_clkdiv = (int)roundf(f * 256);
   pio_sm_set_clkdiv_int_frac(pio, sm, scaled_clkdiv / 256, scaled_clkdiv % 256);
@@ -214,13 +215,13 @@ bool setFormat(size_t size) {
       continue;
     cur_format = &i;
     if (cur_format->is_fm) {
-        pio_sm_set_wrap(pio, sm_fluxout, offset_fluxout, offset_fluxout + 1);
-        pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns/4);
-        gpio_set_outover (FLUX_OUT_PIN, GPIO_OVERRIDE_INVERT);
+      pio_sm_set_wrap(pio, sm_fluxout, offset_fluxout, offset_fluxout + 1);
+      pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns / 4);
+      gpio_set_outover(FLUX_OUT_PIN, GPIO_OVERRIDE_INVERT);
     } else {
-        pio_sm_set_wrap(pio, sm_fluxout, offset_fluxout, offset_fluxout + 0);
-        pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns);
-        gpio_set_outover (FLUX_OUT_PIN, GPIO_OVERRIDE_NORMAL);
+      pio_sm_set_wrap(pio, sm_fluxout, offset_fluxout, offset_fluxout + 0);
+      pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns);
+      gpio_set_outover(FLUX_OUT_PIN, GPIO_OVERRIDE_NORMAL);
     }
     flux_count_long = (i.flux_count_bit + 31) / 32;
     return true;
@@ -307,7 +308,8 @@ void setup() {
 
 #if defined(XEROX_820)
   pinMode(DENSITY_PIN, OUTPUT);
-  digitalWrite(DENSITY_PIN, HIGH); // Xerox 820 density select HIGH means 8" floppy
+  digitalWrite(DENSITY_PIN,
+               HIGH); // Xerox 820 density select HIGH means 8" floppy
   pinMode(READY_PIN, OUTPUT);
   digitalWrite(READY_PIN, LOW); // Drive always reports readiness
   Serial.println("Configured for Xerox 820 8\" floppy emulation");
@@ -350,7 +352,7 @@ static void encode_track(uint8_t head, uint8_t cylinder) {
   };
 
   size_t pos = encode_track_mfm(&io);
-Serial.printf("Encoded to %zu flux\n", pos);
+  Serial.printf("Encoded to %zu flux\n", pos);
 }
 
 // As an easter egg, the dummy disk image embeds the boot sector Tetris
@@ -377,16 +379,15 @@ void loop() {
   int side = !digitalRead(SIDE_PIN);
 
 #if defined(XEROX_820)
-// no separate motor pin on this baby
+  // no separate motor pin on this baby
   motor_pin = true;
-// only one side
+  // only one side
   side = 0;
 #endif
 
   auto enabled = motor_pin && select_pin;
   static bool old_enabled = false, old_select_pin = false,
               old_motor_pin = false;
-
 
   if (motor_pin != old_motor_pin) {
     Serial.printf("motor_pin -> %s\n", motor_pin ? "true" : "false");
@@ -428,19 +429,19 @@ void loop() {
     int dummy_byte = new_trackno * side_count;
 #if USE_SDFAT
     file.seek(offset);
-    for(auto side = 0; side<side_count; side++) {
-        int n = file.read(track_data, count);
-        if (n != count) {
-          Serial.println("Read failed -- using dummy data");
-          make_dummy_data(side, new_trackno, count);
-        }
-        encode_track(side, new_trackno);
+    for (auto side = 0; side < side_count; side++) {
+      int n = file.read(track_data, count);
+      if (n != count) {
+        Serial.println("Read failed -- using dummy data");
+        make_dummy_data(side, new_trackno, count);
+      }
+      encode_track(side, new_trackno);
     }
 #else
     Serial.println("No filesystem - using dummy data");
-    for(auto side = 0; side<side_count; side++) {
-        make_dummy_data(side, new_trackno, count);
-        encode_track(side, new_trackno);
+    for (auto side = 0; side < side_count; side++) {
+      make_dummy_data(side, new_trackno, count);
+      encode_track(side, new_trackno);
     }
 #endif
 
@@ -457,12 +458,12 @@ void loop() {
   }
 #endif
 
-static int i, j=1;
-if(i ++ % j == 0) {
-Serial.printf("ok i=%d\n", i);
-if(j < 1000) 
-j *= 10;
-}
+  static int i, j = 1;
+  if (i++ % j == 0) {
+    Serial.printf("ok i=%d\n", i);
+    if (j < 1000)
+      j *= 10;
+  }
   // this is not correct handling of the ready/disk change flag. on my test
   // computer, just leaving the pin HIGH works, while immediately reporting LOW
   // on the "ready / disk change:

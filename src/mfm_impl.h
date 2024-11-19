@@ -434,8 +434,9 @@ static void mfm_io_encode_fm_sync(mfm_io_t *io, uint8_t data, uint8_t clock) {
   io->encode_raw(io, encoded & 0xff);
 }
 
-static void mfm_io_encode_fm_sync_crc(mfm_io_t *io, uint8_t data, uint8_t clock) {
-    mfm_io_encode_fm_sync(io, data, clock);
+static void mfm_io_encode_fm_sync_crc(mfm_io_t *io, uint8_t data,
+                                      uint8_t clock) {
+  mfm_io_encode_fm_sync(io, data, clock);
   io->crc = mfm_io_crc16(&data, 1, io->crc);
 }
 
@@ -495,9 +496,9 @@ static void mfm_io_encode_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
 
 static void mfm_io_crc_preload(mfm_io_t *io) {
   if (io->settings->is_fm) {
-      io->crc = 0xffff;
+    io->crc = 0xffff;
   } else {
-      io->crc = mfm_io_crc_preload_value;
+    io->crc = mfm_io_crc_preload_value;
   }
 }
 
@@ -547,8 +548,8 @@ static size_t encode_track_mfm(mfm_io_t *io) {
 
     mfm_io_crc_preload(io);
     if (io->settings->is_fm) {
-        mfm_io_encode_fm_sync_crc(io, buf[0], fm_default_sync_clk);
-        mfm_io_encode_buf_crc(io, buf + 1, sizeof(buf) - 1);
+      mfm_io_encode_fm_sync_crc(io, buf[0], fm_default_sync_clk);
+      mfm_io_encode_buf_crc(io, buf + 1, sizeof(buf) - 1);
     } else {
       mfm_io_encode_buf_crc(io, buf, sizeof(buf));
     }
@@ -556,7 +557,7 @@ static size_t encode_track_mfm(mfm_io_t *io) {
 
     mfm_io_encode_gap_and_sync(io, io->settings->gap_2);
     mfm_io_crc_preload(io);
-    if(io->settings->is_fm) {
+    if (io->settings->is_fm) {
       mfm_io_encode_fm_sync_crc(io, MFM_IO_DAM, fm_default_sync_clk);
     } else {
       mfm_io_encode_byte_crc(io, MFM_IO_DAM);
