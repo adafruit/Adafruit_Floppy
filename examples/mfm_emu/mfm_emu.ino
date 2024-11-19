@@ -129,7 +129,7 @@ void __not_in_flash_func(loop1)() {
       if (f < 0)
         break;
       auto d = flux_data[fluxout][i];
-      pio_sm_put_blocking(pio, sm_fluxout, ~__builtin_bswap32(d));
+      pio_sm_put_blocking(pio, sm_fluxout, __builtin_bswap32(d));
     }
     // terminate index pulse if ongoing
     pio_sm_exec(pio, sm_index_pulse,
@@ -216,9 +216,11 @@ bool setFormat(size_t size) {
     if (cur_format->is_fm) {
         pio_sm_set_wrap(pio, sm_fluxout, offset_fluxout, offset_fluxout + 1);
         pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns/4);
+        gpio_set_outover (FLUX_OUT_PIN, GPIO_OVERRIDE_INVERT);
     } else {
         pio_sm_set_wrap(pio, sm_fluxout, offset_fluxout, offset_fluxout + 0);
         pio_sm_set_clk_ns(pio, sm_fluxout, i.bit_time_ns);
+        gpio_set_outover (FLUX_OUT_PIN, GPIO_OVERRIDE_NORMAL);
     }
     flux_count_long = (i.flux_count_bit + 31) / 32;
     return true;

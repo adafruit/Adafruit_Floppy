@@ -20,7 +20,7 @@ static const uint16_t fluxout_compact_program_instructions[] = {
             //     .wrap_target
     0x6001, //  0: out    pins, 1                    
             //     .wrap
-    0xe301, //  1: set    pins, 1                [3] 
+    0xe300, //  1: set    pins, 0                [3] 
 };
 
 #if !PICO_NO_HARDWARE

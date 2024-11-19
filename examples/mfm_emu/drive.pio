@@ -8,7 +8,7 @@
 .wrap_target
     out pins, 1
 .wrap
-    set pins, 1 [3] ;; for FM fluxing, the wrap point is moved just after this one
+    set pins, 0 [3] ;; for FM fluxing, the wrap point is moved just after this one
 
 %c-sdk {
 void sm_config_set_clk_ns(pio_sm_config *c, uint time_ns) {
