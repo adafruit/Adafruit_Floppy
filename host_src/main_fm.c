@@ -35,17 +35,19 @@ static void dump_flux_compact(const char *filename, mfm_io_t *io) {
     for (int i = 8; i-- > 0;) {
       fputc('0' + ((b >> i) & 1), f);
     };
-    if (io->pos % 2 == 0) { fputc('\n', f); }
+    if (io->pos % 2 == 0) {
+      fputc('\n', f);
+    }
   }
   fclose(f);
 }
 
 int main() {
-  for(size_t i=0; i<sector_count; i++) {
-    memset(track_buf + i*block_size, block_size, 'A' + i);
+  for (size_t i = 0; i < sector_count; i++) {
+    memset(track_buf + i * block_size, block_size, 'A' + i);
   }
 
-  size_t r= encode_track_mfm(&io);
+  size_t r = encode_track_mfm(&io);
   printf("Used flux %zd\n", r);
   dump_flux_compact("fluxfm", &io);
 }
