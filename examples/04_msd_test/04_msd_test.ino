@@ -86,6 +86,10 @@ void setup() {
   pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
   digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
 #endif
+#if defined(FLOPPY_ENABLE_PIN)
+  pinMode(FLOPPY_ENABLE_PIN, OUTPUT);
+  digitalWrite(FLOPPY_ENABLE_PIN, LOW); // do second after setting direction
+#endif
 
 #if defined(ARDUINO_ARCH_MBED) && defined(ARDUINO_ARCH_RP2040)
   // Manual begin() is required on core without built-in support for TinyUSB
