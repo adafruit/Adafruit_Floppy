@@ -99,18 +99,18 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:a3765ef5a3f05d497333742596cecb0f3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a3765ef5a3f05d497333742596cecb0f3">spin_motor</a> (bool motor_on) override</td></tr>
 <tr class="memdesc:a3765ef5a3f05d497333742596cecb0f3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Turn on or off the floppy motor, if on we wait till we get an index pulse!  <a href="#a3765ef5a3f05d497333742596cecb0f3">More...</a><br /></td></tr>
 <tr class="separator:a3765ef5a3f05d497333742596cecb0f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a161713851da20052d7f87f1b469115ed"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a161713851da20052d7f87f1b469115ed">goto_track</a> (uint8_t <a class="el" href="class_adafruit___floppy.html#a4ecf87f957e5cd09a8e75e890a53f66d">track</a>) override</td></tr>
-<tr class="memdesc:a161713851da20052d7f87f1b469115ed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Seek to the desired track, requires the motor to be spun up!  <a href="#a161713851da20052d7f87f1b469115ed">More...</a><br /></td></tr>
-<tr class="separator:a161713851da20052d7f87f1b469115ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a69ceb0efe2cd9eec7af08aae64014141"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a69ceb0efe2cd9eec7af08aae64014141">side</a> (uint8_t head) override</td></tr>
-<tr class="memdesc:a69ceb0efe2cd9eec7af08aae64014141"><td class="mdescLeft">&#160;</td><td class="mdescRight">Which head/side to read from.  <a href="#a69ceb0efe2cd9eec7af08aae64014141">More...</a><br /></td></tr>
-<tr class="separator:a69ceb0efe2cd9eec7af08aae64014141"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4ecf87f957e5cd09a8e75e890a53f66d"><td class="memItemLeft" align="right" valign="top">int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a4ecf87f957e5cd09a8e75e890a53f66d">track</a> (void) override</td></tr>
-<tr class="memdesc:a4ecf87f957e5cd09a8e75e890a53f66d"><td class="mdescLeft">&#160;</td><td class="mdescRight">The current track location, based on internal caching.  <a href="#a4ecf87f957e5cd09a8e75e890a53f66d">More...</a><br /></td></tr>
-<tr class="separator:a4ecf87f957e5cd09a8e75e890a53f66d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afcdc3e0d7cf35c89b41ef5aa28543f58"><td class="memItemLeft" align="right" valign="top">int8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#afcdc3e0d7cf35c89b41ef5aa28543f58">get_side</a> (void) override</td></tr>
-<tr class="memdesc:afcdc3e0d7cf35c89b41ef5aa28543f58"><td class="mdescLeft">&#160;</td><td class="mdescRight">Current head in use, based on internal caching.  <a href="#afcdc3e0d7cf35c89b41ef5aa28543f58">More...</a><br /></td></tr>
-<tr class="separator:afcdc3e0d7cf35c89b41ef5aa28543f58"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a235d9c73f79ff197add7c263b9dd02c4"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a235d9c73f79ff197add7c263b9dd02c4">goto_track</a> (int <a class="el" href="class_adafruit___floppy.html#ae2750201f54cfa6232be27ec30e884ee">track</a>) override</td></tr>
+<tr class="memdesc:a235d9c73f79ff197add7c263b9dd02c4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Seek to the desired track, requires the motor to be spun up!  <a href="#a235d9c73f79ff197add7c263b9dd02c4">More...</a><br /></td></tr>
+<tr class="separator:a235d9c73f79ff197add7c263b9dd02c4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0021a2addc830b193144bde3bf9c69be"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a0021a2addc830b193144bde3bf9c69be">side</a> (int head) override</td></tr>
+<tr class="memdesc:a0021a2addc830b193144bde3bf9c69be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Which head/side to read from.  <a href="#a0021a2addc830b193144bde3bf9c69be">More...</a><br /></td></tr>
+<tr class="separator:a0021a2addc830b193144bde3bf9c69be"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae2750201f54cfa6232be27ec30e884ee"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#ae2750201f54cfa6232be27ec30e884ee">track</a> (void) override</td></tr>
+<tr class="memdesc:ae2750201f54cfa6232be27ec30e884ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">The current track location, based on internal caching.  <a href="#ae2750201f54cfa6232be27ec30e884ee">More...</a><br /></td></tr>
+<tr class="separator:ae2750201f54cfa6232be27ec30e884ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2a8e2d54d44435f546d01aaab49e470f"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a2a8e2d54d44435f546d01aaab49e470f">get_side</a> (void) override</td></tr>
+<tr class="memdesc:a2a8e2d54d44435f546d01aaab49e470f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Current head in use, based on internal caching.  <a href="#a2a8e2d54d44435f546d01aaab49e470f">More...</a><br /></td></tr>
+<tr class="separator:a2a8e2d54d44435f546d01aaab49e470f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40acef58cd980ccee3be3801b0c36624"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a40acef58cd980ccee3be3801b0c36624">step</a> (bool dir, uint8_t times)</td></tr>
 <tr class="memdesc:a40acef58cd980ccee3be3801b0c36624"><td class="mdescLeft">&#160;</td><td class="mdescRight">Step the track motor.  <a href="#a40acef58cd980ccee3be3801b0c36624">More...</a><br /></td></tr>
 <tr class="separator:a40acef58cd980ccee3be3801b0c36624"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -385,8 +385,8 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 
 </div>
 </div>
-<a id="a161713851da20052d7f87f1b469115ed"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a161713851da20052d7f87f1b469115ed">&#9670;&nbsp;</a></span>goto_track()</h2>
+<a id="a235d9c73f79ff197add7c263b9dd02c4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a235d9c73f79ff197add7c263b9dd02c4">&#9670;&nbsp;</a></span>goto_track()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -397,7 +397,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
         <tr>
           <td class="memname">bool Adafruit_Floppy::goto_track </td>
           <td>(</td>
-          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramtype">int&#160;</td>
           <td class="paramname"><em>track_num</em></td><td>)</td>
           <td></td>
         </tr>
@@ -418,12 +418,12 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True If we were able to get to the track location </dd></dl>
 
-<p>Implements <a class="el" href="class_adafruit___floppy_base.html#a2796ce8f3e72072605b3eb8b3e7047a9">Adafruit_FloppyBase</a>.</p>
+<p>Implements <a class="el" href="class_adafruit___floppy_base.html#a82a59791e8428635be8fd9fab4413628">Adafruit_FloppyBase</a>.</p>
 
 </div>
 </div>
-<a id="a69ceb0efe2cd9eec7af08aae64014141"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a69ceb0efe2cd9eec7af08aae64014141">&#9670;&nbsp;</a></span>side()</h2>
+<a id="a0021a2addc830b193144bde3bf9c69be"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0021a2addc830b193144bde3bf9c69be">&#9670;&nbsp;</a></span>side()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -434,7 +434,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
         <tr>
           <td class="memname">bool Adafruit_Floppy::side </td>
           <td>(</td>
-          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramtype">int&#160;</td>
           <td class="paramname"><em>head</em></td><td>)</td>
           <td></td>
         </tr>
@@ -456,12 +456,12 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 <dl class="section return"><dt>Returns</dt><dd>true if the head can be selected, false otherwise </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>If _sidepin is no pin, then only head 0 can be selected </dd></dl>
 
-<p>Implements <a class="el" href="class_adafruit___floppy_base.html#a095dc38b204919f0f55e631b2b733209">Adafruit_FloppyBase</a>.</p>
+<p>Implements <a class="el" href="class_adafruit___floppy_base.html#a50ce4fcaa3b93ae749e9b15f829db472">Adafruit_FloppyBase</a>.</p>
 
 </div>
 </div>
-<a id="a4ecf87f957e5cd09a8e75e890a53f66d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4ecf87f957e5cd09a8e75e890a53f66d">&#9670;&nbsp;</a></span>track()</h2>
+<a id="ae2750201f54cfa6232be27ec30e884ee"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae2750201f54cfa6232be27ec30e884ee">&#9670;&nbsp;</a></span>track()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -470,7 +470,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">int8_t Adafruit_Floppy::track </td>
+          <td class="memname">int Adafruit_Floppy::track </td>
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
@@ -487,12 +487,12 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 <p>The current track location, based on internal caching. </p>
 <dl class="section return"><dt>Returns</dt><dd>The cached track location </dd></dl>
 
-<p>Implements <a class="el" href="class_adafruit___floppy_base.html#aea1825a4168ba557a488ab57ca3a6a20">Adafruit_FloppyBase</a>.</p>
+<p>Implements <a class="el" href="class_adafruit___floppy_base.html#a358a46ad79a03294833a8ebba62c0922">Adafruit_FloppyBase</a>.</p>
 
 </div>
 </div>
-<a id="afcdc3e0d7cf35c89b41ef5aa28543f58"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#afcdc3e0d7cf35c89b41ef5aa28543f58">&#9670;&nbsp;</a></span>get_side()</h2>
+<a id="a2a8e2d54d44435f546d01aaab49e470f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2a8e2d54d44435f546d01aaab49e470f">&#9670;&nbsp;</a></span>get_side()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -501,7 +501,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">int8_t Adafruit_Floppy::get_side </td>
+          <td class="memname">int Adafruit_Floppy::get_side </td>
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
@@ -518,7 +518,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 <p>Current head in use, based on internal caching. </p>
 <dl class="section return"><dt>Returns</dt><dd>Head 0 or 1 </dd></dl>
 
-<p>Implements <a class="el" href="class_adafruit___floppy_base.html#a59e2d35f4468cde4cdaa9540c6964e1a">Adafruit_FloppyBase</a>.</p>
+<p>Implements <a class="el" href="class_adafruit___floppy_base.html#ac1d3ae4cd210c88d1ae162314277c52b">Adafruit_FloppyBase</a>.</p>
 
 </div>
 </div>
@@ -651,7 +651,7 @@ Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 
 <p>Check whether the track0 sensor is active. </p>
 <dl class="section return"><dt>Returns</dt><dd>True if the track0 sensor is active, false otherwise </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>On devices without a track0 sensor, this returns true when <a class="el" href="class_adafruit___floppy.html#a4ecf87f957e5cd09a8e75e890a53f66d" title="The current track location, based on internal caching. ">track()</a>==0 </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>On devices without a track0 sensor, this returns true when <a class="el" href="class_adafruit___floppy.html#ae2750201f54cfa6232be27ec30e884ee" title="The current track location, based on internal caching. ">track()</a>==0 </dd></dl>
 
 <p>Implements <a class="el" href="class_adafruit___floppy_base.html#a447bbcabe0f83e658807d84d00a37ffe">Adafruit_FloppyBase</a>.</p>
 
