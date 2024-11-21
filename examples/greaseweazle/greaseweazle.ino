@@ -113,7 +113,8 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_SETBUSTYPE 14
 #define GW_CMD_SETBUSTYPE_IBM 1
 #define GW_CMD_SETBUSTYPE_SHUGART 2
-#define GW_CMD_SETBUSTYPE_APPLE2 3
+#define GW_CMD_SETBUSTYPE_APPLE2_GW 4
+#define GW_CMD_SETBUSTYPE_APPLE2_FLUXENGINE 3
 #define GW_CMD_SETPIN    15
 #define GW_CMD_SETPIN_DENSITY 2
 #define GW_CMD_RESET     16
@@ -146,7 +147,8 @@ bool setbustype(int bustype) {
       break;
 #endif
 #ifdef APPLE2_RDDATA_PIN
-    case GW_CMD_SETBUSTYPE_APPLE2:
+    case GW_CMD_SETBUSTYPE_APPLE2_GW:
+    case GW_CMD_SETBUSTYPE_APPLE2_FLUXENGINE:
       floppy = &apple2floppy;
       apple2floppy.step_mode(Adafruit_Apple2Floppy::STEP_MODE_QUARTER);
       break;
@@ -168,6 +170,10 @@ void setup() {
 #if defined(FLOPPY_DIRECTION_PIN)
   pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
   digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
+#endif
+#if defined(FLOPPY_ENABLE_PIN)
+  pinMode(FLOPPY_ENABLE_PIN, OUTPUT);
+  digitalWrite(FLOPPY_ENABLE_PIN, LOW); // do second after setting direction
 #endif
 
   delay(100);
@@ -230,10 +236,11 @@ void loop() {
 
   int i = 0;
   uint8_t cmd = cmd_buffer[0];
+  uint8_t len = cmd_buffer[1];
   memset(reply_buffer, 0, sizeof(reply_buffer));
   reply_buffer[i++] = cmd;  // echo back the cmd itself
 
-  Serial1.printf("Got command 0x%02x of length %d\n\r", cmd, cmd_buffer[1]);
+  Serial1.printf("Got command 0x%02x of length %d\n\r", cmd, len);
 
 
   if (cmd == GW_CMD_GETINFO) {
@@ -328,7 +335,11 @@ void loop() {
   else if (cmd == GW_CMD_SEEK) {
     if (!floppy) goto needfloppy;
 
-    uint8_t track = cmd_buffer[2];
+    int track = cmd_buffer[2];
+    if (len > 3) {
+        track |= cmd_buffer[3] << 8;
+    }
+
     Serial1.printf("Seek track %d\n\r", track);
     bool r = floppy->goto_track(track);
     if (r) {

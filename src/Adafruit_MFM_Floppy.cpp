@@ -113,7 +113,7 @@ uint32_t Adafruit_MFM_Floppy::size(void) const {
     @returns Number of sectors captured, or -1 if we couldn't seek
 */
 /**************************************************************************/
-int32_t Adafruit_MFM_Floppy::readTrack(uint8_t logical_track, bool head) {
+int32_t Adafruit_MFM_Floppy::readTrack(int logical_track, bool head) {
   syncDevice();
 
   uint8_t physical_track = _double_step ? 2 * logical_track : logical_track;

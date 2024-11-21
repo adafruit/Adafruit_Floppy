@@ -77,6 +77,10 @@ void setup() {
   pinMode(FLOPPY_DIRECTION_PIN, OUTPUT);
   digitalWrite(FLOPPY_DIRECTION_PIN, HIGH);
 #endif
+#if defined(FLOPPY_ENABLE_PIN)
+  pinMode(FLOPPY_ENABLE_PIN, OUTPUT);
+  digitalWrite(FLOPPY_ENABLE_PIN, LOW); // do second after setting direction
+#endif
 
   Serial.println("its time for a nice floppy transfer!");
   floppy.debug_serial = &Serial;
