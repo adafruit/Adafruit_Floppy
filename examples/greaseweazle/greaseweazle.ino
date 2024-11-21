@@ -79,8 +79,7 @@ Adafruit_Apple2Floppy apple2floppy(APPLE2_INDEX_PIN, APPLE2_ENABLE_PIN,
                                    APPLE2_PHASE1_PIN, APPLE2_PHASE2_PIN, APPLE2_PHASE3_PIN, APPLE2_PHASE4_PIN,
                                    APPLE2_WRDATA_PIN, APPLE2_WRGATE_PIN, APPLE2_PROTECT_PIN, APPLE2_RDDATA_PIN);
 #else
-// #pragma message "This firmware will not support Apple ][ drives"
-#error "This firmware will not support Apple ][ drives"
+#pragma message "This firmware will not support Apple ][ drives"
 #endif
 
 Adafruit_FloppyBase *floppy;
