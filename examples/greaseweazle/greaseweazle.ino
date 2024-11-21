@@ -79,7 +79,8 @@ Adafruit_Apple2Floppy apple2floppy(APPLE2_INDEX_PIN, APPLE2_ENABLE_PIN,
                                    APPLE2_PHASE1_PIN, APPLE2_PHASE2_PIN, APPLE2_PHASE3_PIN, APPLE2_PHASE4_PIN,
                                    APPLE2_WRDATA_PIN, APPLE2_WRGATE_PIN, APPLE2_PROTECT_PIN, APPLE2_RDDATA_PIN);
 #else
-#pragma message "This firmware will not support Apple ][ drives"
+// #pragma message "This firmware will not support Apple ][ drives"
+#error "This firmware will not support Apple ][ drives"
 #endif
 
 Adafruit_FloppyBase *floppy;
@@ -236,10 +237,11 @@ void loop() {
 
   int i = 0;
   uint8_t cmd = cmd_buffer[0];
+  uint8_t len = cmd_buffer[1];
   memset(reply_buffer, 0, sizeof(reply_buffer));
   reply_buffer[i++] = cmd;  // echo back the cmd itself
 
-  Serial1.printf("Got command 0x%02x of length %d\n\r", cmd, cmd_buffer[1]);
+  Serial1.printf("Got command 0x%02x of length %d\n\r", cmd, len);
 
 
   if (cmd == GW_CMD_GETINFO) {
@@ -334,7 +336,11 @@ void loop() {
   else if (cmd == GW_CMD_SEEK) {
     if (!floppy) goto needfloppy;
 
-    uint8_t track = cmd_buffer[2];
+    int track = cmd_buffer[2];
+    if (len > 3) {
+        track |= cmd_buffer[3] << 8;
+    }
+
     Serial1.printf("Seek track %d\n\r", track);
     bool r = floppy->goto_track(track);
     if (r) {

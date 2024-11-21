@@ -90,7 +90,7 @@ public:
       @return True If we were able to get to the track location
   */
   /**************************************************************************/
-  virtual bool goto_track(uint8_t track_num) = 0;
+  virtual bool goto_track(int track_num) = 0;
   /**************************************************************************/
   /*!
       @brief Which head/side to read from
@@ -98,14 +98,14 @@ public:
       @return true if the head exists, false otherwise
   */
   /**************************************************************************/
-  virtual bool side(uint8_t head) = 0;
+  virtual bool side(int head) = 0;
   /**************************************************************************/
   /*!
       @brief Current head in use, based on internal caching
       @return Head 0 or 1
   */
   /**************************************************************************/
-  virtual int8_t get_side() = 0;
+  virtual int get_side() = 0;
   /**************************************************************************/
   /*!
       @brief  The current track location, based on internal caching
@@ -113,7 +113,7 @@ public:
       @note Returns -1 if the track is not known.
   */
   /**************************************************************************/
-  virtual int8_t track(void) = 0;
+  virtual int track(void) = 0;
   /**************************************************************************/
   /*!
       @brief  Check whether the floppy in the drive is write protected
@@ -239,10 +239,10 @@ public:
 
   void select(bool selected) override;
   bool spin_motor(bool motor_on) override;
-  bool goto_track(uint8_t track) override;
-  bool side(uint8_t head) override;
-  int8_t track(void) override;
-  int8_t get_side(void) override;
+  bool goto_track(int track) override;
+  bool side(int head) override;
+  int track(void) override;
+  int get_side(void) override;
   void step(bool dir, uint8_t times);
   bool set_density(bool high_density) override;
   bool get_write_protect() override;
@@ -254,7 +254,7 @@ private:
   int8_t _densitypin, _selectpin, _motorpin, _directionpin, _steppin,
       _track0pin, _protectpin, _sidepin, _readypin;
 
-  int8_t _track = -1, _side = -1;
+  int _track = -1, _side = -1;
 };
 
 /**************************************************************************/
@@ -284,19 +284,19 @@ public:
 
   void select(bool selected) override;
   bool spin_motor(bool motor_on) override;
-  bool goto_track(uint8_t track) override;
-  bool side(uint8_t head) override;
-  int8_t track(void) override;
+  bool goto_track(int track) override;
+  bool side(int head) override;
+  int track(void) override;
   bool set_density(bool high_density) override;
   bool get_write_protect() override;
   bool get_track0_sense() override;
   bool get_ready_sense() override { return true; }
 
-  int8_t quartertrack();
+  int quartertrack();
   bool goto_quartertrack(int);
   void step_mode(StepMode mode);
 
-  int8_t get_side() override { return 0; }
+  int get_side() override { return 0; }
 
 private:
   int _step_multiplier() const;
@@ -324,7 +324,7 @@ public:
   void end(void);
 
   uint32_t size(void) const;
-  int32_t readTrack(uint8_t track, bool head);
+  int32_t readTrack(int track, bool head);
 
   /**! @brief The expected number of sectors per track in this format
        @returns The number of sectors per track */

@@ -263,7 +263,7 @@ void Adafruit_Floppy::select(bool selected) {
     @note If _sidepin is no pin, then only head 0 can be selected
 */
 /**************************************************************************/
-bool Adafruit_Floppy::side(uint8_t head) {
+bool Adafruit_Floppy::side(int head) {
   if (head != 0 && head != 1) {
     return false;
   }
@@ -321,7 +321,7 @@ bool Adafruit_Floppy::spin_motor(bool motor_on) {
     @return True If we were able to get to the track location
 */
 /**************************************************************************/
-bool Adafruit_Floppy::goto_track(uint8_t track_num) {
+bool Adafruit_Floppy::goto_track(int track_num) {
   // track 0 is a very special case because its the only one we actually know we
   // got to. if we dont know where we are, or we're going to track zero, step
   // back till we get there.
@@ -417,9 +417,9 @@ void Adafruit_Floppy::step(bool dir, uint8_t times) {
     @return The cached track location
 */
 /**************************************************************************/
-int8_t Adafruit_Floppy::track(void) { return _track; }
+int Adafruit_Floppy::track(void) { return _track; }
 
-int8_t Adafruit_Floppy::get_side(void) { return _side; }
+int Adafruit_Floppy::get_side(void) { return _side; }
 
 bool Adafruit_Floppy::get_write_protect(void) {
   if (_protectpin == -1) {
@@ -1079,7 +1079,7 @@ enum {
     @return True If we were able to get to the track location
 */
 /**************************************************************************/
-bool Adafruit_Apple2Floppy::goto_track(uint8_t track_num) {
+bool Adafruit_Apple2Floppy::goto_track(int track_num) {
   if (_quartertrack == -1) {
     _quartertrack = 160;
     goto_quartertrack(0);
@@ -1152,7 +1152,7 @@ void Adafruit_Apple2Floppy::_step(int direction, int count) {
     @note Apple II floppy drives only have a single side
 */
 /**************************************************************************/
-bool Adafruit_Apple2Floppy::side(uint8_t head) { return head == 0; }
+bool Adafruit_Apple2Floppy::side(int head) { return head == 0; }
 
 /**************************************************************************/
 /*!
@@ -1161,7 +1161,7 @@ bool Adafruit_Apple2Floppy::side(uint8_t head) { return head == 0; }
     @note Partial tracks are rounded, with quarter tracks always rounded down.
 */
 /**************************************************************************/
-int8_t Adafruit_Apple2Floppy::track(void) {
+int Adafruit_Apple2Floppy::track(void) {
   if (_quartertrack == -1) {
     return -1;
   }
@@ -1239,7 +1239,7 @@ bool Adafruit_Apple2Floppy::get_track0_sense(void) { return track() == 0; }
     @note Returns -1 if the position is unknown
 */
 /**************************************************************************/
-int8_t Adafruit_Apple2Floppy::quartertrack() { return _quartertrack; }
+int Adafruit_Apple2Floppy::quartertrack() { return _quartertrack; }
 
 /**************************************************************************/
 /*!
