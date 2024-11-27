@@ -135,9 +135,9 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ac9d7948eb4ac80c851d0fa2e4b39bf23">capture_track</a> (volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0, uint32_t index_wait_ms=250) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="#ac9d7948eb4ac80c851d0fa2e4b39bf23">More...</a><br /></td></tr>
 <tr class="separator:ac9d7948eb4ac80c851d0fa2e4b39bf23"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a82e0b5da0c4f3984a76234a8aefb323a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a82e0b5da0c4f3984a76234a8aefb323a">write_track</a> (uint8_t *pulses, size_t n_pulses, bool store_greaseweazle=false) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
-<tr class="memdesc:a82e0b5da0c4f3984a76234a8aefb323a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#a82e0b5da0c4f3984a76234a8aefb323a">More...</a><br /></td></tr>
-<tr class="separator:a82e0b5da0c4f3984a76234a8aefb323a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a03e34278e9fcc25a121b38a7b2bd4c68"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a03e34278e9fcc25a121b38a7b2bd4c68">write_track</a> (uint8_t *pulses, size_t n_pulses, bool store_greaseweazle=false, bool use_index=true) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
+<tr class="memdesc:a03e34278e9fcc25a121b38a7b2bd4c68"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#a03e34278e9fcc25a121b38a7b2bd4c68">More...</a><br /></td></tr>
+<tr class="separator:a03e34278e9fcc25a121b38a7b2bd4c68"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa14051eda6d466396bc79e5266caa23d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aa14051eda6d466396bc79e5266caa23d">print_pulse_bins</a> (uint8_t *pulses, size_t n_pulses, uint8_t max_bins=64, bool is_gw_format=false, uint32_t min_bin_size=100)</td></tr>
 <tr class="memdesc:aa14051eda6d466396bc79e5266caa23d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#aa14051eda6d466396bc79e5266caa23d">More...</a><br /></td></tr>
 <tr class="separator:aa14051eda6d466396bc79e5266caa23d"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -832,8 +832,8 @@ Protected Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a82e0b5da0c4f3984a76234a8aefb323a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a82e0b5da0c4f3984a76234a8aefb323a">&#9670;&nbsp;</a></span>write_track()</h2>
+<a id="a03e34278e9fcc25a121b38a7b2bd4c68"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a03e34278e9fcc25a121b38a7b2bd4c68">&#9670;&nbsp;</a></span>write_track()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -854,7 +854,13 @@ Protected Member Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">bool&#160;</td>
-          <td class="paramname"><em>store_greaseweazle</em> = <code>false</code>&#160;</td>
+          <td class="paramname"><em>store_greaseweazle</em> = <code>false</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>use_index</em> = <code>true</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -870,6 +876,7 @@ Protected Member Functions</h2></td></tr>
     <tr><td class="paramname">pulses</td><td>An array of timer-count pulses </td></tr>
     <tr><td class="paramname">n_pulses</td><td>How many bytes are in the pulse array </td></tr>
     <tr><td class="paramname">store_greaseweazle</td><td>If true, long pulses are 'packed' in gw format </td></tr>
+    <tr><td class="paramname">use_index</td><td>If true, write starts at the index pulse. </td></tr>
   </table>
   </dd>
 </dl>
