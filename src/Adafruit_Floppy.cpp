@@ -587,7 +587,9 @@ size_t Adafruit_FloppyBase::capture_track(
                              index_wait_ms);
 #elif defined(__SAMD51__)
   noInterrupts();
-  wait_for_index_pulse_low();
+  if (index_wait_ms) {
+    wait_for_index_pulse_low();
+  }
 
   disable_capture();
   // in case the timer was reused, we will re-init it each time!
@@ -603,9 +605,11 @@ size_t Adafruit_FloppyBase::capture_track(
   // enable capture
   enable_capture();
   // meanwhile... wait for *second* low pulse
-  wait_for_index_pulse_low();
-  // track when it happened for later...
-  *falling_index_offset = g_n_pulses;
+  if (index_wait_ms) {
+    wait_for_index_pulse_low();
+    // track when it happened for later...
+    *falling_index_offset = g_n_pulses;
+  }
 
   if (!capture_ms) {
     // wait another 50ms which is about 1/4 of a track
@@ -625,8 +629,9 @@ size_t Adafruit_FloppyBase::capture_track(
 #else // bitbang it!
 
   noInterrupts();
-  wait_for_index_pulse_low();
-
+  if (index_wait_ms) {
+    wait_for_index_pulse_low();
+  }
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *dataPort, *ledPort;
   BusIO_PortMask dataMask, ledMask;
@@ -664,7 +669,7 @@ size_t Adafruit_FloppyBase::capture_track(
   while (true) {
     bool index_state = read_index();
     // ahh a L to H transition
-    if (!last_index_state && index_state) {
+    if (index_wait_ms && !last_index_state && index_state) {
       index_transitions++;
       if (index_transitions == 2)
         break; // and its the second one, so we're done with this track!
@@ -711,15 +716,17 @@ size_t Adafruit_FloppyBase::capture_track(
     @param  pulses An array of timer-count pulses
     @param  n_pulses How many bytes are in the pulse array
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
+    @param  use_index If true, write starts at the index pulse.
     @returns False if the data could not be written (samd51 cannot write apple
    flux format)
 */
 /**************************************************************************/
 bool Adafruit_FloppyBase::write_track(uint8_t *pulses, size_t n_pulses,
-                                      bool store_greaseweazle) {
+                                      bool store_greaseweazle, bool use_index) {
 #if defined(ARDUINO_ARCH_RP2040)
   return rp2040_flux_write(_indexpin, _wrgatepin, _wrdatapin, pulses,
-                           pulses + n_pulses, store_greaseweazle, _is_apple2);
+                           pulses + n_pulses, store_greaseweazle, _is_apple2,
+                           use_index);
 #elif defined(__SAMD51__)
   if (_is_apple2) {
     return false;

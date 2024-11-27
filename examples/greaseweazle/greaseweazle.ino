@@ -177,7 +177,7 @@ void setup() {
 #endif
 
   delay(100);
-  
+
   //while (!Serial) delay(100);
   Serial1.println("GrizzlyWizzly");
 
@@ -337,7 +337,7 @@ void loop() {
 
     int track = cmd_buffer[2];
     if (len > 3) {
-        track |= cmd_buffer[3] << 8;
+      track |= cmd_buffer[3] << 8;
     }
 
     Serial1.printf("Seek track %d\n\r", track);
@@ -367,16 +367,10 @@ void loop() {
     uint8_t state = cmd_buffer[3];
     Serial1.printf("Turn motor %d %s\n\r", unit, state ? "on" : "off");
     if (motor_state != state) { // we're in the opposite state
-      if (! floppy->spin_motor(state)) {
-        reply_buffer[i++] = GW_ACK_NOINDEX;
-      } else {
-        reply_buffer[i++] = GW_ACK_OK;
-      }
+      floppy->spin_motor(state);
       motor_state = state;
-    } else {
-      // our cached state is correct!
-      reply_buffer[i++] = GW_ACK_OK;
     }
+    reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
 
@@ -419,8 +413,12 @@ void loop() {
     revs = cmd_buffer[7];
     revs <<= 8;
     revs |= cmd_buffer[6];
+    bool use_index;
     if (revs) {
       revs -= 1;
+      use_index = true;
+    } else {
+      use_index = false;
     }
 
     if (floppy->track() == -1) {
@@ -446,7 +444,8 @@ void loop() {
       int32_t index_offset;
       // read in greaseweazle mode (long pulses encoded with 250's)
       captured_pulses = floppy->capture_track(flux_transitions, sizeof(flux_transitions),
-                                              &index_offset, true, capture_ms);
+                                              &index_offset, true, capture_ms,
+                                              /* index wait ms */ use_index ? 250 : 0);
       Serial1.printf("Rev #%d captured %u pulses, second index fall @ %d\n\r",
                      revs, captured_pulses, index_offset);
       //floppy->print_pulse_bins(flux_transitions, captured_pulses, 64, Serial1);
@@ -512,7 +511,7 @@ void loop() {
       Serial.write(reply_buffer, 2);
 
     } else {
-      //uint8_t cue_at_index = cmd_buffer[2];
+      uint8_t cue_at_index = cmd_buffer[2];
       //uint8_t terminate_at_index = cmd_buffer[3];
       // send an ACK to request data
       reply_buffer[i++] = GW_ACK_OK;
@@ -529,7 +528,7 @@ void loop() {
         Serial1.println("*** FLUX OVERRUN ***");
         while (1) yield();
       }
-      flux_status = floppy->write_track(flux_transitions, fluxors - 7, true);
+      flux_status = floppy->write_track(flux_transitions, fluxors - 7, true, cue_at_index);
       Serial1.println("wrote fluxors");
       Serial.write((byte)0);
 

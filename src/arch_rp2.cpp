@@ -194,17 +194,19 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
   start_common();
 
   // wait for a falling edge of index pin, then enable the capture peripheral
-  uint32_t start_time = millis();
-  while (!gpio_get(index_pin)) { /* NOTHING */
-    if (millis() - start_time > max_wait_time) {
-      disable_capture();
-      return ptr;
+  if (max_wait_time) {
+    uint32_t start_time = millis();
+    while (!gpio_get(index_pin)) { /* NOTHING */
+      if (millis() - start_time > max_wait_time) {
+        disable_capture();
+        return ptr;
+      }
     }
-  }
-  while (gpio_get(index_pin)) { /* NOTHING */
-    if (millis() - start_time > max_wait_time) {
-      disable_capture();
-      return ptr;
+    while (gpio_get(index_pin)) { /* NOTHING */
+      if (millis() - start_time > max_wait_time) {
+        disable_capture();
+        return ptr;
+      }
     }
   }
 
@@ -315,15 +317,18 @@ static void disable_write() {
 }
 
 static void write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
-                             uint8_t *pulse_end, bool store_greaseweazle) {
-  // don't start during an index pulse
-  while (!gpio_get(index_pin)) { /* NOTHING */
-  }
+                             uint8_t *pulse_end, bool store_greaseweazle,
+                             bool use_index) {
 
-  // wait for falling edge of index pin
-  while (gpio_get(index_pin)) { /* NOTHING */
-  }
+  if (use_index) {
+    // don't start during an index pulse
+    while (!gpio_get(index_pin)) { /* NOTHING */
+    }
 
+    // wait for falling edge of index pin
+    while (gpio_get(index_pin)) { /* NOTHING */
+    }
+  }
   pinMode(wrgate_pin, OUTPUT);
   digitalWrite(wrgate_pin, LOW);
 
@@ -421,12 +426,13 @@ uint16_t mfm_io_sample_flux(bool *index) {
 
 bool rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
                        uint8_t *pulses, uint8_t *pulse_end,
-                       bool store_greaseweazle, bool is_apple2) {
+                       bool store_greaseweazle, bool is_apple2,
+                       bool use_index) {
   if (!init_write(wrdata_pin, is_apple2)) {
     return false;
   }
   write_foreground(index_pin, wrgate_pin, (uint8_t *)pulses,
-                   (uint8_t *)pulse_end, store_greaseweazle);
+                   (uint8_t *)pulse_end, store_greaseweazle, use_index);
   free_write();
   return true;
 }

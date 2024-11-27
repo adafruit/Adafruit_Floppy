@@ -18,7 +18,8 @@ rp2040_flux_capture(int indexpin, int rdpin, volatile uint8_t *pulses,
                     uint32_t index_wait_ms);
 extern bool rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
                               uint8_t *pulses, uint8_t *pulse_end,
-                              bool store_greaseweazel, bool is_apple2);
+                              bool store_greaseweazel, bool is_apple2,
+                              bool use_index);
 #endif
 
 #if defined(__cplusplus)
