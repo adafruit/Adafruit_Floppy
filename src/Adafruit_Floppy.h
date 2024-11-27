@@ -167,7 +167,7 @@ public:
       __attribute__((optimize("O3")));
 
   bool write_track(uint8_t *pulses, size_t n_pulses,
-                   bool store_greaseweazle = false)
+                   bool store_greaseweazle = false, bool use_index = true)
       __attribute__((optimize("O3")));
   void print_pulse_bins(uint8_t *pulses, size_t n_pulses, uint8_t max_bins = 64,
                         bool is_gw_format = false, uint32_t min_bin_size = 100);
