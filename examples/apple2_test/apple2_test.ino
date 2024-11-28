@@ -1,30 +1,32 @@
 #include <Adafruit_Floppy.h>
 
 #if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
-#define ENABLE_PIN (6)
-#define PHASE1_PIN (A2)
-#define PHASE2_PIN (13)
-#define PHASE3_PIN (12)
-#define PHASE4_PIN (11)
-#define RDDATA_PIN (5)
-#define INDEX_PIN  (A3)
+#define APPLE2_ENABLE_PIN (6)
+#define APPLE2_PHASE1_PIN (A2)
+#define APPLE2_PHASE2_PIN (13)
+#define APPLE2_PHASE3_PIN (12)
+#define APPLE2_PHASE4_PIN (11)
+#define APPLE2_RDDATA_PIN (5)
+#define APPLE2_INDEX_PIN  (A3)
 #define APPLE2_PROTECT_PIN (21) // "SDA"
 #elif defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
-#define ENABLE_PIN (8)  // D6
-#define PHASE1_PIN (A2)
-#define PHASE2_PIN (13)
-#define PHASE3_PIN (12)
-#define PHASE4_PIN (11)
-#define RDDATA_PIN (7)  // D5
-#define INDEX_PIN  (A3)
+#define APPLE2_ENABLE_PIN (8)  // D6
+#define APPLE2_PHASE1_PIN (A2)
+#define APPLE2_PHASE2_PIN (13)
+#define APPLE2_PHASE3_PIN (12)
+#define APPLE2_PHASE4_PIN (11)
+#define APPLE2_RDDATA_PIN (7)  // D5
+#define APPLE2_INDEX_PIN  (A3)
 #define APPLE2_PROTECT_PIN (2) // "SDA"
+#elif defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2040)
+// Yay built in pin definitions!
 #else
 #error "Please set up pin definitions!"
 #endif
 
-Adafruit_Apple2Floppy floppy(INDEX_PIN, ENABLE_PIN,
-                             PHASE1_PIN, PHASE2_PIN, PHASE3_PIN, PHASE4_PIN,
-                             -1, -1, APPLE2_PROTECT_PIN, RDDATA_PIN);
+Adafruit_Apple2Floppy floppy(APPLE2_INDEX_PIN, APPLE2_ENABLE_PIN,
+                             APPLE2_PHASE1_PIN, APPLE2_PHASE2_PIN, APPLE2_PHASE3_PIN, APPLE2_PHASE4_PIN,
+                             -1, -1, APPLE2_PROTECT_PIN, APPLE2_RDDATA_PIN);
 
 // WARNING! there are 150K max flux pulses per track!
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];

@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arduino-platform: ["feather_m4_express_tinyusb", "feather_rp2040_tinyusb"]
+        arduino-platform: ["feather_m4_express_tinyusb", "feather_rp2040_tinyusb", "floppsy_rp2040_tinyusb"]
     runs-on: ubuntu-latest
     
     steps:
