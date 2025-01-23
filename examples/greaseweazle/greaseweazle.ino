@@ -14,7 +14,7 @@
 #define READ_PIN 9     // IDC 30
 #define SIDE_PIN 6     // IDC 32
 #define READY_PIN 5    // IDC 34
-#elif defined(ARDUINO_ADAFRUIT_FEATHER_RP2040)
+#elif defined(ARDUINO_ADAFRUIT_FEATHER_RP2040) || defined(ARDUINO_ADAFRUIT_FEATHER_RP2350_HSTX)
 #define DENSITY_PIN A1 // IDC 2
 #define INDEX_PIN 25   // IDC 8
 #define SELECT_PIN A0  // IDC 12
@@ -52,7 +52,7 @@
 #error "Please set Adafruit TinyUSB under Tools > USB Stack"
 #endif
 
-#if defined (ARDUINO_ADAFRUIT_FEATHER_RP2040)
+#elif defined(ARDUINO_ADAFRUIT_FEATHER_RP2040) || defined(ARDUINO_ADAFRUIT_FEATHER_RP2350_HSTX)
 // jepler's prototype board, subject to change
 #define APPLE2_PHASE1_PIN (A2)        // IDC 2
 #define APPLE2_PHASE2_PIN (13)        // IDC 4
