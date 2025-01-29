@@ -139,7 +139,7 @@ void Adafruit_FloppyBase::soft_reset(void) {
   }
 
   select_delay_us = 10;
-  step_delay_us = 10000;
+  step_delay_us = 12000;
   settle_delay_ms = 15;
   motor_delay_ms = 1000;
   watchdog_delay_ms = 1000;
@@ -354,6 +354,7 @@ bool Adafruit_Floppy::goto_track(int track_num) {
 
       if (digitalRead(_track0pin)) {
         // STILL not found!
+	_track = -1; // We don't know where we really are
         if (debug_serial)
           debug_serial->println("Could not find track 0");
         return false; // we 'timed' out, were not able to locate track 0
