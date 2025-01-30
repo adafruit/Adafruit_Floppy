@@ -354,7 +354,7 @@ bool Adafruit_Floppy::goto_track(int track_num) {
 
       if (digitalRead(_track0pin)) {
         // STILL not found!
-	_track = -1; // We don't know where we really are
+        _track = -1; // We don't know where we really are
         if (debug_serial)
           debug_serial->println("Could not find track 0");
         return false; // we 'timed' out, were not able to locate track 0
