@@ -145,6 +145,9 @@ void Adafruit_FloppyBase::soft_reset(void) {
   watchdog_delay_ms = 1000;
   bus_type = BUSTYPE_IBMPC;
 
+  is_drive_selected = false;
+  is_motor_spinning = false;
+
   if (led_pin >= 0) {
     pinMode(led_pin, OUTPUT);
     digitalWrite(led_pin, LOW);
@@ -168,6 +171,8 @@ void Adafruit_FloppyBase::end(void) {
   if (_indexpin >= 0) {
     pinMode(_indexpin, INPUT);
   }
+  is_drive_selected = false;
+  is_motor_spinning = false;
 }
 
 /**************************************************************************/
@@ -251,6 +256,7 @@ void Adafruit_Floppy::end(void) {
 /**************************************************************************/
 void Adafruit_Floppy::select(bool selected) {
   digitalWrite(_selectpin, !selected); // Selected logic level 0!
+  is_drive_selected = selected;
   // Select drive
   delayMicroseconds(select_delay_us);
 }
@@ -284,7 +290,11 @@ bool Adafruit_Floppy::side(int head) {
 */
 /**************************************************************************/
 bool Adafruit_Floppy::spin_motor(bool motor_on) {
+  if (motor_on == is_motor_spinning)
+    return true;  // Already in the correct state
+
   digitalWrite(_motorpin, !motor_on); // Motor on is logic level 0!
+  is_motor_spinning = motor_on;
   if (!motor_on)
     return true; // we're done, easy!
 
@@ -1018,6 +1028,13 @@ void Adafruit_Apple2Floppy::soft_reset() {
 /**************************************************************************/
 void Adafruit_Apple2Floppy::select(bool selected) {
   digitalWrite(_selectpin, !selected);
+  is_drive_selected = selected;
+  // Selecting the drive also turns the motor on, but we need to look
+  // for index pulses, so leave that job to spin_motor. Deselecting the
+  // drive will turn it off though.
+  if (!selected)
+    is_motor_spinning = false;
+
   if (debug_serial)
     debug_serial->printf("set selectpin %d to %d\n", _selectpin, !selected);
 }
@@ -1033,6 +1050,7 @@ void Adafruit_Apple2Floppy::select(bool selected) {
 */
 /**************************************************************************/
 bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
+  if (motor_on == is_motor_spinning) return true;  // already in correct state
   if (motor_on) {
     delay(motor_delay_ms); // Main motor turn on
 
@@ -1064,6 +1082,7 @@ bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
     if (debug_serial)
       debug_serial->println("Found!");
   }
+  is_motor_spinning = motor_on;
   return true;
 }
 

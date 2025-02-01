@@ -75,6 +75,14 @@ public:
   virtual void select(bool selected) = 0;
   /**************************************************************************/
   /*!
+      @brief  Is the drive selected based on interal caching
+      @returns True if the drive is selected, false otherwise
+  */
+  /**************************************************************************/
+  bool drive_is_selected(void) { return is_drive_selected; }
+
+  /**************************************************************************/
+  /*!
       @brief  Turn on or off the floppy motor, if on we wait till we get an
      index pulse!
       @param motor_on True to turn on motor, False to turn it off
@@ -83,6 +91,13 @@ public:
   */
   /**************************************************************************/
   virtual bool spin_motor(bool motor_on) = 0;
+  /**************************************************************************/
+  /*!
+      @brief  Is the drive motor spinning based on interal caching
+      @returns True if the motor is spinning, false otherwise
+  */
+  /**************************************************************************/
+  bool motor_is_spinning(void) { return is_motor_spinning; }
   /**************************************************************************/
   /*!
       @brief  Seek to the desired track, requires the motor to be spun up!
@@ -193,6 +208,7 @@ public:
 
 protected:
   bool read_index();
+  bool is_drive_selected, is_motor_spinning;
 
 private:
 #if defined(__SAMD51__)
