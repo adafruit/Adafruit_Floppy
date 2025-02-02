@@ -291,7 +291,7 @@ bool Adafruit_Floppy::side(int head) {
 /**************************************************************************/
 bool Adafruit_Floppy::spin_motor(bool motor_on) {
   if (motor_on == is_motor_spinning)
-    return true;  // Already in the correct state
+    return true; // Already in the correct state
 
   digitalWrite(_motorpin, !motor_on); // Motor on is logic level 0!
   is_motor_spinning = motor_on;
@@ -1050,7 +1050,9 @@ void Adafruit_Apple2Floppy::select(bool selected) {
 */
 /**************************************************************************/
 bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
-  if (motor_on == is_motor_spinning) return true;  // already in correct state
+  if (motor_on == is_motor_spinning)
+    return true; // already in correct state
+
   if (motor_on) {
     delay(motor_delay_ms); // Main motor turn on
 
