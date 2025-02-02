@@ -208,7 +208,8 @@ public:
 
 protected:
   bool read_index();
-  bool is_drive_selected, is_motor_spinning;
+  bool is_drive_selected; ///< cached drive select state
+  bool is_motor_spinning; ///< cached motor spinning state
 
 private:
 #if defined(__SAMD51__)
