@@ -52,7 +52,7 @@
 #error "Please set Adafruit TinyUSB under Tools > USB Stack"
 #endif
 
-#elif defined(ARDUINO_ADAFRUIT_FEATHER_RP2040) || defined(ARDUINO_ADAFRUIT_FEATHER_RP2350_HSTX)
+#if defined(ARDUINO_ADAFRUIT_FEATHER_RP2040) || defined(ARDUINO_ADAFRUIT_FEATHER_RP2350_HSTX)
 // jepler's prototype board, subject to change
 #define APPLE2_PHASE1_PIN (A2)        // IDC 2
 #define APPLE2_PHASE2_PIN (13)        // IDC 4
