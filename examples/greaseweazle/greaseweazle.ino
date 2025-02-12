@@ -208,7 +208,6 @@ uint32_t transfered_bytes;
 uint32_t captured_pulses;
 // WARNING! there are 100K max flux pulses per track!
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
-bool motor_state = false; // we can cache whether the motor is spinning
 bool flux_status; // result of last flux read or write command
 
 
@@ -217,7 +216,7 @@ void loop() {
   if (!cmd_len) {
     if ((millis() > timestamp) && ((millis() - timestamp) > 10000)) {
       Serial1.println("Timed out waiting for command, resetting motor");
-      if (floppy) {
+      if (floppy && floppy->drive_is_selected()) {
         Serial1.println("goto track 0");
         floppy->goto_track(0);
         Serial1.println("stop motor");
@@ -226,7 +225,6 @@ void loop() {
         floppy->select(false);
       }
       Serial1.println("motor reset");
-      motor_state = false;
       timestamp = millis();
     }
     return;
@@ -328,7 +326,6 @@ void loop() {
     } else {
       reply_buffer[i++] = GW_ACK_BADCMD;
     }
-    motor_state = false;
     Serial.write(reply_buffer, 2);
   }
 
@@ -366,10 +363,7 @@ void loop() {
     uint8_t unit = cmd_buffer[2];
     uint8_t state = cmd_buffer[3];
     Serial1.printf("Turn motor %d %s\n\r", unit, state ? "on" : "off");
-    if (motor_state != state) { // we're in the opposite state
-      floppy->spin_motor(state);
-      motor_state = state;
-    }
+    floppy->spin_motor(state);
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
