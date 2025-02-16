@@ -222,6 +222,8 @@ void loop() {
         floppy->goto_track(0);
         Serial1.println("stop motor");
         floppy->spin_motor(false);
+      }
+      if (floppy && floppy->drive_is_selected()) {
         Serial1.println("deselect");
         floppy->select(false);
       }
