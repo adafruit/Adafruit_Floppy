@@ -217,7 +217,7 @@ protected:
   bool read_index();
   bool is_drive_selected; ///< cached drive select state
   bool is_motor_spinning; ///< cached motor spinning state
-  bool is_index_seen; ///< cached index pulses seen state
+  bool is_index_seen;     ///< cached index pulses seen state
 
 private:
 #if defined(__SAMD51__)
