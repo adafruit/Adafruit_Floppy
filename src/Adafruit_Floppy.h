@@ -100,6 +100,13 @@ public:
   bool motor_is_spinning(void) { return is_motor_spinning; }
   /**************************************************************************/
   /*!
+      @brief  Are index pulses being seen?
+      @returns True if we're seeing index pulses, false otherwise
+  */
+  /**************************************************************************/
+  bool index_pulses_seen(void) { return is_index_seen; }
+  /**************************************************************************/
+  /*!
       @brief  Seek to the desired track, requires the motor to be spun up!
       @param  track_num The track to step to
       @return True If we were able to get to the track location
@@ -210,6 +217,7 @@ protected:
   bool read_index();
   bool is_drive_selected; ///< cached drive select state
   bool is_motor_spinning; ///< cached motor spinning state
+  bool is_index_seen; ///< cached index pulses seen state
 
 private:
 #if defined(__SAMD51__)

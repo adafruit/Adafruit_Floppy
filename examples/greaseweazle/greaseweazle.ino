@@ -216,7 +216,8 @@ void loop() {
   if (!cmd_len) {
     if ((millis() > timestamp) && ((millis() - timestamp) > 10000)) {
       Serial1.println("Timed out waiting for command, resetting motor");
-      if (floppy && floppy->drive_is_selected()) {
+      if (floppy && floppy->motor_is_spinning()) {
+        floppy->select(true); // Need to select before we can move
         Serial1.println("goto track 0");
         floppy->goto_track(0);
         Serial1.println("stop motor");

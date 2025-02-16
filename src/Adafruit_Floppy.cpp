@@ -147,6 +147,7 @@ void Adafruit_FloppyBase::soft_reset(void) {
 
   is_drive_selected = false;
   is_motor_spinning = false;
+  is_index_seen = false;
 
   if (led_pin >= 0) {
     pinMode(led_pin, OUTPUT);
@@ -173,6 +174,7 @@ void Adafruit_FloppyBase::end(void) {
   }
   is_drive_selected = false;
   is_motor_spinning = false;
+  is_index_seen = false;
 }
 
 /**************************************************************************/
@@ -290,13 +292,18 @@ bool Adafruit_Floppy::side(int head) {
 */
 /**************************************************************************/
 bool Adafruit_Floppy::spin_motor(bool motor_on) {
-  if (motor_on == is_motor_spinning)
-    return true; // Already in the correct state
+  if (motor_on != is_motor_spinning) {
+    digitalWrite(_motorpin, !motor_on); // Motor on is logic level 0!
+    is_motor_spinning = motor_on;
+  }
 
-  digitalWrite(_motorpin, !motor_on); // Motor on is logic level 0!
-  is_motor_spinning = motor_on;
-  if (!motor_on)
+  if (!motor_on) {
+    is_index_seen = false;
     return true; // we're done, easy!
+  }
+
+  if (is_index_seen)
+    return true; // motor on and already have seen index pulses
 
   delay(motor_delay_ms); // Main motor turn on
 
@@ -314,14 +321,16 @@ bool Adafruit_Floppy::spin_motor(bool motor_on) {
     yield();
   }
 
-  if (timedout) {
-    if (debug_serial)
+  is_index_seen = !timedout;
+
+  if (debug_serial) {
+    if (timedout) {
       debug_serial->println("Didn't find an index pulse!");
-    return false;
+    } else {
+      debug_serial->println("Found!");
+    }
   }
-  if (debug_serial)
-    debug_serial->println("Found!");
-  return true;
+  return is_index_seen;
 }
 
 /**************************************************************************/
@@ -1027,13 +1036,16 @@ void Adafruit_Apple2Floppy::soft_reset() {
 */
 /**************************************************************************/
 void Adafruit_Apple2Floppy::select(bool selected) {
+  if (selected == is_drive_selected)
+    return; // Already in correct state
+
   digitalWrite(_selectpin, !selected);
   is_drive_selected = selected;
+  is_motor_spinning = selected;
+
   // Selecting the drive also turns the motor on, but we need to look
-  // for index pulses, so leave that job to spin_motor. Deselecting the
-  // drive will turn it off though.
-  if (!selected)
-    is_motor_spinning = false;
+  // for index pulses, so leave that job to spin_motor.
+  is_index_seen = false;
 
   if (debug_serial)
     debug_serial->printf("set selectpin %d to %d\n", _selectpin, !selected);
@@ -1050,42 +1062,44 @@ void Adafruit_Apple2Floppy::select(bool selected) {
 */
 /**************************************************************************/
 bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
-  if (motor_on == is_motor_spinning)
-    return true; // already in correct state
+  if (!motor_on)
+    return true; // Nothing to do
 
-  if (motor_on) {
-    delay(motor_delay_ms); // Main motor turn on
+  if (motor_on && is_index_seen)
+    return true; // motor on and already have index pulses
 
-    uint32_t index_stamp = millis();
-    bool timedout = false;
+  delay(motor_delay_ms); // Main motor turn on
 
-    if (debug_serial)
-      debug_serial->print("Waiting for index pulse...");
+  uint32_t index_stamp = millis();
+  bool timedout = false;
 
-    while (!read_index()) {
-      if ((millis() - index_stamp) > 10000) {
-        timedout = true; // its been 10 seconds?
-        break;
-      }
+  if (debug_serial)
+    debug_serial->print("Waiting for index pulse...");
+
+  while (!read_index()) {
+    if ((millis() - index_stamp) > 10000) {
+      timedout = true; // its been 10 seconds?
+      break;
     }
-
-    while (read_index()) {
-      if ((millis() - index_stamp) > 10000) {
-        timedout = true; // its been 10 seconds?
-        break;
-      }
-    }
-
-    if (timedout) {
-      if (debug_serial)
-        debug_serial->println("Didn't find an index pulse!");
-      return false;
-    }
-    if (debug_serial)
-      debug_serial->println("Found!");
   }
-  is_motor_spinning = motor_on;
-  return true;
+
+  while (read_index()) {
+    if ((millis() - index_stamp) > 10000) {
+      timedout = true; // its been 10 seconds?
+      break;
+    }
+  }
+
+  is_index_seen = !timedout;
+
+  if (debug_serial) {
+    if (timedout) {
+      debug_serial->println("Didn't find an index pulse!");
+    } else {
+      debug_serial->println("Found!");
+    }
+  }
+  return is_index_seen;
 }
 
 // stepping FORWARD through phases steps OUT towards SMALLER track numbers
