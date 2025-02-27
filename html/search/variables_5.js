@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['track_5fdata',['track_data',['../class_adafruit___m_f_m___floppy.html#a07fcd45743bae151635eb6735a15f2af',1,'Adafruit_MFM_Floppy']]],
-  ['track_5fvalidity',['track_validity',['../class_adafruit___m_f_m___floppy.html#a041787cbaee660aa08ca4bf9be42d1ea',1,'Adafruit_MFM_Floppy']]]
+  ['select_5fdelay_5fus',['select_delay_us',['../class_adafruit___floppy_base.html#ac8460f5dfa05c3d97fc8022766c6f220',1,'Adafruit_FloppyBase']]],
+  ['settle_5fdelay_5fms',['settle_delay_ms',['../class_adafruit___floppy_base.html#a425175658aad71d40c58d8ccd464d99e',1,'Adafruit_FloppyBase']]],
+  ['step_5fdelay_5fus',['step_delay_us',['../class_adafruit___floppy_base.html#a1461a8c3e8d38cda524940101469e2e3',1,'Adafruit_FloppyBase']]]
 ];
