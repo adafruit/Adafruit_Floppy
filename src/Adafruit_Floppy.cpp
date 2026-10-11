@@ -493,18 +493,21 @@ static void set_timings(uint32_t sampleFrequency, mfm_io_t &io,
     @param  pulses An array of pulses from capture_track
     @param  n_pulses An array of pulses from capture_track
     @param  nominal_bit_time_us The nominal time of one MFM bit, usually 1.0f
-   (double density) or 2.0f (high density)
+   (high density) or 2.0f (double density)
     @param  clear_validity Whether to clear the validity flag. Set to false if
    re-reading a track with errors.
     @param  logical_track If not NULL, updated with the logical track number of
-   the last sector read. (track & side numbers are not otherwise verified)
+   the last sector read.
+    @param  expected_track When nonnegative, accept only sectors with this
+   cylinder, the currently selected head, and 512-byte sector size. The default
+   -1 retains decoding without cylinder/head filtering.
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
 size_t Adafruit_FloppyBase::decode_track_mfm(
     uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity,
     const uint8_t *pulses, size_t n_pulses, float nominal_bit_time_us,
-    bool clear_validity, uint8_t *logical_track) {
+    bool clear_validity, uint8_t *logical_track, int expected_track) {
   mfm_io_t io;
 
   if (clear_validity)
@@ -517,6 +520,8 @@ size_t Adafruit_FloppyBase::decode_track_mfm(
   io.n_sectors = n_sectors;
   io.n = 2;
   io.head = get_side();
+  io.validate_id = expected_track >= 0;
+  io.cylinder = expected_track;
   io.cylinder_ptr = logical_track;
   io.sector_validity = sector_validity;
 

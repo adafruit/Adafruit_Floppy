@@ -5,6 +5,7 @@
 #include <hardware/clocks.h>
 #include <hardware/gpio.h>
 #include <hardware/pio.h>
+#include <hardware/sync.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -98,12 +99,25 @@ typedef struct floppy_singleton {
 
 static floppy_singleton_t g_reader, g_writer;
 
-const static PIO pio_instances[2] = {pio0, pio1};
+const static PIO pio_instances[] = {
+    pio0,
+    pio1,
+#if NUM_PIOS > 2
+    pio2,
+#endif
+};
 static bool allocate_pio_set_program(floppy_singleton_t *info,
                                      const pio_program_t *program) {
   memset(info, 0, sizeof(*info));
   for (size_t i = 0; i < NUM_PIOS; i++) {
     PIO pio = pio_instances[i];
+#if defined(PICO_RP2350) && PICO_RP2350
+    // This implementation addresses GPIO 0..31. A shared PIO configured for
+    // GPIO 16..47 (for example by SDIO) cannot service its low-numbered pins.
+    if (pio_get_gpio_base(pio) != 0) {
+      continue;
+    }
+#endif
     if (!pio_can_add_program(pio, program)) {
       continue;
     }
@@ -212,12 +226,28 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
 
   uint32_t total_counts = 0;
 
-  noInterrupts();
+  // Flux may stop on blank media or when the disk is removed. Use the hardware
+  // timer because interrupts are disabled during capture. Allow one second for
+  // index-ended captures, or the requested capture duration plus 100 ms.
+  uint32_t timeout_us = capture_counts ? capture_counts / 24 + 100000 : 1000000;
+  uint32_t irq_state = save_and_disable_interrupts();
   pio_sm_clear_fifos(g_reader.pio, g_reader.sm);
+  g_reader.half = 0;
   pio_sm_set_enabled(g_reader.pio, g_reader.sm, true);
+  uint32_t started = micros();
+  while (!data_available()) {
+    if (micros() - started >= timeout_us) {
+      disable_capture();
+      restore_interrupts(irq_state);
+      return ptr;
+    }
+  }
   int last = read_fifo();
   bool last_index = gpio_get(index_pin);
   while (ptr != end) {
+    if (micros() - started >= timeout_us) {
+      break;
+    }
     /* Handle index */
     bool now_index = gpio_get(index_pin);
 
@@ -252,9 +282,8 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
       break;
     }
   }
-  interrupts();
-
   disable_capture();
+  restore_interrupts(irq_state);
 
   return ptr;
 }
