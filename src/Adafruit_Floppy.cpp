@@ -116,6 +116,10 @@ bool Adafruit_FloppyBase::begin(void) {
 */
 /**************************************************************************/
 void Adafruit_FloppyBase::soft_reset(void) {
+  // RP2350 input buffers are disabled at reset. PIO capture needs this too.
+  if (_rddatapin >= 0) {
+    pinMode(_rddatapin, INPUT_PULLUP);
+  }
   if (_indexpin >= 0) {
     pinMode(_indexpin, INPUT_PULLUP);
 #ifdef BUSIO_USE_FAST_PINIO

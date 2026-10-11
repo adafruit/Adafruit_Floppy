@@ -1,5 +1,9 @@
 #include <Adafruit_Floppy.h>
 
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+#include "floppsy_rp2350.h"
+#else
+
 #if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
 #define DENSITY_PIN A1 // IDC 2
 #define INDEX_PIN A5   // IDC 8
@@ -690,3 +694,4 @@ needfloppy:
 
   //Serial1.println("cmd complete!");
 }
+#endif

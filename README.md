@@ -25,6 +25,21 @@ Tested working on:
    * SAMD51 chipset hardware - Overclock to 180MHz, select Fastest optimization, and use TinyUSB stack for best performance
    * RP2040 chipset hardware - Works with philhower core and TinyUSB stack.  Overclock to 200MHz and select -O3 optimization for best performance
 
+## Floppsy RP2350
+
+The RP2350B Floppsy has two separate reader examples:
+
+* [Floppsy Dumper](examples/floppsy_dumper) saves IBM IMG files and three-revolution,
+  unnormalized SCP flux captures to microSD. It identifies common 80-cylinder IBM
+  MFM layouts and records unreadable sectors in a companion map.
+* [Greaseweazle](examples/greaseweazle) lets the current computer tools read the
+  drive over USB, with format decoding and image conversion on the host.
+
+Both Floppsy examples are read-only. Select the RP2350 Floppsy board, 240 MHz,
+8 MB PSRAM and Adafruit TinyUSB. The library provides a continuous RP2350
+PIO/DMA timestamp capture class and a portable SCP encoder; see the examples
+for power, drive and format limitations.
+
 
 ## Follow our progress!
 

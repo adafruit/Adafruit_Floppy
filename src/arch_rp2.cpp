@@ -89,12 +89,13 @@ static const pio_program_t fluxwrite_apple2_struct = {
     .length = sizeof(fluxwrite_apple2) / sizeof(fluxwrite_apple2[0]),
     .origin = -1};
 
+/** @brief PIO resources held by the shared capture or waveform engine. */
 typedef struct floppy_singleton {
-  PIO pio;
-  const pio_program_t *program;
-  unsigned sm;
-  uint16_t offset;
-  uint16_t half;
+  PIO pio;                      ///< Claimed PIO block.
+  const pio_program_t *program; ///< Loaded program.
+  unsigned sm;                  ///< Claimed state machine.
+  uint16_t offset;              ///< Program address in instruction memory.
+  uint16_t half;                ///< Write timing half-period.
 } floppy_singleton_t;
 
 static floppy_singleton_t g_reader, g_writer;
