@@ -1,6 +1,7 @@
 // Read-only engineering test for Floppsy Rev D and a known-good 1.44 MB disk.
-// Uses the same drive twice: first with INDEX, then explicitly ignoring INDEX.
-// Serial T runs the checks; D returns the 9216-byte indexed track for comparison.
+// Tests normal INDEX, no configured pin, and a configured pin that never pulses.
+// T tests a normal drive, N tests a real INDEX-less drive, D downloads track 0.
+// L repeats N with the MCU's INDEX input view held LOW to test a stuck input.
 #include <Adafruit_Floppy.h>
 #include <Adafruit_INA3221.h>
 #include <Adafruit_TinyUSB.h>
@@ -24,6 +25,10 @@ uint8_t expected[18 * 512];
 uint8_t actual[18 * 512];
 uint8_t valid[18];
 bool passed;
+
+void startDrive(Adafruit_Floppy &drive,
+                int indexOverride = GPIO_OVERRIDE_NORMAL,
+                bool allowMissing = false);
 
 void setup() {
   gpio_put(FLOPPY_CMD_OE, true);
@@ -50,7 +55,7 @@ void setup() {
 
   if (!powerMonitor.begin()) halt("Power monitor missing");
   delay(10);
-  Serial.print("T: run read-only checks; D: download baseline track\n\r");
+  Serial.print("T: indexed drive; N: INDEX-less; L: stuck LOW; D: download track\n\r");
 }
 
 void loop() {
@@ -60,10 +65,39 @@ void loop() {
     Serial.write(expected, sizeof(expected));
     return;
   }
-  if (command != 'T') return;
+  if (command != 'T' && command != 'N' && command != 'L') return;
   passed = false;
   if (powerMonitor.getBusVoltage(0) < 10.8 ||
       powerMonitor.getBusVoltage(1) < 4.5) halt("Connect the 12 V supply");
+
+  if (command == 'N' || command == 'L') {
+    // Keep the real INDEX pin configured and connected. N never overrides it.
+    uint8_t indexOverride = GPIO_OVERRIDE_NORMAL;
+    if (command == 'L') indexOverride = GPIO_OVERRIDE_LOW;
+    startDrive(indexed, indexOverride, true);
+    Serial.printf("INDEX override %u: seen %u, missing %u\n\r", indexOverride,
+                  indexed.index_pulses_seen(), indexed.index_pulses_missing());
+    // A timed read works even when startup reported no INDEX pulse.
+    readTrack(indexed, expected, 0);
+    for (uint8_t attempt = 0; attempt < 4; attempt++) {
+      readTrack(indexed, actual, 0);
+      if (memcmp(expected, actual, sizeof(actual))) halt("Track bytes differ");
+    }
+    if (indexed.index_pulses_missing()) {
+      int32_t offset = -1;
+      if (indexed.capture_track(flux, sizeof(flux), &offset, false, 250, 50))
+        halt("Indexed read accepted a silent pin");
+      if (indexed.write_track(flux, 1, false, true) ||
+          indexed.write_track(flux, 1, false, false)) halt("Silent INDEX write");
+      Serial.print("PASS: timed reads; indexed read and writes rejected\n\r");
+    }
+    stopDrive();
+    if (indexed.index_pulses_seen() || indexed.index_pulses_missing())
+      halt("INDEX status not cleared on stop");
+    passed = true;
+    Serial.print("ALL PASS; motor off, cable isolated\n\r");
+    return;
+  }
 
   startDrive(indexed);
   if (!indexed.has_index() || !indexed.index_pulses_seen()) halt("INDEX not seen");
@@ -114,6 +148,31 @@ void loop() {
 
   indexless.spin_motor(false);
   indexless.select(false);
+  // Override only the MCU's input view; do not drive the physical INDEX wire.
+  const uint8_t levels[] = {GPIO_OVERRIDE_HIGH, GPIO_OVERRIDE_LOW};
+  for (uint8_t level : levels) {
+    startDrive(indexed, level);
+    if (!indexed.has_index() || !indexed.index_pulses_missing() ||
+        indexed.index_pulses_seen() || !indexed.motor_is_spinning())
+      halt("Silent configured INDEX status");
+    readTrack(indexed, actual, 0);
+    if (memcmp(expected, actual, sizeof(actual))) halt("Silent INDEX track bytes");
+    if (indexed.capture_track(flux, sizeof(flux), &offset, false, 250, 50))
+      halt("Indexed read accepted a silent pin");
+    if (indexed.write_track(flux, 1, false, true) ||
+        indexed.write_track(flux, 1, false, false)) halt("Silent INDEX write");
+    if (!digitalRead(FLOPPY_WRGATE)) halt("WRITE GATE active");
+    Serial.printf("PASS: configured INDEX held %s; timed read matches\n\r",
+                  level == GPIO_OVERRIDE_HIGH ? "HIGH" : "LOW");
+    gpio_set_inover(FLOPPY_INDEX, GPIO_OVERRIDE_NORMAL);
+    // A later successful check must clear the missing-pulse status.
+    if (!indexed.spin_motor(true) || indexed.index_pulses_missing())
+      halt("INDEX status did not recover");
+    indexed.spin_motor(false);
+    if (indexed.index_pulses_seen() || indexed.index_pulses_missing())
+      halt("INDEX status not cleared on stop");
+    indexed.select(false);
+  }
   startDrive(indexed);
   readTrack(indexed, actual, 300);
   if (memcmp(expected, actual, sizeof(actual))) halt("Indexed regression");
@@ -122,11 +181,13 @@ void loop() {
   Serial.print("ALL PASS; motor off, cable isolated\n\r");
 }
 
-void startDrive(Adafruit_Floppy &drive) {
+void startDrive(Adafruit_Floppy &drive, int indexOverride, bool allowMissing) {
   digitalWrite(FLOPPY_CMD_OE, HIGH);
   digitalWrite(FLOPPY_STAT_OE, HIGH);
   drive.led_pin = -1;
   if (!drive.begin()) halt("Floppy initialization failed");
+  if (drive.index_pulses_missing()) halt("INDEX status not cleared on begin");
+  gpio_set_inover(FLOPPY_INDEX, indexOverride);
   drive.step_delay_us = 3000;
   gpio_put(FLOPPY_WRGATE, true);
   pinMode(FLOPPY_WRGATE, OUTPUT);
@@ -134,10 +195,12 @@ void startDrive(Adafruit_Floppy &drive) {
   digitalWrite(FLOPPY_CMD_OE, LOW);
   drive.select(true);
   uint32_t started = millis();
-  if (!drive.spin_motor(true)) halt("Motor start failed");
-  Serial.printf("Motor settled: %lu ms, INDEX configured %u, seen %u\n\r",
+  bool foundIndex = drive.spin_motor(true);
+  if (!foundIndex && indexOverride == GPIO_OVERRIDE_NORMAL && !allowMissing)
+    halt("Motor start failed");
+  Serial.printf("Motor settled: %lu ms, INDEX configured %u, seen %u, missing %u\n\r",
                 (unsigned long)(millis() - started), drive.has_index(),
-                drive.index_pulses_seen());
+                drive.index_pulses_seen(), drive.index_pulses_missing());
   if (!drive.goto_track(0)) halt("Homing failed");
   Serial.print("Homed to cylinder 0\n\r");
   drive.side(0);
@@ -151,9 +214,11 @@ void readTrack(Adafruit_Floppy &drive, uint8_t *sectors, uint32_t waitMs) {
   uint32_t elapsed = micros() - started;
   Serial.printf("Capture returned %u bytes\n\r", (unsigned)count);
   if (!count || count == sizeof(flux)) halt("Empty or full flux buffer");
-  if (!drive.has_index() && (offset != -1 || elapsed < 250000 || elapsed > 275000))
+  if (!waitMs && (elapsed < 250000 || elapsed > 275000))
     halt("INDEX-less time or marker");
-  if (drive.has_index() && offset < 0) halt("Missing captured INDEX");
+  if ((!drive.has_index() || drive.index_pulses_missing()) && offset != -1)
+    halt("False captured INDEX");
+  if (waitMs && offset < 0) halt("Missing captured INDEX");
   size_t decoded = drive.decode_track_mfm(sectors, 18, valid, flux, count, 1, true);
   Serial.printf("Read: %u pulses, %lu us, index %ld, %u/18 CRC-valid sectors\n\r",
                 (unsigned)count, (unsigned long)elapsed, (long)offset,
@@ -162,6 +227,7 @@ void readTrack(Adafruit_Floppy &drive, uint8_t *sectors, uint32_t waitMs) {
 }
 
 void stopDrive() {
+  gpio_set_inover(FLOPPY_INDEX, GPIO_OVERRIDE_NORMAL);
   gpio_put(FLOPPY_WRGATE, true);
   pinMode(FLOPPY_WRGATE, OUTPUT);
   indexed.spin_motor(false);

@@ -152,6 +152,7 @@ void Adafruit_FloppyBase::soft_reset(void) {
   is_drive_selected = false;
   is_motor_spinning = false;
   is_index_seen = false;
+  is_index_missing = false;
 
   if (led_pin >= 0) {
     pinMode(led_pin, OUTPUT);
@@ -179,6 +180,7 @@ void Adafruit_FloppyBase::end(void) {
   is_drive_selected = false;
   is_motor_spinning = false;
   is_index_seen = false;
+  is_index_missing = false;
 }
 
 /**************************************************************************/
@@ -248,6 +250,22 @@ bool Adafruit_FloppyBase::has_index(void) const { return _indexpin >= 0; }
 
 /**************************************************************************/
 /*!
+ * @brief Whether startup timed out waiting for a configured INDEX input.
+ * @return True after startup found no INDEX pulse. False before checking,
+ * after a successful check, or after stopping/resetting the drive.
+ * @note Keep the real indexpin configured for a drive whose INDEX does not
+ * pulse. spin_motor(true) returns false and leaves the motor enabled; callers
+ * can report this flag and explicitly request capture_track(..., ms, 0).
+ * A missing pulse alone does not distinguish an INDEX-less drive from an
+ * empty drive or a wiring problem. Writes remain disabled while this is true.
+ */
+/**************************************************************************/
+bool Adafruit_FloppyBase::index_pulses_missing(void) const {
+  return is_index_missing;
+}
+
+/**************************************************************************/
+/*!
     @brief Disables floppy communication, allowing pins to be used for general
    input and output
 */
@@ -313,6 +331,7 @@ bool Adafruit_Floppy::spin_motor(bool motor_on) {
 
   if (!motor_on) {
     is_index_seen = false;
+    is_index_missing = false;
     return true; // we're done, easy!
   }
 
@@ -331,6 +350,15 @@ bool Adafruit_Floppy::spin_motor(bool motor_on) {
   if (debug_serial)
     debug_serial->print("Waiting for index pulse...");
 
+  // Require an edge: a pin held LOW is not evidence of a rotating disk.
+  while (!read_index()) {
+    if ((millis() - index_stamp) > 1000) {
+      timedout = true;
+      break;
+    }
+    yield();
+  }
+
   while (read_index()) {
     if ((millis() - index_stamp) > 1000) {
       timedout = true; // its been a second
@@ -340,6 +368,7 @@ bool Adafruit_Floppy::spin_motor(bool motor_on) {
   }
 
   is_index_seen = !timedout;
+  is_index_missing = timedout;
 
   if (debug_serial) {
     if (timedout) {
@@ -614,6 +643,8 @@ uint32_t Adafruit_FloppyBase::getSampleFrequency(void) {
    falling_index_offset remains -1; no synthetic index is reported. Timed
    INDEX-less capture is supported on RP2040/RP2350 and SAMD51. RP2 capture
    also times out on missing flux, including before the first pulse.
+    @note A configured pin that does not pulse can also use capture_ms with
+   index_wait_ms=0. No pin reassignment or automatic fallback is needed.
 */
 /**************************************************************************/
 size_t Adafruit_FloppyBase::capture_track(
@@ -628,8 +659,11 @@ size_t Adafruit_FloppyBase::capture_track(
   if (!has_index() && (!capture_ms || index_wait_ms)) {
     return 0; // Missing INDEX must be an explicit, time-limited read.
   }
+  if (is_index_missing && !capture_ms && !index_wait_ms) {
+    return 0; // A silent configured pin also needs a finite timed read.
+  }
 #if !defined(ARDUINO_ARCH_RP2040) && !defined(__SAMD51__)
-  if (!has_index()) {
+  if (!has_index() || !index_wait_ms) {
     return 0; // The bitbang backend has no elapsed-time bound.
   }
 #endif
@@ -778,13 +812,14 @@ size_t Adafruit_FloppyBase::capture_track(
     @param  n_pulses How many bytes are in the pulse array
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
     @param  use_index If true, write starts at the index pulse.
-    @returns False if the data could not be written or indexpin=-1 (INDEX-less
-   writes are not supported). SAMD51 cannot write Apple flux format.
+    @returns False if the data could not be written, indexpin=-1, or startup
+   found no INDEX pulse. INDEX-less writes are not supported. SAMD51 cannot
+   write Apple flux format.
 */
 /**************************************************************************/
 bool Adafruit_FloppyBase::write_track(uint8_t *pulses, size_t n_pulses,
                                       bool store_greaseweazle, bool use_index) {
-  if (!has_index()) {
+  if (!has_index() || is_index_missing) {
     return false; // INDEX-less writes are not implemented by these backends.
   }
 #if defined(ARDUINO_ARCH_RP2040)
@@ -1130,6 +1165,7 @@ void Adafruit_Apple2Floppy::select(bool selected) {
   // Selecting the drive also turns the motor on, but we need to look
   // for index pulses, so leave that job to spin_motor.
   is_index_seen = false;
+  is_index_missing = false;
 
   if (debug_serial)
     debug_serial->printf("set selectpin %d to %d\n", _selectpin, !selected);
@@ -1147,8 +1183,11 @@ void Adafruit_Apple2Floppy::select(bool selected) {
 */
 /**************************************************************************/
 bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
-  if (!motor_on)
+  if (!motor_on) {
+    is_index_seen = false;
+    is_index_missing = false;
     return true; // Nothing to do
+  }
 
   if (motor_on && is_index_seen)
     return true; // motor on and already have index pulses
@@ -1180,6 +1219,7 @@ bool Adafruit_Apple2Floppy::spin_motor(bool motor_on) {
   }
 
   is_index_seen = !timedout;
+  is_index_missing = timedout;
 
   if (debug_serial) {
     if (timedout) {

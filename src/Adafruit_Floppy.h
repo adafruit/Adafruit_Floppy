@@ -107,6 +107,7 @@ public:
   */
   /**************************************************************************/
   bool index_pulses_seen(void) { return is_index_seen; }
+  bool index_pulses_missing(void) const;
   bool has_index(void) const;
   /**************************************************************************/
   /*!
@@ -223,6 +224,7 @@ protected:
   bool is_drive_selected; ///< cached drive select state
   bool is_motor_spinning; ///< cached motor spinning state
   bool is_index_seen;     ///< cached index pulses seen state
+  bool is_index_missing;  ///< configured INDEX timed out during motor startup
 
 private:
 #if defined(__SAMD51__)
