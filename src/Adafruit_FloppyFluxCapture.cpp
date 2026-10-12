@@ -100,7 +100,8 @@ bool Adafruit_FloppyFluxCapture::capture(bool (*cancelled)(),
 
 /** @brief Capture a bounded interval without waiting for INDEX.
     @param cancelled Optional callback; return true to stop capture.
-    @param durationTicks Duration in 25 ns ticks, 1 through 40000000 (one second).
+    @param durationTicks Duration in 25 ns ticks, 1 through 40000000 (one
+   second).
     @return True on lossless completion, including an interval with no flux.
     Samples may include a short tail beyond the requested interval; exporters
     must clip at durationTicks. The index array contains no synthetic marks. */
