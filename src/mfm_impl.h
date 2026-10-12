@@ -66,6 +66,7 @@ struct mfm_io {
   uint8_t
       *cylinder_ptr; ///< When decoding, the cylinder number read is stored here
   uint8_t head, cylinder; ///< Location of the track on disk
+  bool validate_id; ///< When decoding MFM, require matching cylinder/head/size
   uint8_t pulse_len;      ///< bookkeeping value used by MFM decoder
   uint8_t y;              ///< bookkeeping value used by MFM encoder
   uint8_t n; ///< Sector size value. Sector is (128<<n) bytes big. Valid values
@@ -290,9 +291,8 @@ static size_t decode_track_mfm(mfm_io_t *io) {
   //  * buf[1]: head
   //  * buf[2]: sector
   //  * buf[3]: "n" (sector size shift) -- must be 2 for 512 bytes
-  // Only the sector number is validated. In theory, the other values should be
-  // validated and we are only interested in working with DOS/Windows MFM
-  // floppies which always use 512 byte sectors
+  // Strict decoding also checks cylinder, head and sector size so a missed
+  // seek or head-select cannot silently produce an image of the wrong track.
   while (!mfm_io_eof(io) && io->n_valid < io->n_sectors) {
     if (!skip_triple_sync_mark(io)) {
       continue;
@@ -313,7 +313,10 @@ static size_t decode_track_mfm(mfm_io_t *io) {
       continue;
     }
 
-    // TODO: verify track & side numbers in IDAM
+    if (io->validate_id && (idam_buf[0] != io->cylinder ||
+                            idam_buf[1] != io->head || idam_buf[3] != io->n)) {
+      continue;
+    }
     size_t r = (uint8_t)idam_buf[2] - 1; // sectors are 1-based
     if (r >= io->n_sectors) {
       continue;
