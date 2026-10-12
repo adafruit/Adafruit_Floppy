@@ -5,6 +5,7 @@
 #include <hardware/clocks.h>
 #include <hardware/gpio.h>
 #include <hardware/pio.h>
+#include <hardware/sync.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -94,16 +95,30 @@ typedef struct floppy_singleton {
   unsigned sm;
   uint16_t offset;
   uint16_t half;
+  bool have_half;
+  bool has_index;
 } floppy_singleton_t;
 
 static floppy_singleton_t g_reader, g_writer;
 
-const static PIO pio_instances[2] = {pio0, pio1};
+const static PIO pio_instances[] = {
+    pio0,
+    pio1,
+#if NUM_PIOS > 2
+    pio2,
+#endif
+};
 static bool allocate_pio_set_program(floppy_singleton_t *info,
                                      const pio_program_t *program) {
   memset(info, 0, sizeof(*info));
   for (size_t i = 0; i < NUM_PIOS; i++) {
     PIO pio = pio_instances[i];
+#if defined(PICO_RP2350) && PICO_RP2350
+    // This backend uses GPIO 0..31, not a PIO bank shifted to GPIO 16..47.
+    if (pio_get_gpio_base(pio) != 0) {
+      continue;
+    }
+#endif
     if (!pio_can_add_program(pio, program)) {
       continue;
     }
@@ -128,13 +143,18 @@ static bool init_capture(int index_pin, int read_pin) {
     return false;
   }
 
-  gpio_pull_up(index_pin);
+  g_reader.has_index = index_pin >= 0;
+  if (g_reader.has_index) {
+    gpio_pull_up(index_pin);
+  }
 
   pio_sm_config c = {0, 0, 0};
   sm_config_set_wrap(&c, g_reader.offset,
                      g_reader.offset + fluxread_struct.length - 1);
   sm_config_set_jmp_pin(&c, read_pin);
-  sm_config_set_in_pins(&c, index_pin);
+  // Sample a valid pin even without INDEX. read_fifo() replaces that bit with
+  // inactive HIGH, leaving the PIO program and flux timing unchanged.
+  sm_config_set_in_pins(&c, g_reader.has_index ? index_pin : read_pin);
   sm_config_set_in_shift(&c, true, true, 32);
   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
   pio_sm_set_pins_with_mask(g_reader.pio, g_reader.sm, 1 << read_pin,
@@ -153,18 +173,25 @@ static void start_common() {
 }
 
 static bool data_available() {
-  return g_reader.half || !pio_sm_is_rx_fifo_empty(g_reader.pio, g_reader.sm);
+  return g_reader.have_half ||
+         !pio_sm_is_rx_fifo_empty(g_reader.pio, g_reader.sm);
 }
 
 static uint16_t read_fifo() {
-  if (g_reader.half) {
-    uint16_t result = g_reader.half;
-    g_reader.half = 0;
-    return result;
+  uint16_t result;
+  if (g_reader.have_half) {
+    result = g_reader.half;
+    g_reader.have_half = false;
+  } else {
+    uint32_t value = pio_sm_get_blocking(g_reader.pio, g_reader.sm);
+    g_reader.half = value >> 16;
+    g_reader.have_half = true; // Zero is a valid sample, not an empty marker.
+    result = value & 0xffff;
   }
-  uint32_t value = pio_sm_get_blocking(g_reader.pio, g_reader.sm);
-  g_reader.half = value >> 16;
-  return value & 0xffff;
+  if (!g_reader.has_index) {
+    result |= 1; // The low bit is INDEX; the upper 15 bits are the timer.
+  }
+  return result;
 }
 
 static void disable_capture(void) {
@@ -194,7 +221,7 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
   start_common();
 
   // wait for a falling edge of index pin, then enable the capture peripheral
-  if (max_wait_time) {
+  if (index_pin >= 0 && max_wait_time) {
     uint32_t start_time = millis();
     while (!gpio_get(index_pin)) { /* NOTHING */
       if (millis() - start_time > max_wait_time) {
@@ -210,16 +237,35 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
     }
   }
 
-  uint32_t total_counts = 0;
-
-  noInterrupts();
+  // Use the hardware timer: interrupts are disabled and blank media may never
+  // produce even the first pulse. Index-ended reads get a one-second bound.
+  uint32_t timeout_us = capture_counts ? capture_counts / 24 : 1000000;
+  uint32_t irq_state = save_and_disable_interrupts();
   pio_sm_clear_fifos(g_reader.pio, g_reader.sm);
+  g_reader.have_half = false;
   pio_sm_set_enabled(g_reader.pio, g_reader.sm, true);
+  uint32_t started = micros();
+  while (!data_available()) {
+    if (micros() - started >= timeout_us) {
+      disable_capture();
+      restore_interrupts(irq_state);
+      return ptr;
+    }
+  }
   int last = read_fifo();
-  bool last_index = gpio_get(index_pin);
+  bool last_index = true;
+  if (index_pin >= 0) {
+    last_index = gpio_get(index_pin);
+  }
   while (ptr != end) {
+    if (micros() - started >= timeout_us) {
+      break;
+    }
     /* Handle index */
-    bool now_index = gpio_get(index_pin);
+    bool now_index = true;
+    if (index_pin >= 0) {
+      now_index = gpio_get(index_pin);
+    }
 
     if (!now_index && last_index) {
       if (falling_index_offset) {
@@ -242,19 +288,14 @@ static uint8_t *capture_foreground(int index_pin, uint8_t *start, uint8_t *end,
     delta /= 2;
 
     last = data;
-    total_counts += delta;
     if (store_greaseweazle) {
       ptr = greasepack(ptr, end, delta);
     } else {
       *ptr++ = delta > 255 ? 255 : delta;
     }
-    if (capture_counts != 0 && total_counts >= capture_counts) {
-      break;
-    }
   }
-  interrupts();
-
   disable_capture();
+  restore_interrupts(irq_state);
 
   return ptr;
 }
