@@ -8,7 +8,7 @@ continuous PIO/DMA capture engine.
 ## Floppsy RP2350
 
 Select **Adafruit Floppsy RP2350**, **240 MHz**, **Adafruit TinyUSB**, with the
-board definition's **8 MB PSRAM / 40 MHz** setting. Install Adafruit INA3221,
+board definition's **8 MB PSRAM / 80 MHz** setting. Install Adafruit INA3221,
 ILI9341, GFX and their dependencies in addition to Adafruit Floppy and TinyUSB.
 Connect the 12 V supply and keep the hardware WRITE switch **OFF**.
 

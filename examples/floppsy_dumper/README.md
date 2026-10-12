@@ -92,10 +92,10 @@ A power failure during an SD/header write is not guaranteed recoverable.
 
 The capture reserves about 4.8 MB of PSRAM and uses bounded DMA/PIO resources.
 FIFO overruns, full buffers, missing index and nonmonotonic timestamps reject
-the capture. At 240 MHz the program uses conservative **40 MHz PSRAM timing**:
-the prototype produced corrupted timestamps at the board definition's faster
-setting. This setting remains active until reset. SD writes use an SRAM staging
-buffer so PSRAM latency cannot starve the PIO SDIO writer.
+the capture. At 240 MHz the program uses **80 MHz PSRAM timing** with matching
+receive delay, below the fitted APS6404L-3SQR's 84 MHz linear-burst limit. This
+setting remains active until reset. SD writes use an SRAM staging buffer so
+PSRAM latency cannot starve the PIO SDIO writer.
 
 This first raw mode assumes a double-sided 80-cylinder 3.5-inch drive and uses
 the HD density-select setting; some drives select density from the media hole.

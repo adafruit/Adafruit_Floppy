@@ -31,11 +31,11 @@ bool Adafruit_FloppyFluxCapture::begin(uint16_t readPin, uint16_t indexPin) {
     error = "Invalid capture configuration";
     return false;
   }
-  // Use conservative 40 MHz PSRAM timing during prototype flux capture.
+  // Stay below the APS6404L-3SQR's 84 MHz linear-burst limit.
   // Keep the SDK's page-break, chip-select and deselect limits unchanged.
   uint32_t timing = qmi_hw->m[1].timing;
   timing &= ~(QMI_M1_TIMING_CLKDIV_BITS | QMI_M1_TIMING_RXDELAY_BITS);
-  uint32_t divider = (clock_get_hz(clk_sys) + 39999999) / 40000000;
+  uint32_t divider = (clock_get_hz(clk_sys) + 79999999) / 80000000;
   if (divider > 7) {
     error = "CPU clock exceeds capture timing limit";
     return false;
