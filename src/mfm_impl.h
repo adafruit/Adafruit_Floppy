@@ -66,9 +66,9 @@ struct mfm_io {
   uint8_t
       *cylinder_ptr; ///< When decoding, the cylinder number read is stored here
   uint8_t head, cylinder; ///< Location of the track on disk
-  bool validate_id; ///< When decoding MFM, require matching cylinder/head/size
-  uint8_t pulse_len;      ///< bookkeeping value used by MFM decoder
-  uint8_t y;              ///< bookkeeping value used by MFM encoder
+  bool validate_id;  ///< When decoding MFM, require matching cylinder/head/size
+  uint8_t pulse_len; ///< bookkeeping value used by MFM decoder
+  uint8_t y;         ///< bookkeeping value used by MFM encoder
   uint8_t n; ///< Sector size value. Sector is (128<<n) bytes big. Valid values
              ///< are 0..7
 
