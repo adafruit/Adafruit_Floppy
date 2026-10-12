@@ -676,7 +676,8 @@ size_t Adafruit_FloppyBase::capture_track(
     int32_t remaining = capture_ms - (millis() - start_time);
     if (remaining > 0) {
       if (debug_serial) {
-        debug_serial->printf("Delaying another %d ms post-index\n\r", remaining);
+        debug_serial->printf("Delaying another %d ms post-index\n\r",
+                             remaining);
       }
       delay(remaining);
     }
