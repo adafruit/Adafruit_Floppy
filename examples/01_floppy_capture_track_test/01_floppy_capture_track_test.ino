@@ -63,6 +63,7 @@ Adafruit_Floppy floppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
 
 uint32_t time_stamp = 0;
+bool timed_capture = false;
 
 
 void setup() {
@@ -91,9 +92,14 @@ void setup() {
   }
 
   floppy.select(true);
-  if (! floppy.spin_motor(true)) {
-    Serial.println("Failed to spin up motor & find index pulse");
+  if (!floppy.spin_motor(true) && !floppy.index_pulses_missing()) {
+    Serial.print("Failed to start floppy motor\n\r");
     while (1) yield();
+  }
+  timed_capture = !floppy.has_index() || floppy.index_pulses_missing();
+  if (timed_capture) {
+    Serial.print("No INDEX pulse found; capturing 250 ms at a time.\n\r");
+    Serial.print("Keep INDEX connected. Missing INDEX alone does not prove a disk is inserted.\n\r");
   }
 
   Serial.print("Seeking track...");
@@ -106,7 +112,13 @@ void setup() {
 
 void loop() {
   int32_t index_pulse_offset;
-  uint32_t captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset, true);
+  uint32_t captured_flux;
+  if (timed_capture) {
+    // A 250 ms window includes overlap on a 300 RPM disk. No INDEX is invented.
+    captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset, true, 250, 0);
+  } else {
+    captured_flux = floppy.capture_track(flux_transitions, sizeof(flux_transitions), &index_pulse_offset, true);
+  }
 
   Serial.print("Captured ");
   Serial.print(captured_flux);
