@@ -542,8 +542,9 @@ size_t Adafruit_FloppyBase::decode_track_mfm(
     @param  pulses An array of pulses from capture_track
     @param  max_pulses The maximum number of pulses that may be stored
     @param  nominal_bit_time_us The nominal time of one MFM bit, usually 1.0f
-   (double density) or 2.0f (high density)
-    @param  logical_track The logical track number, or -1 to use track()
+   (high density) or 2.0f (double density)
+    @param  logical_track The logical
+   track number, or -1 to use track()
     @return Number of pulses actually generated
 */
 /**************************************************************************/
@@ -552,7 +553,8 @@ size_t Adafruit_FloppyBase::encode_track_mfm(const uint8_t *sectors,
                                              size_t max_pulses,
                                              float nominal_bit_time_us,
                                              uint8_t logical_track) {
-  mfm_io_t io;
+  mfm_io_t io = {};
+  io.settings = &standard_mfm;
 
   set_timings(getSampleFrequency(), io, nominal_bit_time_us);
 
@@ -745,9 +747,15 @@ size_t Adafruit_FloppyBase::capture_track(
     @param  pulses An array of timer-count pulses
     @param  n_pulses How many bytes are in the pulse array
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
-    @param  use_index If true, write starts at the index pulse.
-    @returns False if the data could not be written (samd51 cannot write apple
-   flux format)
+    @param  use_index If true, write starts at the index pulse. On RP2, it also
+
+   stops at the following index pulse.
+    @returns False if the data could not
+   be written (samd51 cannot write apple
+   flux format). RP2 also returns false
+   on a missing start index, FIFO underrun,
+   or a write lasting longer than
+   one second.
 */
 /**************************************************************************/
 bool Adafruit_FloppyBase::write_track(uint8_t *pulses, size_t n_pulses,

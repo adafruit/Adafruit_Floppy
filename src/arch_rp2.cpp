@@ -298,11 +298,11 @@ static bool init_write(int wrdata_pin, bool is_apple2) {
 
   const pio_program_t *program =
       is_apple2 ? &fluxwrite_apple2_struct : &fluxwrite_struct;
-  g_writer.program = program;
 
   if (!allocate_pio_set_program(&g_writer, program)) {
     return false;
   }
+  g_writer.program = program;
 
   uint32_t wrdata_bit = 1u << wrdata_pin;
 
@@ -346,51 +346,79 @@ static void disable_write() {
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, false);
 }
 
-static void write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
+static bool write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
                              uint8_t *pulse_end, bool store_greaseweazle,
                              bool use_index) {
 
   if (use_index) {
+    uint32_t started = micros();
     // don't start during an index pulse
     while (!gpio_get(index_pin)) { /* NOTHING */
+      if (micros() - started >= 1000000) {
+        return false;
+      }
     }
 
     // wait for falling edge of index pin
     while (gpio_get(index_pin)) { /* NOTHING */
+      if (micros() - started >= 1000000) {
+        return false;
+      }
     }
   }
   pinMode(wrgate_pin, OUTPUT);
   digitalWrite(wrgate_pin, LOW);
 
-  noInterrupts();
+  uint32_t irq_state = save_and_disable_interrupts();
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, false);
   pio_sm_clear_fifos(g_writer.pio, g_writer.sm);
   pio_sm_exec(g_writer.pio, g_writer.sm, g_writer.offset);
-  while (!pio_sm_is_tx_fifo_full(g_writer.pio, g_writer.sm)) {
+  while (pulses != pulse_end &&
+         !pio_sm_is_tx_fifo_full(g_writer.pio, g_writer.sm)) {
     unsigned value = greaseunpack(&pulses, pulse_end, store_greaseweazle);
     value = (value < OVERHEAD) ? 1 : value - OVERHEAD;
     pio_sm_put_blocking(g_writer.pio, g_writer.sm, value);
   }
+  // FDEBUG is write-one-to-clear; clear this SM's sticky TX-stall flag.
+  uint32_t stalled = 1u << (PIO_FDEBUG_TXSTALL_LSB + g_writer.sm);
+  g_writer.pio->fdebug = stalled;
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, true);
 
   bool old_index_state = false;
-  while (pulses != pulse_end) {
+  bool success = true;
+  uint32_t started = micros();
+  while (true) {
+    // A stopped drive or missing index must not leave WRITE GATE asserted.
+    if (micros() - started >= 1000000) {
+      success = false;
+      break;
+    }
+    if (pulses != pulse_end && (g_writer.pio->fdebug & stalled)) {
+      success = false; // Underrun changed the requested flux timing.
+      break;
+    }
     bool index_state = gpio_get(index_pin);
-    if (old_index_state && !index_state) {
+    if (use_index && old_index_state && !index_state) {
       // falling edge of index pin
       break;
     }
-    while (!pio_sm_is_tx_fifo_full(g_writer.pio, g_writer.sm)) {
+    while (pulses != pulse_end &&
+           !pio_sm_is_tx_fifo_full(g_writer.pio, g_writer.sm)) {
       unsigned value = greaseunpack(&pulses, pulse_end, store_greaseweazle);
       value = (value < OVERHEAD) ? 1 : value - OVERHEAD;
       pio_sm_put_blocking(g_writer.pio, g_writer.sm, value);
     }
+    if (pulses == pulse_end && (g_writer.pio->fdebug & stalled)) {
+      break; // The final queued pulse has completed.
+    }
     old_index_state = index_state;
   }
-  interrupts();
 
+  digitalWrite(wrgate_pin, HIGH);
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, false);
   pinMode(wrgate_pin, INPUT_PULLUP);
+  restore_interrupts(irq_state);
+  return success;
 }
 
 static void free_write() {
@@ -461,10 +489,14 @@ bool rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
   if (!init_write(wrdata_pin, is_apple2)) {
     return false;
   }
-  write_foreground(index_pin, wrgate_pin, (uint8_t *)pulses,
-                   (uint8_t *)pulse_end, store_greaseweazle, use_index);
+  bool success = write_foreground(index_pin, wrgate_pin, (uint8_t *)pulses,
+                                  (uint8_t *)pulse_end, store_greaseweazle,
+                                  use_index);
   free_write();
-  return true;
+  gpio_put(wrdata_pin, true);
+  gpio_set_function(wrdata_pin, GPIO_FUNC_SIO);
+  gpio_set_dir(wrdata_pin, GPIO_OUT);
+  return success;
 }
 
 #endif
