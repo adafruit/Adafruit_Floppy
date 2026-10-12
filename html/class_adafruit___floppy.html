@@ -97,7 +97,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memdesc:a6e9356dede6233827f4ed3d938ee5962"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether to select this drive.  <a href="#a6e9356dede6233827f4ed3d938ee5962">More...</a><br /></td></tr>
 <tr class="separator:a6e9356dede6233827f4ed3d938ee5962"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3765ef5a3f05d497333742596cecb0f3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a3765ef5a3f05d497333742596cecb0f3">spin_motor</a> (bool motor_on) override</td></tr>
-<tr class="memdesc:a3765ef5a3f05d497333742596cecb0f3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Turn on or off the floppy motor, if on we wait till we get an index pulse!  <a href="#a3765ef5a3f05d497333742596cecb0f3">More...</a><br /></td></tr>
+<tr class="memdesc:a3765ef5a3f05d497333742596cecb0f3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Turn the motor on or off, waiting for settling and configured INDEX.  <a href="#a3765ef5a3f05d497333742596cecb0f3">More...</a><br /></td></tr>
 <tr class="separator:a3765ef5a3f05d497333742596cecb0f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a235d9c73f79ff197add7c263b9dd02c4"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy.html#a235d9c73f79ff197add7c263b9dd02c4">goto_track</a> (int <a class="el" href="class_adafruit___floppy.html#ae2750201f54cfa6232be27ec30e884ee">track</a>) override</td></tr>
 <tr class="memdesc:a235d9c73f79ff197add7c263b9dd02c4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Seek to the desired track, requires the motor to be spun up!  <a href="#a235d9c73f79ff197add7c263b9dd02c4">More...</a><br /></td></tr>
@@ -139,6 +139,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:a8c899ccd49be7567676b51173cced797 inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a8c899ccd49be7567676b51173cced797">index_pulses_seen</a> (void)</td></tr>
 <tr class="memdesc:a8c899ccd49be7567676b51173cced797 inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Are index pulses being seen?  <a href="class_adafruit___floppy_base.html#a8c899ccd49be7567676b51173cced797">More...</a><br /></td></tr>
 <tr class="separator:a8c899ccd49be7567676b51173cced797 inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab4babc4f6ee24f4740e93f799eac45de inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ab4babc4f6ee24f4740e93f799eac45de">index_pulses_missing</a> (void) const</td></tr>
+<tr class="memdesc:ab4babc4f6ee24f4740e93f799eac45de inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether startup timed out waiting for a configured INDEX input.  <a href="class_adafruit___floppy_base.html#ab4babc4f6ee24f4740e93f799eac45de">More...</a><br /></td></tr>
+<tr class="separator:ab4babc4f6ee24f4740e93f799eac45de inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa98a95461accab69f9ef2700109cbb22 inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aa98a95461accab69f9ef2700109cbb22">has_index</a> (void) const</td></tr>
+<tr class="memdesc:aa98a95461accab69f9ef2700109cbb22 inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether a physical INDEX input was configured.  <a href="class_adafruit___floppy_base.html#aa98a95461accab69f9ef2700109cbb22">More...</a><br /></td></tr>
+<tr class="separator:aa98a95461accab69f9ef2700109cbb22 inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3ed5fea8593eb1213439698539de899c inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a3ed5fea8593eb1213439698539de899c">decode_track_mfm</a> (uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity, const uint8_t *pulses, size_t n_pulses, float nominal_bit_time_us, bool clear_validity=false, uint8_t *logical_track=nullptr)</td></tr>
 <tr class="memdesc:a3ed5fea8593eb1213439698539de899c inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode one track of previously captured MFM data.  <a href="class_adafruit___floppy_base.html#a3ed5fea8593eb1213439698539de899c">More...</a><br /></td></tr>
 <tr class="separator:a3ed5fea8593eb1213439698539de899c inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -146,7 +152,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memdesc:a01da3a44b6dbcaf4f2ccbfc8e5f68bf4 inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Encode one track of previously captured MFM data.  <a href="class_adafruit___floppy_base.html#a01da3a44b6dbcaf4f2ccbfc8e5f68bf4">More...</a><br /></td></tr>
 <tr class="separator:a01da3a44b6dbcaf4f2ccbfc8e5f68bf4 inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac9d7948eb4ac80c851d0fa2e4b39bf23 inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ac9d7948eb4ac80c851d0fa2e4b39bf23">capture_track</a> (volatile uint8_t *pulses, size_t max_pulses, int32_t *falling_index_offset, bool store_greaseweazle=false, uint32_t capture_ms=0, uint32_t index_wait_ms=250) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
-<tr class="memdesc:ac9d7948eb4ac80c851d0fa2e4b39bf23 inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture one track's worth of flux transitions, between two falling index pulses.  <a href="class_adafruit___floppy_base.html#ac9d7948eb4ac80c851d0fa2e4b39bf23">More...</a><br /></td></tr>
+<tr class="memdesc:ac9d7948eb4ac80c851d0fa2e4b39bf23 inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Capture flux transitions for one revolution or a bounded duration.  <a href="class_adafruit___floppy_base.html#ac9d7948eb4ac80c851d0fa2e4b39bf23">More...</a><br /></td></tr>
 <tr class="separator:ac9d7948eb4ac80c851d0fa2e4b39bf23 inherit pub_methods_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a03e34278e9fcc25a121b38a7b2bd4c68 inherit pub_methods_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a03e34278e9fcc25a121b38a7b2bd4c68">write_track</a> (uint8_t *pulses, size_t n_pulses, bool store_greaseweazle=false, bool use_index=true) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:a03e34278e9fcc25a121b38a7b2bd4c68 inherit pub_methods_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="class_adafruit___floppy_base.html#a03e34278e9fcc25a121b38a7b2bd4c68">More...</a><br /></td></tr>
@@ -223,6 +229,10 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a0f0d551f31c36b3894644b3cb8dc3ecf">is_index_seen</a></td></tr>
 <tr class="memdesc:a0f0d551f31c36b3894644b3cb8dc3ecf inherit pro_attribs_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">cached index pulses seen state <br /></td></tr>
 <tr class="separator:a0f0d551f31c36b3894644b3cb8dc3ecf inherit pro_attribs_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac57ffe8c315cc23eaf71cf9ffdd5aba6 inherit pro_attribs_class_adafruit___floppy_base"><td class="memItemLeft" align="right" valign="top"><a id="ac57ffe8c315cc23eaf71cf9ffdd5aba6"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ac57ffe8c315cc23eaf71cf9ffdd5aba6">is_index_missing</a></td></tr>
+<tr class="memdesc:ac57ffe8c315cc23eaf71cf9ffdd5aba6 inherit pro_attribs_class_adafruit___floppy_base"><td class="mdescLeft">&#160;</td><td class="mdescRight">configured INDEX timed out during motor startup <br /></td></tr>
+<tr class="separator:ac57ffe8c315cc23eaf71cf9ffdd5aba6 inherit pro_attribs_class_adafruit___floppy_base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>A helper class for chattin with PC &amp; Shugart floppy drives. </p>
@@ -323,7 +333,7 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">densitypin</td><td>A pin connected to the floppy Density Select input </td></tr>
-    <tr><td class="paramname">indexpin</td><td>A pin connected to the floppy Index Sensor output </td></tr>
+    <tr><td class="paramname">indexpin</td><td>Index Sensor pin, or -1 for a drive without INDEX </td></tr>
     <tr><td class="paramname">selectpin</td><td>A pin connected to the floppy Drive Select input </td></tr>
     <tr><td class="paramname">motorpin</td><td>A pin connected to the floppy Motor Enable input </td></tr>
     <tr><td class="paramname">directionpin</td><td>A pin connected to the floppy Stepper Direction input </td></tr>
@@ -402,14 +412,14 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 </table>
 </div><div class="memdoc">
 
-<p>Turn on or off the floppy motor, if on we wait till we get an index pulse! </p>
+<p>Turn the motor on or off, waiting for settling and configured INDEX. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">motor_on</td><td>True to turn on motor, False to turn it off </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>False if turning motor on and no index pulse found, true otherwise </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>False if a configured INDEX is missing, true otherwise. Without INDEX, success indicates settling only, not disk presence. </dd></dl>
 
 <p>Implements <a class="el" href="class_adafruit___floppy_base.html#a87e747d7b504ba26f632bb882ff736be">Adafruit_FloppyBase</a>.</p>
 
