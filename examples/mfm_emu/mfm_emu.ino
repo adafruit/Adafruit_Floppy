@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <iterator>
 
 
 #define WAIT_SERIAL
@@ -173,13 +175,7 @@ void onStep() {
   digitalWrite(TRK0_PIN, trackno != 0); // active LOW
 }
 
-#if defined(PIN_CARD_CS)
-#define USE_SDFAT (1)
-#include "SdFat.h"
-SdFat SD;
-FsFile dir;
-FsFile file;
-
+// Format metadata is also needed by the dummy-image mode without an SD card.
 struct floppy_format_info_t {
   uint8_t cylinders, sectors, sides; // number of sides may be 1 or 2
   uint16_t bit_time_ns;
@@ -199,6 +195,13 @@ const struct floppy_format_info_t format_info[] = {
 };
 
 const floppy_format_info_t *cur_format = &format_info[0];
+
+#if defined(PIN_CARD_CS)
+#define USE_SDFAT (1)
+#include "SdFat.h"
+SdFat SD;
+FsFile dir;
+FsFile file;
 
 void pio_sm_set_clk_ns(PIO pio, uint sm, uint time_ns) {
   Serial.printf("set_clk_ns %u\n", time_ns);
