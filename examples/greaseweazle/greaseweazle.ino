@@ -122,6 +122,7 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_SETPIN    15
 #define GW_CMD_SETPIN_DENSITY 2
 #define GW_CMD_RESET     16
+#define GW_CMD_ERASEFLUX 17
 #define GW_CMD_SOURCEBYTES 18
 #define GW_CMD_SINKBYTES 19
 #define GW_CMD_GETPIN 20
@@ -212,7 +213,7 @@ uint32_t transfered_bytes;
 uint32_t captured_pulses;
 // WARNING! there are 100K max flux pulses per track!
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
-bool flux_status; // result of last flux read or write command
+uint8_t flux_status = GW_ACK_OK; // result of last flux read, write, or erase
 
 
 void loop() {
@@ -500,7 +501,7 @@ void loop() {
 
     // THE END
     Serial.write((byte)0);
-    flux_status = true;
+    flux_status = GW_ACK_OK;
   }
   else if (cmd == GW_CMD_WRITEFLUX) {
     if (!floppy) goto needfloppy;
@@ -529,15 +530,54 @@ void loop() {
         Serial1.println("*** FLUX OVERRUN ***");
         while (1) yield();
       }
-      flux_status = floppy->write_track(flux_transitions, fluxors - 7, true, cue_at_index);
+      flux_status = floppy->write_track(flux_transitions, fluxors - 7, true, cue_at_index)
+        ? GW_ACK_OK : GW_ACK_BADPIN;
       Serial1.println("wrote fluxors");
       Serial.write((byte)0);
 
     }
   }
+  else if (cmd == GW_CMD_ERASEFLUX) {
+    if (!floppy) goto needfloppy;
+
+    if (len != 6) {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+      Serial.write(reply_buffer, 2);
+      return;
+    }
+    // The command carries a little-endian duration in sample-clock ticks.
+    uint32_t ticks = cmd_buffer[2] | (uint32_t)cmd_buffer[3] << 8 |
+      (uint32_t)cmd_buffer[4] << 16 | (uint32_t)cmd_buffer[5] << 24;
+    uint32_t frequency = floppy->getSampleFrequency();
+    if (frequency == 0) {
+      reply_buffer[i++] = GW_ACK_BADPIN;
+      Serial.write(reply_buffer, 2);
+      return;
+    }
+    uint64_t duration_us = ((uint64_t)ticks * 1000000 + frequency - 1) / frequency;
+    if (duration_us > Adafruit_FloppyBase::MAX_ERASE_US) {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+    } else if (!floppy->drive_is_selected() || !floppy->motor_is_spinning()) {
+      reply_buffer[i++] = GW_ACK_NOUNIT;
+    } else if (floppy->get_write_protect()) {
+      reply_buffer[i++] = GW_ACK_WRPROT;
+    } else {
+      reply_buffer[i++] = GW_ACK_OK;
+    }
+    Serial.write(reply_buffer, 2);
+    if (reply_buffer[1] != GW_ACK_OK) return;
+
+    flux_status = GW_ACK_OK;
+    if (!floppy->erase_track((uint32_t)duration_us)) {
+      flux_status = floppy->get_write_protect() ? GW_ACK_WRPROT : GW_ACK_BADPIN;
+    }
+    // Greaseweazle waits for this completion byte, then requests flux status.
+    Serial.write(flux_status);
+    timestamp = millis();
+  }
   else if (cmd == GW_CMD_GETFLUXSTATUS) {
     Serial1.println("get flux status");
-    reply_buffer[i++] = flux_status ? GW_ACK_OK : GW_ACK_BADPIN;
+    reply_buffer[i++] = flux_status;
     Serial.write(reply_buffer, 2);
   }
 

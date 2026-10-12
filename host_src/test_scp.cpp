@@ -11,6 +11,12 @@ static uint32_t get32(const uint8_t *p) {
 }
 
 int main(int argc, char **argv) {
+  uint8_t flags[SCP_HEADER_SIZE];
+  scpHeader(flags);
+  assert(flags[8] == 0x83);
+  scpHeader(flags, false);
+  assert(flags[8] ==
+         0x82); // Timed capture is neither index-cued nor normalized.
   uint32_t origin =
       10000000; // Three revs deliberately wrap the 32-bit counter.
   uint32_t index[4] = {origin, origin - 8000000, origin - 16000000,

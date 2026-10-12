@@ -31,12 +31,25 @@ Replace `COM51` with your board's port. Other Greaseweazle formats and output
 containers are decoded/generated on the computer from the same raw flux.
 The transport accepts one through five complete revolutions, with actual index
 timing at 25 ns resolution. It handles long no-flux gaps without inventing edges.
-Capture overflow, bad timestamps and missing index are returned as errors.
+Capture overflow, bad timestamps and missing index during an indexed read
+are returned as errors.
+
+For a 300 RPM drive whose INDEX pin remains connected but does not pulse:
+
+```sh
+gw read --device COM51 --drive B --fake-index 300 --revs 3 --raw disk.scp
+```
+
+These reads use an explicit time limit, up to one second, without waiting for
+INDEX. Firmware streams the measured flux intervals and no INDEX events;
+Greaseweazle supplies the nominal boundaries requested by `--fake-index`.
+The specified RPM is an assumption, not a spindle-speed measurement. Use the
+same option with `--format ibm.1440` for sector decoding. Motor startup accepts
+a silent INDEX pin, but ordinary indexed reads still return No Index.
 
 The first Floppsy implementation supports one connected PC/Shugart or FPC drive,
-DS0/DS1, cylinders 0-83, two heads and 150-250 ms index periods. Timed reads
-return enough complete indexed revolutions to cover the requested duration.
-Apple drive control, fake index, hard sectors, writing, erase, bandwidth test
+DS0/DS1, cylinders 0-83, two heads and 150-250 ms index periods.
+Apple drive control, hard sectors, combined tick/index limits, writing, erase, bandwidth test
 commands and Greaseweazle firmware updates are not implemented. Unsupported
 commands receive an error rather than a success acknowledgement.
 

@@ -22,8 +22,9 @@ uint32_t scpChecksum(const uint8_t *data, size_t size) {
 }
 
 /** @brief Initialize a three-revolution, 80-cylinder, two-head SCP header.
-    @param header At least SCP_HEADER_SIZE writable bytes. */
-void scpHeader(uint8_t *header) {
+    @param header At least SCP_HEADER_SIZE writable bytes.
+    @param indexCued True for real INDEX boundaries; false for timed windows. */
+void scpHeader(uint8_t *header, bool indexCued) {
   memset(header, 0, SCP_HEADER_SIZE);
   memcpy(header, "SCP", 3);
   header[3] = 0x24;
@@ -31,14 +32,16 @@ void scpHeader(uint8_t *header) {
       0x85; // Other 3.5-inch HD: raw capture does not assume IBM sectors.
   header[5] = 3;
   header[7] = 159;
-  header[8] = 0x83; // Index-cued, 96 TPI, non-SCP creator; NOT normalized.
+  header[8] =
+      0x82 | (indexCued ? 1 : 0); // 96 TPI, non-SCP creator; NOT normalized.
 }
 
 /** @brief Encode three unnormalized revolutions with 25 ns resolution.
     @param track Cylinder * 2 + head, 0 through 159.
     @param samples Descending 40 MHz timestamps, including optional lead-in.
     @param count Number of timestamps.
-    @param index Four descending index timestamps bounding three revolutions.
+    @param index Four descending timestamps bounding three revolution windows.
+    For nominal timed boundaries, use scpHeader() with indexCued set to false.
     @param output Destination for the complete track record.
     @param capacity Available output bytes.
     @param badPulse Optional index of a malformed input timestamp.

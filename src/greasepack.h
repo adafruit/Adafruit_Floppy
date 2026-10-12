@@ -83,7 +83,7 @@ static inline unsigned greaseunpack(uint8_t **buf_, uint8_t *end,
     }
     if (need == 2) {
       uint8_t data2 = *BUF++;
-      return (data - cutoff_1byte + 1) * 250 + data2;
+      return 250 + (data - cutoff_1byte) * 255 + data2 - 1;
     }
     uint8_t data2 = *BUF++;
     if (data2 != 2) {

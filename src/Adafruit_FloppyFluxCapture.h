@@ -13,15 +13,19 @@ public:
   static const uint8_t MAX_REVOLUTIONS = 5; ///< Complete indexed revolutions.
   bool begin(uint16_t readPin, uint16_t indexPin);
   bool capture(bool (*cancelled)(), uint8_t revolutions = 3);
+  bool captureTimed(bool (*cancelled)(), uint32_t durationTicks);
   void end();
   uint32_t *samples =
       nullptr;      ///< Descending 40 MHz timestamps, including lead-in.
   size_t count = 0; ///< Number of captured transitions.
+  uint32_t start = UINT32_MAX; ///< Counter origin for a timed capture.
   uint32_t index[MAX_REVOLUTIONS + 1] = {}; ///< Descending index timestamps.
   const char *error =
       ""; ///< Empty on success, otherwise a static error message.
 
 private:
+  bool captureInternal(bool (*cancelled)(), uint8_t revolutions,
+                       uint32_t durationTicks);
   void *allocation = nullptr;
   PIO pio = nullptr;
   int fluxSM = -1, indexSM = -1;

@@ -166,12 +166,12 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
       for (uint16_t number = 0; number < 1000; number++) {
         snprintf(partialName, sizeof(partialName), "%s%03u.PART", raw ? "FX" : "FD", number);
         snprintf(imageName, sizeof(imageName), "%s%03u.%s", raw ? "FX" : "FD", number, raw ? "SCP" : "IMG");
-        snprintf(mapName, sizeof(mapName), "FD%03u.MAP", number);
+        snprintf(mapName, sizeof(mapName), "%s%03u.%s", raw ? "FX" : "FD", number, raw ? "TXT" : "MAP");
         snprintf(badName, sizeof(badName), "FD%03u.BAD.IMG", number);
         if (!sd.exists(partialName) && !sd.exists(imageName) &&
-            (raw || (!sd.exists(mapName) && !sd.exists(badName)))) {
+            !sd.exists(mapName) && (raw || !sd.exists(badName))) {
           if (image.open(partialName, O_RDWR | O_CREAT | O_EXCL)) {
-            if (raw || map.open(mapName, O_WRONLY | O_CREAT | O_EXCL)) break;
+            if (map.open(mapName, O_WRONLY | O_CREAT | O_EXCL)) break;
             image.close();
           }
         }
@@ -224,13 +224,26 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
     drive.select(true);
     snprintf(floppyProgress, sizeof(floppyProgress), "Spinning up; BOOT cancels");
     drawStatus();
-    if (!drive.spin_motor(true)) {
-      stopFloppy("FAIL: no index pulse");
+    if (!drive.spin_motor(true) && !drive.index_pulses_missing()) {
+      stopFloppy("FAIL: motor startup");
       success = false;
     } else if (!drive.goto_track(0)) {
       stopFloppy("FAIL: initial seek");
       success = false;
     }
+  }
+  bool timed = success && drive.index_pulses_missing();
+  if (success && timed) {
+    Serial.print("No INDEX pulse found: using timed reads; rotation is not measured.\n\r");
+  }
+  if (success && raw) {
+    scpHeader(scp, !timed);
+    map.print(timed ? "INDEX-less: 600 ms capture, three nominal 200 ms windows; 300 RPM assumed.\n\r"
+                    : "Three revolutions bounded by measured INDEX pulses.\n\r");
+    map.print("Unnormalized 25 ns flux timing. Timed windows are not physical INDEX marks.\n\r");
+    success = map.sync() && !map.getWriteError() && image.seekSet(0) &&
+              writeVerified(image, scp, sizeof(scp));
+    if (!success) stopFloppy("FAIL: capture metadata write");
   }
   if (success && mode == 5) {
     uint8_t detected = detectIBM(drive, flux, fluxCapacity, sectors);
@@ -246,7 +259,7 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
   }
   Serial.printf("DS%u: %s; 80 cylinders, 2 heads; %u sectors/track; READ ONLY\n",
                 selectPin == FLOPPY_SELECT0 ? 0 : 1,
-                raw ? "raw SCP, 3 revolutions at 25ns" : "IBM MFM IMG", sectorsPerTrack);
+                raw ? (timed ? "raw SCP, 600ms at 25ns" : "raw SCP, 3 revolutions at 25ns") : "IBM MFM IMG", sectorsPerTrack);
   uint16_t completed = 0;
   uint16_t decodedSectors = 0;
   uint16_t badSectors = 0;
@@ -266,16 +279,20 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
     }
     delay(15);
     if (raw) {
-      snprintf(floppyProgress, sizeof(floppyProgress), "C%02u H%u  3 revs  BOOT=stop", cylinder, head);
+      snprintf(floppyProgress, sizeof(floppyProgress), "C%02u H%u  %s  BOOT=stop", cylinder, head, timed ? "600ms" : "3 revs");
       snprintf(floppyStatus, sizeof(floppyStatus), "%u/160 tracks  %.1f MB", completed, image.curPosition() / 1000000.0);
       drawStatus();
-      if (!capture.capture(floppyCancelled)) {
+      if (!(timed ? capture.captureTimed(floppyCancelled, 24000000) : capture.capture(floppyCancelled))) {
         stopFloppy(capture.error);
         success = false;
         break;
       }
+      uint32_t boundaries[4];
+      for (uint8_t i = 0; i < 4; i++) {
+        boundaries[i] = timed ? capture.start - 8000000u * i : capture.index[i];
+      }
       size_t badPulse = 0;
-      size_t bytes = scpTrack(track, capture.samples, capture.count, capture.index,
+      size_t bytes = scpTrack(track, capture.samples, capture.count, boundaries,
                              rawTrack, SCP_TRACK_CAPACITY, &badPulse);
       if (!bytes) {
         Serial.printf("SCP encode failed: count=%u index=%08lx/%08lx/%08lx/%08lx first=%08lx/%08lx last=%08lx\n",
@@ -304,9 +321,9 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
         success = false;
         break;
       }
-      Serial.printf("C%02u H%u: %u samples, %u bytes, %.2f RPM, saved + verified\n",
+      Serial.printf("C%02u H%u: %u samples, %u bytes, %.2f RPM%s, saved + verified\n\r",
                     cylinder, head, (unsigned)capture.count, (unsigned)bytes,
-                    2400000000.0 / (capture.index[0] - capture.index[1]));
+                    2400000000.0 / (boundaries[0] - boundaries[1]), timed ? " assumed" : " measured");
       completed++;
       continue;
     }
@@ -318,7 +335,8 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
       snprintf(floppyStatus, sizeof(floppyStatus), "%u/%u tracks  %u/%u sectors", completed, trackCount, (unsigned)count, sectorsPerTrack);
       drawStatus();
       int32_t indexOffset = -1;
-      size_t pulses = drive.capture_track(flux, fluxCapacity, &indexOffset, false, 220, 300);
+      size_t pulses = drive.capture_track(flux, fluxCapacity, &indexOffset, false,
+                                          timed ? 250 : 220, timed ? 0 : 300);
       count = drive.decode_track_mfm(sectors, sectorsPerTrack, valid, flux, pulses,
                                      doubleDensity ? 2.0 : sectorsPerTrack == 36 ? 0.5 : 1.0, false, nullptr, cylinder);
       Serial.printf("C%02u H%u try %u: %u pulses, %u/%u CRC-valid matching sectors\n",
@@ -358,7 +376,8 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
   digitalWrite(FLOPPY_CMD_OE, HIGH);
   digitalWrite(FLOPPY_STAT_OE, HIGH);
   if (map) {
-    map.printf("# %s: %u/160 tracks, %u good sectors, %u bad sectors\n",
+    if (raw) map.printf("%s: %u/160 tracks\n\r", success ? "FINISHED" : "INCOMPLETE", completed);
+    else map.printf("# %s: %u/160 tracks, %u good sectors, %u bad sectors\n",
                success ? "FINISHED" : "INCOMPLETE", completed, decodedSectors, badSectors);
     if (!map.sync() || map.getWriteError()) { stopFloppy("FAIL: final map sync"); success = false; }
     map.close();
@@ -377,7 +396,7 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
   }
   if (imageCreated) {
     snprintf(lastDump, sizeof(lastDump), "%s", success ? imageName : partialName);
-    if (!raw) snprintf(lastMap, sizeof(lastMap), "%s", mapName);
+    snprintf(lastMap, sizeof(lastMap), "%s", mapName);
   }
   if (dump) sd.end();
   free(flux);
@@ -426,7 +445,9 @@ uint8_t detectIBM(Adafruit_Floppy &drive, uint8_t *flux, size_t capacity, uint8_
       uint8_t valid[36] = {};
       memset(sectors, 0, 36 * 512);
       int32_t indexOffset = -1;
-      size_t pulses = drive.capture_track(flux, capacity, &indexOffset, false, 220, 300);
+      size_t pulses = drive.capture_track(flux, capacity, &indexOffset, false,
+                        drive.index_pulses_missing() ? 250 : 220,
+                        drive.index_pulses_missing() ? 0 : 300);
       size_t found = drive.decode_track_mfm(sectors, 36, valid, flux, pulses,
                                            500.0 / bitRates[rate], true, nullptr, cylinder);
       for (uint8_t option = 0; option < 3; option++) {
@@ -559,7 +580,8 @@ void printHelp() {
   Serial.println("a=auto IBM IMG, r=track zero, d=IMG 1.44MB, j=IMG 720KB, g=raw SCP (DS1)");
   Serial.println("A/R/D/J/G use DS0. BOOT or !=cancel. No floppy write commands.");
   Serial.println("AUTO: 720/800/880/1440/1680/1760/2880 KiB IBM MFM; other encodings use SCP.");
-  Serial.println("x=download last dump; m=last IMG map. FILE name size\n, exact bytes, \nEND.");
+  Serial.print("x=download last dump; m=IMG map / SCP notes. FILE name size, exact bytes, END.\n\r");
   Serial.println("BAD sectors: zero-filled + .MAP, .BAD.IMG filename. Incomplete: .PART.");
-  Serial.println("SCP: 80 cylinders, 2 heads, 3 index-cued revolutions at 25ns, no normalization.");
+  Serial.print("SCP: 80 cylinders, 2 heads, 25ns, no normalization.\n\r");
+  Serial.print("No INDEX: 600ms raw capture; nominal 300 RPM windows, marked non-index-cued.\n\r");
 }

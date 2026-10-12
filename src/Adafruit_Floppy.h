@@ -85,11 +85,11 @@ public:
 
   /**************************************************************************/
   /*!
-      @brief  Turn on or off the floppy motor, if on we wait till we get an
-     index pulse!
+      @brief Turn the motor on or off. Starting waits for settling and INDEX,
+     or just settling when indexpin=-1.
       @param motor_on True to turn on motor, False to turn it off
       @returns False if turning motor on and no index pulse found, true
-     otherwise
+     otherwise. INDEX-less success does not prove disk presence.
   */
   /**************************************************************************/
   virtual bool spin_motor(bool motor_on) = 0;
@@ -107,6 +107,8 @@ public:
   */
   /**************************************************************************/
   bool index_pulses_seen(void) { return is_index_seen; }
+  bool index_pulses_missing(void) const;
+  bool has_index(void) const;
   /**************************************************************************/
   /*!
       @brief  Seek to the desired track, requires the motor to be spun up!
@@ -194,6 +196,8 @@ public:
   bool write_track(uint8_t *pulses, size_t n_pulses,
                    bool store_greaseweazle = false, bool use_index = true)
       __attribute__((optimize("O3")));
+  static const uint32_t MAX_ERASE_US = 1000000; ///< Maximum erase time, in us.
+  bool erase_track(uint32_t duration_us);
   void print_pulse_bins(uint8_t *pulses, size_t n_pulses, uint8_t max_bins = 64,
                         bool is_gw_format = false, uint32_t min_bin_size = 100);
   void print_pulses(uint8_t *pulses, size_t n_pulses,
@@ -221,6 +225,7 @@ protected:
   bool is_drive_selected; ///< cached drive select state
   bool is_motor_spinning; ///< cached motor spinning state
   bool is_index_seen;     ///< cached index pulses seen state
+  bool is_index_missing;  ///< configured INDEX timed out during motor startup
 
 private:
 #if defined(__SAMD51__)
@@ -246,7 +251,7 @@ private:
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *indexPort;
   BusIO_PortMask indexMask;
-  uint32_t dummyPort = 0;
+  uint32_t dummyPort = 1;
 #endif
 };
 

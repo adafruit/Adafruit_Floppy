@@ -95,9 +95,33 @@ bool Adafruit_FloppyFluxCapture::begin(uint16_t readPin, uint16_t indexPin) {
  */
 bool Adafruit_FloppyFluxCapture::capture(bool (*cancelled)(),
                                          uint8_t revolutions) {
+  return captureInternal(cancelled, revolutions, 0);
+}
+
+/** @brief Capture a bounded interval without waiting for INDEX.
+    @param cancelled Optional callback; return true to stop capture.
+    @param durationTicks Duration in 25 ns ticks, 1 through 40000000 (one second).
+    @return True on lossless completion, including an interval with no flux.
+    Samples may include a short tail beyond the requested interval; exporters
+    must clip at durationTicks. The index array contains no synthetic marks. */
+bool Adafruit_FloppyFluxCapture::captureTimed(bool (*cancelled)(),
+                                              uint32_t durationTicks) {
+  if (!durationTicks || durationTicks > 40000000) {
+    count = 0;
+    error = "Invalid timed capture duration";
+    return false;
+  }
+  return captureInternal(cancelled, 0, durationTicks);
+}
+
+bool Adafruit_FloppyFluxCapture::captureInternal(bool (*cancelled)(),
+                                                 uint8_t revolutions,
+                                                 uint32_t durationTicks) {
   count = 0;
   error = "";
-  if (!programLoaded || revolutions < 1 || revolutions > MAX_REVOLUTIONS) {
+  bool timed = durationTicks != 0;
+  if (!programLoaded ||
+      (!timed && (revolutions < 1 || revolutions > MAX_REVOLUTIONS))) {
     error = "Invalid capture configuration";
     return false;
   }
@@ -108,7 +132,9 @@ bool Adafruit_FloppyFluxCapture::capture(bool (*cancelled)(),
                 3); // Clean by address.
   uint32_t *dmaSamples =
       (uint32_t *)((uintptr_t)samples + XIP_NOCACHE_NOALLOC_BASE - XIP_BASE);
-  for (uint8_t channel = 0; channel < 2; channel++) {
+  memset(index, 0, sizeof(index));
+  start = UINT32_MAX;
+  for (uint8_t channel = 0; channel < (timed ? 1 : 2); channel++) {
     uint sm = channel == 0 ? fluxSM : indexSM;
     uint dma = channel == 0 ? fluxDMA : indexDMA;
     pio_sm_set_enabled(pio, sm, false);
@@ -126,13 +152,14 @@ bool Adafruit_FloppyFluxCapture::capture(bool (*cancelled)(),
                           channel == 0 ? CAPACITY : revolutions + 1, false);
   }
   // Hardware masks are required by the SDK for synchronized PIO/DMA starts.
-  uint32_t smMask = (1u << fluxSM) | (1u << indexSM);
+  uint32_t smMask = (1u << fluxSM) | (timed ? 0 : (1u << indexSM));
   uint32_t stallMask = smMask << PIO_FDEBUG_RXSTALL_LSB;
   pio->fdebug = stallMask;
-  dma_start_channel_mask((1u << fluxDMA) | (1u << indexDMA));
+  dma_start_channel_mask((1u << fluxDMA) | (timed ? 0 : (1u << indexDMA)));
   pio_enable_sm_mask_in_sync(pio, smMask);
-  uint32_t started = millis();
-  while (dma_channel_is_busy(indexDMA)) {
+  uint32_t started = micros();
+  while (timed ? micros() - started < (durationTicks + 39) / 40
+               : dma_channel_is_busy(indexDMA)) {
     if (cancelled && cancelled()) {
       error = "Cancelled";
       break;
@@ -141,7 +168,7 @@ bool Adafruit_FloppyFluxCapture::capture(bool (*cancelled)(),
       error = "Flux buffer full";
       break;
     }
-    if (millis() - started >= 750u + 250u * revolutions) {
+    if (!timed && micros() - started >= 750000u + 250000u * revolutions) {
       error = "Missing index / slow drive";
       break;
     }
@@ -159,7 +186,7 @@ bool Adafruit_FloppyFluxCapture::capture(bool (*cancelled)(),
   dma_channel_abort(indexDMA);
   if (pio->fdebug & stallMask)
     error = "Capture FIFO overrun";
-  if (!allIndexes && !error[0])
+  if (!timed && !allIndexes && !error[0])
     error = "Missing index";
   __dmb();
   maintainCache(cacheOffset, CAPACITY * sizeof(uint32_t),

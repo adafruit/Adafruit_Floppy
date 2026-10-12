@@ -50,7 +50,7 @@ bool gwFlush();
 bool gwByte(uint8_t value);
 bool gwOpcode(uint8_t opcode, uint32_t ticks);
 bool gwInterval(uint32_t ticks);
-bool gwReadFlux(uint8_t revolutions);
+bool gwReadFlux(uint8_t revolutions, uint32_t ticks);
 void gwReply(uint8_t command, uint8_t status);
 void gwDispatch(const uint8_t *command, uint8_t length);
 void gwApplyDelays();
@@ -168,15 +168,17 @@ bool gwInterval(uint32_t ticks) {
   return gwOpcode(2, ticks - 249) && gwByte(249);
 }
 
-bool gwReadFlux(uint8_t revolutions) {
+bool gwReadFlux(uint8_t revolutions, uint32_t ticks) {
   streamCount = 0;
-  if (!fluxCapture.capture(gwCancelled, revolutions)) {
+  bool timed = ticks != 0;
+  if (!(timed ? fluxCapture.captureTimed(gwCancelled, ticks) :
+                fluxCapture.capture(gwCancelled, revolutions))) {
     fluxStatus = strcmp(fluxCapture.error, "Missing index / slow drive") == 0 ?
       GW_NO_INDEX : GW_OVERFLOW;
     return false;
   }
-  uint32_t start = fluxCapture.index[0];
-  uint32_t end = start - fluxCapture.index[revolutions];
+  uint32_t start = timed ? fluxCapture.start : fluxCapture.index[0];
+  uint32_t end = timed ? ticks : start - fluxCapture.index[revolutions];
   uint32_t previous = 0;
   uint8_t mark = 0;
   for (size_t i = 0; i < fluxCapture.count; i++) {
@@ -187,15 +189,16 @@ bool gwReadFlux(uint8_t revolutions) {
     }
     if ((uint32_t)elapsed > end) break;
     if ((uint32_t)elapsed <= previous) { fluxStatus = GW_OVERFLOW; return false; }
-    while (mark <= revolutions && start - fluxCapture.index[mark] <= (uint32_t)elapsed) {
+    while (!timed && mark <= revolutions && start - fluxCapture.index[mark] <= (uint32_t)elapsed) {
       if (!gwOpcode(1, start - fluxCapture.index[mark++] - previous)) return false;
     }
     if (!gwInterval(elapsed - previous)) return false;
     previous = elapsed;
   }
-  while (mark <= revolutions) {
+  while (!timed && mark <= revolutions) {
     if (!gwOpcode(1, start - fluxCapture.index[mark++] - previous)) return false;
   }
+  if (timed && end > previous && !gwOpcode(2, end - previous)) return false;
   return gwFlush();
 }
 
@@ -298,7 +301,10 @@ void gwDispatch(const uint8_t *command, uint8_t length) {
       if (length != 4 || command[3] > 1) break;
       if (!command[3]) { drive->spin_motor(false); gwReply(op, GW_OK); return; }
       if (command[2] != selectedUnit) { gwReply(op, GW_NO_UNIT); return; }
-      gwReply(op, drive->spin_motor(true) ? GW_OK : GW_NO_INDEX); return;
+      // Starting the motor does not require INDEX; the READ command chooses
+      // either real index boundaries or an explicit timed capture.
+      gwReply(op, (drive->spin_motor(true) || drive->index_pulses_missing()) ?
+        GW_OK : GW_NO_INDEX); return;
     case GW_HEAD:
       if (length != 3 || command[2] > 1) break;
       if (selectedUnit > 1) { gwReply(op, GW_NO_UNIT); return; }
@@ -319,14 +325,14 @@ void gwDispatch(const uint8_t *command, uint8_t length) {
       uint32_t ticks = command[2] | (uint32_t)command[3] << 8 |
         (uint32_t)command[4] << 16 | (uint32_t)command[5] << 24;
       uint16_t marks = command[6] | (uint16_t)command[7] << 8;
-      // A tick-limited read still uses real index and returns whole revolutions.
-      // Fake index and hard-sector modes are not supported by this firmware.
+      // --fake-index requests ticks with zero marks. Never send invented INDEX
+      // opcodes: the host supplies its explicitly requested nominal boundaries.
       uint32_t revolutions = marks > 1 ? marks - 1 : 0;
-      if (ticks) revolutions = max(revolutions, (ticks + 5999999ull) / 6000000ull);
-      if (!revolutions || revolutions > Adafruit_FloppyFluxCapture::MAX_REVOLUTIONS || !captureOK) break;
+      if (!captureOK || (ticks ? (marks != 0 || ticks > 40000000) :
+          (!revolutions || revolutions > Adafruit_FloppyFluxCapture::MAX_REVOLUTIONS))) break;
       fluxStatus = GW_OK;
       gwReply(op, GW_OK);
-      if (!gwReadFlux(revolutions) && fluxStatus == GW_OK) fluxStatus = GW_OVERFLOW;
+      if (!gwReadFlux(revolutions, ticks) && fluxStatus == GW_OK) fluxStatus = GW_OVERFLOW;
       gwFlush(); reply[0] = 0; gwSend(reply, 1); // End of binary stream.
       lastCommand = millis(); return;
     }

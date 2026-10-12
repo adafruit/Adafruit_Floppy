@@ -40,6 +40,19 @@ Both Floppsy examples are read-only. Select the RP2350 Floppsy board, 240 MHz,
 PIO/DMA timestamp capture class and a portable SCP encoder; see the examples
 for power, drive and format limitations.
 
+Keep INDEX connected even when a drive does not pulse it. The standalone
+dumper reports the missing pulse, uses 250 ms reads for IBM sector decoding,
+and captures 600 ms per side for raw SCP. Such SCP files clear the index-cued
+flag and include companion `.TXT` notes: their three 200 ms windows assume
+300 RPM; they do not measure spindle position or normalize flux timing.
+A missing INDEX alone does not prove that a disk is inserted.
+
+For the Floppsy Greaseweazle firmware, use `gw read --fake-index 300` with
+an INDEX-less 300 RPM drive. Timed requests are limited to one second and
+contain no fabricated INDEX events. Normal indexed reads still fail when
+INDEX is absent. This transport remains read-only; the older generic
+Greaseweazle adapter has not gained this timed PSRAM capture path.
+
 
 ## Follow our progress!
 

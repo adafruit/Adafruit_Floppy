@@ -36,11 +36,11 @@ File writes never overwrite existing captures or format the card.
 | `a` | AUTO IBM: detect supported 80-cylinder IBM MFM geometries, then save IMG |
 | `d` | Save 1.44 MB IMG: 80 cylinders, 2 heads, 18 × 512-byte sectors |
 | `j` | Save 720 KB IMG: 80 cylinders, 2 heads, 9 × 512-byte sectors |
-| `g` | Save raw SCP: 80 cylinders, 2 heads, 3 complete revolutions per side |
+| `g` | Save raw SCP: 80 cylinders, 2 heads, 3 indexed revolutions or 600 ms per side |
 | `r` | Brief 1.44 MB track-zero sector read |
 | `A/D/J/G/R` | The corresponding operation using DS0 |
 | `x` | Download the last capture over computer USB serial |
-| `m` | Download the last IMG's sector map |
+| `m` | Download the last IMG's sector map or SCP's capture notes |
 | `!` | Cancel an active capture |
 | `?` | Help |
 
@@ -61,6 +61,9 @@ an IMG geometry. Manual IMG modes remain available for badly damaged media.
 IMG contains sectors in cylinder/head/sector order, without a header. Each side
 gets up to three captures; good sectors survive retries. Both header and data
 CRC must pass, and cylinder/head/sector size must match the requested location.
+When the configured INDEX pin does not pulse, reads last 250 ms so that a
+300 RPM track has overlap. Keep the physical INDEX pin connected; the sketch
+reports this fallback. Missing INDEX alone does not establish disk presence.
 
 - `FDnnn.IMG`: every expected sector passed CRC.
 - `FDnnn.BAD.IMG`: the full-sized image has missing sectors. Those sectors are
@@ -76,13 +79,21 @@ and capture raw flux as well when preservation matters.
 `FXnnn.SCP` is a
 [Greaseweazle-supported SuperCard Pro flux image](https://github.com/keirf/greaseweazle/wiki/Supported-Image-Types),
 not regenerated MFM data. Two synchronized PIO state machines timestamp
-READ DATA and INDEX falling edges. DMA records four index marks, giving three
+READ DATA and INDEX falling edges when INDEX is present. DMA records four index marks, giving three
 consecutive complete revolutions. Captures keep original timing at 25 ns
 resolution; no speed normalization, filtering or sector decoding is applied.
 Long intervals use SCP's zero-word extensions, including quiet regions across
 index boundaries. An interval exactly divisible by 65,536 ticks has its edge
 rounded one tick early to avoid SCP's reserved zero value; the following
 interval compensates, so timing error does not accumulate.
+
+If startup finds no INDEX pulse, raw capture instead records 600 ms of READ
+DATA. The SCP header clears the index-cued flag; three nominal 200 ms windows
+assume 300 RPM without adjusting any flux intervals. These boundaries are
+not measured spindle positions. `FXnnn.TXT` records the capture method and
+assumption alongside every SCP. Keep it with the image. Index-dependent
+protection and precise rotational alignment cannot be recovered from an
+INDEX-less drive by this method.
 
 SCP headers use little-endian fields, big-endian 16-bit flux words, 168 track
 offsets and the additive file checksum. Each completed side is saved and
@@ -91,7 +102,7 @@ retain `FXnnn.PART`; after completed sides, its SCP header describes those sides
 A power failure during an SD/header write is not guaranteed recoverable.
 
 The capture reserves about 4.8 MB of PSRAM and uses bounded DMA/PIO resources.
-FIFO overruns, full buffers, missing index and nonmonotonic timestamps reject
+FIFO overruns, full buffers, missing index during an indexed capture and nonmonotonic timestamps reject
 the capture. At 240 MHz the program uses **80 MHz PSRAM timing** with matching
 receive delay, below the fitted APS6404L-3SQR's 84 MHz linear-burst limit. This
 setting remains active until reset. SD writes use an SRAM staging buffer so
