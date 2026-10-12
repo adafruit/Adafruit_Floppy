@@ -61,6 +61,7 @@ $(function() {
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pub-attribs">Public Attributes</a> &#124;
+<a href="#pub-static-attribs">Static Public Attributes</a> &#124;
 <a href="#pro-methods">Protected Member Functions</a> &#124;
 <a href="#pro-attribs">Protected Attributes</a> &#124;
 <a href="class_adafruit___floppy_base-members.html">List of all members</a>  </div>
@@ -148,6 +149,9 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="memitem:a03e34278e9fcc25a121b38a7b2bd4c68"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a03e34278e9fcc25a121b38a7b2bd4c68">write_track</a> (uint8_t *pulses, size_t n_pulses, bool store_greaseweazle=false, bool use_index=true) __attribute__((optimize(&quot;O3&quot;)))</td></tr>
 <tr class="memdesc:a03e34278e9fcc25a121b38a7b2bd4c68"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write one track of flux pulse data, starting at the index pulse.  <a href="#a03e34278e9fcc25a121b38a7b2bd4c68">More...</a><br /></td></tr>
 <tr class="separator:a03e34278e9fcc25a121b38a7b2bd4c68"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a48320b1cab3627f19938a1ebb483db5a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a48320b1cab3627f19938a1ebb483db5a">erase_track</a> (uint32_t duration_us)</td></tr>
+<tr class="memdesc:a48320b1cab3627f19938a1ebb483db5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Erase the selected track without waiting for INDEX.  <a href="#a48320b1cab3627f19938a1ebb483db5a">More...</a><br /></td></tr>
+<tr class="separator:a48320b1cab3627f19938a1ebb483db5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa14051eda6d466396bc79e5266caa23d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#aa14051eda6d466396bc79e5266caa23d">print_pulse_bins</a> (uint8_t *pulses, size_t n_pulses, uint8_t max_bins=64, bool is_gw_format=false, uint32_t min_bin_size=100)</td></tr>
 <tr class="memdesc:aa14051eda6d466396bc79e5266caa23d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty print a simple histogram of flux transitions.  <a href="#aa14051eda6d466396bc79e5266caa23d">More...</a><br /></td></tr>
 <tr class="separator:aa14051eda6d466396bc79e5266caa23d"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -191,6 +195,13 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
 Stream *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#ae62d5ad642c397e333b1bfe17c7ca1dd">debug_serial</a> = nullptr</td></tr>
 <tr class="memdesc:ae62d5ad642c397e333b1bfe17c7ca1dd"><td class="mdescLeft">&#160;</td><td class="mdescRight">optional debug stream for serial output <br /></td></tr>
 <tr class="separator:ae62d5ad642c397e333b1bfe17c7ca1dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-attribs"></a>
+Static Public Attributes</h2></td></tr>
+<tr class="memitem:a75275627b3d3aa469c75a2afe52d021f"><td class="memItemLeft" align="right" valign="top"><a id="a75275627b3d3aa469c75a2afe52d021f"></a>
+static const uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppy_base.html#a75275627b3d3aa469c75a2afe52d021f">MAX_ERASE_US</a> = 1000000</td></tr>
+<tr class="memdesc:a75275627b3d3aa469c75a2afe52d021f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum erase time, in us. <br /></td></tr>
+<tr class="separator:a75275627b3d3aa469c75a2afe52d021f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
@@ -993,6 +1004,34 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>False if the data could not be written (samd51 cannot write apple flux format) </dd></dl>
+
+</div>
+</div>
+<a id="a48320b1cab3627f19938a1ebb483db5a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a48320b1cab3627f19938a1ebb483db5a">&#9670;&nbsp;</a></span>erase_track()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Adafruit_FloppyBase::erase_track </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>duration_us</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Erase the selected track without waiting for INDEX. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">duration_us</td><td>Time to hold WRITE GATE active, up to MAX_ERASE_US. Zero is a successful no-op after checking the drive state. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if the erase completed. False for missing write pins, an unselected or stopped drive, write protection, or an excessive duration. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Select the drive, start its motor, and seek before calling. WRITE DATA remains high. After an erase starts, WRITE GATE is released before returning, including if write protection is asserted. Interrupts remain enabled. </dd></dl>
 
 </div>
 </div>
