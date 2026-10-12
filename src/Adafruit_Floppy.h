@@ -193,6 +193,8 @@ public:
   bool write_track(uint8_t *pulses, size_t n_pulses,
                    bool store_greaseweazle = false, bool use_index = true)
       __attribute__((optimize("O3")));
+  static const uint32_t MAX_ERASE_US = 1000000; ///< Maximum erase time, in us.
+  bool erase_track(uint32_t duration_us);
   void print_pulse_bins(uint8_t *pulses, size_t n_pulses, uint8_t max_bins = 64,
                         bool is_gw_format = false, uint32_t min_bin_size = 100);
   void print_pulses(uint8_t *pulses, size_t n_pulses,
