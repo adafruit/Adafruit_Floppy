@@ -85,11 +85,11 @@ public:
 
   /**************************************************************************/
   /*!
-      @brief  Turn on or off the floppy motor, if on we wait till we get an
-     index pulse!
+      @brief Turn the motor on or off. Starting waits for settling and INDEX,
+     or just settling when indexpin=-1.
       @param motor_on True to turn on motor, False to turn it off
       @returns False if turning motor on and no index pulse found, true
-     otherwise
+     otherwise. INDEX-less success does not prove disk presence.
   */
   /**************************************************************************/
   virtual bool spin_motor(bool motor_on) = 0;
@@ -107,6 +107,7 @@ public:
   */
   /**************************************************************************/
   bool index_pulses_seen(void) { return is_index_seen; }
+  bool has_index(void) const;
   /**************************************************************************/
   /*!
       @brief  Seek to the desired track, requires the motor to be spun up!
@@ -247,7 +248,7 @@ private:
 #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *indexPort;
   BusIO_PortMask indexMask;
-  uint32_t dummyPort = 0;
+  uint32_t dummyPort = 1;
 #endif
 };
 
