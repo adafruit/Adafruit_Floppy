@@ -502,9 +502,9 @@ bool rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
   if (!init_write(wrdata_pin, is_apple2)) {
     return false;
   }
-  bool success = write_foreground(index_pin, wrgate_pin, (uint8_t *)pulses,
-                                  (uint8_t *)pulse_end, store_greaseweazle,
-                                  use_index);
+  bool success =
+      write_foreground(index_pin, wrgate_pin, (uint8_t *)pulses,
+                       (uint8_t *)pulse_end, store_greaseweazle, use_index);
   free_write();
   gpio_put(wrdata_pin, true);
   gpio_set_function(wrdata_pin, GPIO_FUNC_SIO);
