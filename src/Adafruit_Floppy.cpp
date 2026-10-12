@@ -846,6 +846,46 @@ bool Adafruit_FloppyBase::write_track(uint8_t *pulses, size_t n_pulses,
 
 /**************************************************************************/
 /*!
+ * @brief Erase the selected track without waiting for INDEX.
+ * @param duration_us Time to hold WRITE GATE active, up to MAX_ERASE_US.
+ * Zero is a successful no-op after checking the drive state.
+ * @return True if the erase completed. False for missing write pins, an
+ * unselected or stopped drive, write protection, or an excessive duration.
+ * @note Select the drive, start its motor, and seek before calling. WRITE DATA
+ * remains high. After an erase starts, WRITE GATE is released before returning,
+ * including if write protection is asserted. Interrupts remain enabled.
+ */
+/**************************************************************************/
+bool Adafruit_FloppyBase::erase_track(uint32_t duration_us) {
+  if (_wrgatepin < 0 || _wrdatapin < 0 || !is_drive_selected ||
+      !is_motor_spinning || get_write_protect() || duration_us > MAX_ERASE_US) {
+    return false;
+  }
+  if (duration_us == 0) {
+    return true;
+  }
+
+  // Load inactive levels before making the pins outputs to avoid a write pulse.
+  digitalWrite(_wrgatepin, HIGH);
+  pinMode(_wrgatepin, OUTPUT);
+  digitalWrite(_wrdatapin, HIGH);
+  pinMode(_wrdatapin, OUTPUT);
+  digitalWrite(_wrgatepin, LOW);
+  uint32_t started = micros();
+  bool success = true;
+  while ((uint32_t)(micros() - started) < duration_us) {
+    if (get_write_protect()) {
+      success = false;
+      break;
+    }
+    yield();
+  }
+  digitalWrite(_wrgatepin, HIGH);
+  return success;
+}
+
+/**************************************************************************/
+/*!
     @brief  Busy wait until the index line goes from high to low
 */
 /**************************************************************************/
