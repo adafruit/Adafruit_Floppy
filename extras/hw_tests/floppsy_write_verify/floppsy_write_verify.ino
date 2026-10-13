@@ -32,7 +32,6 @@ void setup() {
   if (!floppsy.begin())
     halt("Floppsy initialization failed");
 
-  pinMode(PIN_BUTTON_BOOT, INPUT_PULLUP);
   drive.step_delay_us = 3000;
 
   Serial.print("Disposable disk only; WRITE EN on, disk tab closed.\n\r");
