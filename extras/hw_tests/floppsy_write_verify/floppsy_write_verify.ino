@@ -5,20 +5,12 @@
 // each IMAGE Cxx Hx READY line, and writes/verifies all 160 track sides.
 // Hold BOOT to cancel. This test requires an INDEX pulse from the drive.
 
-#include <Adafruit_Floppy.h>
-#include <Adafruit_INA3221.h>
+#include <Adafruit_Floppsy.h>
 #include <Adafruit_TinyUSB.h>
-#include <hardware/gpio.h>
 
-#if !defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
-#error "Select Adafruit Floppsy RP2350, 240 MHz, Adafruit TinyUSB"
-#endif
-
-Adafruit_Floppy drive(FLOPPY_DENSITY, FLOPPY_INDEX, FLOPPY_SELECT1,
-                     FLOPPY_MOTOR, FLOPPY_DIR, FLOPPY_STEP, FLOPPY_WRDATA,
-                     FLOPPY_WRGATE, FLOPPY_TRK0, FLOPPY_WRPROT,
-                     FLOPPY_RDDATA, FLOPPY_SIDE, FLOPPY_READY);
-Adafruit_INA3221 ina;
+Adafruit_Floppsy floppsy;
+// A standard PC floppy drive uses the DS1 select line.
+Adafruit_Floppy &drive = floppsy.drive1;
 
 // One track side holds 18 sectors of 512 bytes. Keep the expected data separate
 // from the readback buffer so verification compares every byte we wrote.
@@ -28,30 +20,6 @@ uint8_t actual[18 * 512];
 uint8_t valid[18];
 
 void setup() {
-  // Keep the cable isolated until every command has its inactive value.
-  gpio_put(FLOPPY_CMD_OE, true);
-  pinMode(FLOPPY_CMD_OE, OUTPUT);
-  gpio_put(FLOPPY_STAT_OE, true);
-  pinMode(FLOPPY_STAT_OE, OUTPUT);
-
-  // Release all active-low drive commands before connecting the level shifters.
-  const uint8_t pins[] = {FLOPPY_SIDE, FLOPPY_WRDATA, FLOPPY_STEP,
-    FLOPPY_DIR, FLOPPY_MOTOR, FLOPPY_SELECT1, FLOPPY_SELECT0,
-    FLOPPY_DENSITY, FLOPPY_WRGATE};
-  for (uint8_t pin : pins) {
-    gpio_put(pin, true);
-    pinMode(pin, OUTPUT);
-  }
-
-  // Commands travel toward the drive; status signals travel back to the MCU.
-  pinMode(FLOPPY_CMD_DIR, OUTPUT);
-  digitalWrite(FLOPPY_CMD_DIR, LOW);
-  pinMode(FLOPPY_STAT_DIR, OUTPUT);
-  digitalWrite(FLOPPY_STAT_DIR, HIGH);
-
-  pinMode(PIN_BUTTON_BOOT, INPUT_PULLUP);
-  drive.led_pin = -1;
-
   Serial.begin(115200);
   // Wait for the Serial Monitor; no disk is written on startup.
   while (!Serial)
@@ -59,17 +27,12 @@ void setup() {
   delay(250);
   Serial.print("Adafruit Floppsy destructive write/read verification\n\r");
 
-  // Initialize the power monitor before allowing the drive to run.
-  if (!ina.begin())
-    halt("Power monitor missing");
-  // begin() resets the readings; allow all three bus/shunt conversions to finish.
-  delay(10);
+  // Set up the drive pins, level shifters, and power monitor. The helper keeps
+  // the cable isolated and write gate inactive until we explicitly enable it.
+  if (!floppsy.begin())
+    halt("Floppsy initialization failed");
 
-  // Prepare the drive interface, leaving write gate inactive.
-  if (!drive.begin())
-    halt("Floppy initialization failed");
-  gpio_put(FLOPPY_WRGATE, true);
-  pinMode(FLOPPY_WRGATE, OUTPUT);
+  pinMode(PIN_BUTTON_BOOT, INPUT_PULLUP);
   drive.step_delay_us = 3000;
 
   Serial.print("Disposable disk only; WRITE EN on, disk tab closed.\n\r");
@@ -86,18 +49,16 @@ void loop() {
     return;
 
   // 1. Check both drive supplies before enabling the cable or starting the motor.
-  float supply12V = ina.getBusVoltage(0);
-  float supply5V = ina.getBusVoltage(1);
+  float supply12V = floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_12V);
+  float supply5V = floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_5V);
   Serial.printf("Drive supplies: %.2f V / %.2f V\n\r", supply12V, supply5V);
   if (!(supply12V >= 10.8 && supply5V >= 4.5)) {
     halt("Connect the 12 V supply; floppy 5 V must be present");
   }
 
   // 2. Enable the interface, select the drive, and establish its starting track.
-  gpio_put(FLOPPY_WRGATE, true);
-  pinMode(FLOPPY_WRGATE, OUTPUT);
-  digitalWrite(FLOPPY_STAT_OE, LOW);
-  digitalWrite(FLOPPY_CMD_OE, LOW);
+  if (!floppsy.enable(true))
+    halt("Floppy interface enable failed");
 
   drive.select(true);
   if (!drive.spin_motor(true))
@@ -108,7 +69,7 @@ void loop() {
     halt("Homing failed");
   Serial.print("Homing PASS\n\r");
 
-  if (digitalRead(FLOPPY_WRPROT) == LOW)
+  if (drive.get_write_protect())
     halt("Disk is write-protected");
   drive.set_density(true);
 
@@ -143,7 +104,7 @@ void loop() {
     for (uint8_t pattern = 0; pattern < patterns; pattern++) {
       if (!Serial || digitalRead(PIN_BUTTON_BOOT) == LOW)
         halt("Cancelled");
-      if (digitalRead(FLOPPY_WRPROT) == LOW)
+      if (drive.get_write_protect())
         halt("Disk is write-protected");
 
       // 3. Fill the expected-data buffer before issuing any write.
@@ -222,23 +183,13 @@ void loop() {
   }
 
   // 6. Finish with writes disabled, the motor stopped, and the cable isolated.
-  stopDrive();
+  floppsy.enable(false);
   Serial.print("WRITE/READ PASS; motor off, cable isolated\n\r");
-}
-
-// Shared cleanup for both successful completion and an early failure.
-void stopDrive() {
-  gpio_put(FLOPPY_WRGATE, true);
-  pinMode(FLOPPY_WRGATE, OUTPUT);
-  digitalWrite(FLOPPY_CMD_OE, HIGH);
-  digitalWrite(FLOPPY_STAT_OE, HIGH);
-  drive.spin_motor(false);
-  drive.select(false);
 }
 
 // Stop safely and retain the failure message until the board is reset.
 void halt(const char *message) {
-  stopDrive();
+  floppsy.enable(false);
   Serial.printf("FAIL: %s; motor off, cable isolated\n\r", message);
   while (true)
     delay(10);
