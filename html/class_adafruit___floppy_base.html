@@ -941,7 +941,7 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
     <tr><td class="paramname">n_sectors</td><td>The number of sectors (e.g., 18 for a standard 3.5", 1.44MB format) </td></tr>
     <tr><td class="paramname">pulses</td><td>An array of pulses from capture_track </td></tr>
     <tr><td class="paramname">max_pulses</td><td>The maximum number of pulses that may be stored </td></tr>
-    <tr><td class="paramname">nominal_bit_time_us</td><td>The nominal time of one MFM bit, usually 1.0f (high density) or 2.0f (double density) </td></tr>
+    <tr><td class="paramname">nominal_bit_time_us</td><td>The nominal time of one MFM bit, usually 1.0f (double density) or 2.0f (high density) </td></tr>
     <tr><td class="paramname">logical_track</td><td>The logical track number, or -1 to use <a class="el" href="class_adafruit___floppy_base.html#a358a46ad79a03294833a8ebba62c0922" title="The current track location, based on internal caching. ">track()</a> </td></tr>
   </table>
   </dd>
@@ -1063,11 +1063,11 @@ A configured pin that does not pulse can also use capture_ms with index_wait_ms=
     <tr><td class="paramname">pulses</td><td>An array of timer-count pulses </td></tr>
     <tr><td class="paramname">n_pulses</td><td>How many bytes are in the pulse array </td></tr>
     <tr><td class="paramname">store_greaseweazle</td><td>If true, long pulses are 'packed' in gw format </td></tr>
-    <tr><td class="paramname">use_index</td><td>If true, write starts at the index pulse. On RP2, it also stops at the following index pulse. </td></tr>
+    <tr><td class="paramname">use_index</td><td>If true, write starts at the index pulse. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>False if the data could not be written, indexpin=-1, or startup found no INDEX pulse. INDEX-less writes are not supported. SAMD51 cannot write Apple flux format. RP2 also rejects a missing start index, FIFO underrun, or write lasting longer than one second. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>False if the data could not be written, indexpin=-1, or startup found no INDEX pulse. INDEX-less writes are not supported. SAMD51 cannot write Apple flux format. </dd></dl>
 
 </div>
 </div>
