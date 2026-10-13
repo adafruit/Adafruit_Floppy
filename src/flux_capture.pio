@@ -1,0 +1,19 @@
+; Read-only edge timestamps. One decrement per three PIO clocks in every path.
+; At 120 MHz this is a 40 MHz counter, matching SCP's 25 ns units exactly.
+; Two synchronized state machines capture READ DATA and INDEX separately.
+; No SET, OUT or side-set instructions: this program cannot drive a pin.
+.program flux_capture
+.wrap_target
+wait_high:
+    jmp x-- count_high
+count_high:
+    jmp pin high_delay
+    jmp wait_high
+high_delay:
+    jmp wait_low
+wait_low:
+    jmp x-- count_low
+count_low:
+    jmp pin high_delay
+    in x, 32 ; autopush, then wrap to wait_high
+.wrap

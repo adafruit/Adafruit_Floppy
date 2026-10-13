@@ -540,18 +540,21 @@ static void set_timings(uint32_t sampleFrequency, mfm_io_t &io,
     @param  pulses An array of pulses from capture_track
     @param  n_pulses An array of pulses from capture_track
     @param  nominal_bit_time_us The nominal time of one MFM bit, usually 1.0f
-   (double density) or 2.0f (high density)
+   (high density) or 2.0f (double density)
     @param  clear_validity Whether to clear the validity flag. Set to false if
    re-reading a track with errors.
     @param  logical_track If not NULL, updated with the logical track number of
-   the last sector read. (track & side numbers are not otherwise verified)
+   the last sector read.
+    @param  expected_track When nonnegative, accept only sectors with this
+   cylinder, the currently selected head, and 512-byte sector size. The default
+   -1 retains decoding without cylinder/head filtering.
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
 size_t Adafruit_FloppyBase::decode_track_mfm(
     uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity,
     const uint8_t *pulses, size_t n_pulses, float nominal_bit_time_us,
-    bool clear_validity, uint8_t *logical_track) {
+    bool clear_validity, uint8_t *logical_track, int expected_track) {
   mfm_io_t io;
 
   if (clear_validity)
@@ -564,6 +567,8 @@ size_t Adafruit_FloppyBase::decode_track_mfm(
   io.n_sectors = n_sectors;
   io.n = 2;
   io.head = get_side();
+  io.validate_id = expected_track >= 0;
+  io.cylinder = expected_track;
   io.cylinder_ptr = logical_track;
   io.sector_validity = sector_validity;
 
@@ -580,8 +585,9 @@ size_t Adafruit_FloppyBase::decode_track_mfm(
     @param  pulses An array of pulses from capture_track
     @param  max_pulses The maximum number of pulses that may be stored
     @param  nominal_bit_time_us The nominal time of one MFM bit, usually 1.0f
-   (double density) or 2.0f (high density)
-    @param  logical_track The logical track number, or -1 to use track()
+   (high density) or 2.0f (double density)
+    @param  logical_track The logical
+   track number, or -1 to use track()
     @return Number of pulses actually generated
 */
 /**************************************************************************/
@@ -590,7 +596,8 @@ size_t Adafruit_FloppyBase::encode_track_mfm(const uint8_t *sectors,
                                              size_t max_pulses,
                                              float nominal_bit_time_us,
                                              uint8_t logical_track) {
-  mfm_io_t io;
+  mfm_io_t io = {};
+  io.settings = &standard_mfm;
 
   set_timings(getSampleFrequency(), io, nominal_bit_time_us);
 
@@ -811,10 +818,12 @@ size_t Adafruit_FloppyBase::capture_track(
     @param  pulses An array of timer-count pulses
     @param  n_pulses How many bytes are in the pulse array
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
-    @param  use_index If true, write starts at the index pulse.
+    @param  use_index If true, write starts at the index pulse. On RP2, it also
+   stops at the following index pulse.
     @returns False if the data could not be written, indexpin=-1, or startup
    found no INDEX pulse. INDEX-less writes are not supported. SAMD51 cannot
-   write Apple flux format.
+   write Apple flux format. RP2 also rejects a missing start index, FIFO
+   underrun, or write lasting longer than one second.
 */
 /**************************************************************************/
 bool Adafruit_FloppyBase::write_track(uint8_t *pulses, size_t n_pulses,

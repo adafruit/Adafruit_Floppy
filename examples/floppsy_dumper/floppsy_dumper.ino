@@ -1,25 +1,22 @@
 // Read-only Floppsy disk dumper: IBM IMG and unnormalized SCP flux.
 // MIT license. Copyright (c) 2026 Adafruit Industries.
-#include <Adafruit_Floppy.h>
+#include <Adafruit_Floppsy.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
-#include <Adafruit_INA3221.h>
 #include <SdFat_Adafruit_Fork.h>
 #include <Adafruit_TinyUSB.h>
 #include <SPI.h>
-#include <Wire.h>
-#include <hardware/gpio.h>
 #include <Adafruit_FloppyFluxCapture.h>
 #include <Adafruit_FloppySCP.h>
 
-#if !defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350) || F_CPU != 240000000
-#error Select Adafruit Floppsy RP2350 at 240 MHz, 8 MB PSRAM, Adafruit TinyUSB.
+#if F_CPU != 240000000 || !defined(USE_TINYUSB)
+#error Select 240 MHz and Adafruit TinyUSB for the Floppsy dumper.
 #endif
 
 Adafruit_ILI9341 tft(&SPI, TFT_DC, TFT_CS, TFT_RESET);
-Adafruit_INA3221 ina;
+Adafruit_Floppsy floppsy;
 SdFs sd;
-bool inaOK = false;
+bool boardOK = false;
 uint8_t floppyMenu = 5;
 uint8_t selectPin = FLOPPY_SELECT1;
 char floppyStatus[48] = "Ready; WRITE OFF";
@@ -28,22 +25,13 @@ char lastDump[20] = "";
 char lastMap[20] = "";
 
 void setup() {
-  // Isolate the cable before initializing any output signal.
-  gpio_put(FLOPPY_CMD_OE, true);
-  pinMode(FLOPPY_CMD_OE, OUTPUT);
-  gpio_put(FLOPPY_STAT_OE, true);
-  pinMode(FLOPPY_STAT_OE, OUTPUT);
-  const uint8_t pins[] = {FLOPPY_SIDE, FLOPPY_WRDATA, FLOPPY_STEP, FLOPPY_DIR,
-    FLOPPY_MOTOR, FLOPPY_SELECT1, FLOPPY_SELECT0, FLOPPY_DENSITY, FLOPPY_WRGATE};
-  for (uint8_t pin : pins) { pinMode(pin, OUTPUT); digitalWrite(pin, HIGH); }
-  pinMode(FLOPPY_CMD_DIR, OUTPUT);
-  digitalWrite(FLOPPY_CMD_DIR, LOW);
-  pinMode(FLOPPY_STAT_DIR, OUTPUT);
-  digitalWrite(FLOPPY_STAT_DIR, HIGH);
+  // Initialize the drive pins, BOOT input and power monitor with the cable
+  // isolated. Display, navigation and SD setup belong to this example.
+  boardOK = floppsy.begin();
   pinMode(PIN_USB_HOST_ENABLE, OUTPUT);
   digitalWrite(PIN_USB_HOST_ENABLE, LOW);
   const uint8_t buttons[] = {PIN_BUTTON_UP, PIN_BUTTON_DOWN, PIN_BUTTON_LEFT,
-    PIN_BUTTON_RIGHT, PIN_BUTTON_SELECT, PIN_BUTTON_BOOT, PIN_SD_DETECT};
+    PIN_BUTTON_RIGHT, PIN_BUTTON_SELECT, PIN_SD_DETECT};
   for (uint8_t pin : buttons) pinMode(pin, INPUT_PULLUP);
   Serial.begin(115200);
   SPI.setRX(NOPIN);
@@ -51,10 +39,6 @@ void setup() {
   tft.setRotation(1);
   pinMode(TFT_BACKLIGHT, OUTPUT);
   digitalWrite(TFT_BACKLIGHT, HIGH);
-  Wire.begin();
-  Wire.setTimeout(25);
-  inaOK = ina.begin(0x40, &Wire);
-  if (inaOK) for (uint8_t channel=0; channel<3; channel++) ina.setShuntResistance(channel, 0.05);
   drawStatus();
 }
 
@@ -94,13 +78,7 @@ void loop() {
 }
 
 void stopFloppy(const char *message) {
-  digitalWrite(FLOPPY_WRGATE, HIGH);
-  digitalWrite(FLOPPY_WRDATA, HIGH);
-  digitalWrite(FLOPPY_MOTOR, HIGH);
-  digitalWrite(FLOPPY_SELECT0, HIGH);
-  digitalWrite(FLOPPY_SELECT1, HIGH);
-  digitalWrite(FLOPPY_CMD_OE, HIGH);
-  digitalWrite(FLOPPY_STAT_OE, HIGH);
+  floppsy.enable(false);
   snprintf(floppyStatus, sizeof(floppyStatus), "%s", message);
   Serial.println(message);
 }
@@ -119,12 +97,15 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
   bool raw = mode == 4;
   bool doubleDensity = mode == 3;
   stopFloppy(raw ? "Preparing raw flux capture" : "Preparing read-only MFM test");
-  if (!inaOK || ina.getBusVoltage(1) < 4.5) {
+  // A new disk may have been inserted since the previous request. Reset the
+  // cached track/index state before checking supplies and enabling the drive.
+  boardOK = floppsy.begin();
+  if (!boardOK || floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_5V) < 4.5) {
     stopFloppy("FAIL: floppy 5V missing");
     return;
   }
   // The first prototype browned out starting this drive on computer USB alone.
-  if (ina.getBusVoltage(0) < 10.8) {
+  if (floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_12V) < 10.8) {
     stopFloppy("Connect 12V for drive testing");
     return;
   }
@@ -195,21 +176,14 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
     }
   }
 
-  Adafruit_Floppy drive(FLOPPY_DENSITY, FLOPPY_INDEX, selectPin,
-                       FLOPPY_MOTOR, FLOPPY_DIR, FLOPPY_STEP,
-                       FLOPPY_WRDATA, FLOPPY_WRGATE, FLOPPY_TRK0,
-                       FLOPPY_WRPROT, FLOPPY_RDDATA, FLOPPY_SIDE, FLOPPY_READY);
-  drive.led_pin = -1;
+  Adafruit_Floppy *selectedDrive = &floppsy.drive1;
+  if (selectPin == FLOPPY_SELECT0)
+    selectedDrive = &floppsy.drive0;
+  Adafruit_Floppy &drive = *selectedDrive;
   uint32_t started = millis();
   if (success) {
-    drive.begin(); // Both transceiver banks are still disabled here.
-    // begin() leaves WRITE GATE in INPUT_PULLUP mode. On Arduino-Pico,
-    // digitalWrite(HIGH) in that mode releases the pin without setting its
-    // output latch. Set OUTPUT first while the cable drivers are DISABLED,
-    // then drive HIGH and check both write signals before enabling the cable.
-    pinMode(FLOPPY_WRGATE, OUTPUT);
-    digitalWrite(FLOPPY_WRGATE, HIGH);
-    digitalWrite(FLOPPY_WRDATA, HIGH);
+    // The board helper drives both write outputs inactive while isolated.
+    // Verify their levels before connecting the cable to this read-only sketch.
     if (digitalRead(FLOPPY_WRGATE) != HIGH || digitalRead(FLOPPY_WRDATA) != HIGH) {
       stopFloppy("FAIL: write inhibit check");
       success = false;
@@ -219,8 +193,12 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
     Serial.println("WRITE GATE and WRITE DATA verified HIGH before cable enable");
     drive.step_delay_us = 3000;
     drive.set_density(!doubleDensity);
-    digitalWrite(FLOPPY_STAT_OE, LOW);
-    digitalWrite(FLOPPY_CMD_OE, LOW);
+    if (!floppsy.enable(true)) {
+      stopFloppy("FAIL: floppy interface enable");
+      success = false;
+    }
+  }
+  if (success) {
     drive.select(true);
     snprintf(floppyProgress, sizeof(floppyProgress), "Spinning up; BOOT cancels");
     drawStatus();
@@ -370,11 +348,7 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
     if (success) completed++;
   }
   // Stop the mechanics before final SD metadata operations, including errors.
-  digitalWrite(FLOPPY_MOTOR, HIGH);
-  digitalWrite(FLOPPY_SELECT0, HIGH);
-  digitalWrite(FLOPPY_SELECT1, HIGH);
-  digitalWrite(FLOPPY_CMD_OE, HIGH);
-  digitalWrite(FLOPPY_STAT_OE, HIGH);
+  floppsy.enable(false);
   if (map) {
     if (raw) map.printf("%s: %u/160 tracks\n\r", success ? "FINISHED" : "INCOMPLETE", completed);
     else map.printf("# %s: %u/160 tracks, %u good sectors, %u bad sectors\n",

@@ -1,6 +1,8 @@
 #include <Adafruit_Floppy.h>
 
-#if defined(ADAFRUIT_FEATHER_M4_EXPRESS)
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+#include <Adafruit_Floppsy.h>
+#elif defined(ADAFRUIT_FEATHER_M4_EXPRESS)
 #define DENSITY_PIN A1 // IDC 2
 #define INDEX_PIN A5   // IDC 8
 #define SELECT_PIN A0  // IDC 12
@@ -66,7 +68,9 @@
 #define APPLE2_INDEX_PIN  (A3)
 #endif
 
-#ifdef READ_PIN
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+Adafruit_Floppsy floppsy;
+#elif defined(READ_PIN)
 Adafruit_Floppy pcfloppy(DENSITY_PIN, INDEX_PIN, SELECT_PIN,
                          MOTOR_PIN, DIR_PIN, STEP_PIN,
                          WRDATA_PIN, WRGATE_PIN, TRK0_PIN,
@@ -99,6 +103,7 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_GETINFO    0
 #define GW_CMD_GETINFO_FIRMWARE 0
 #define GW_CMD_GETINFO_BANDWIDTH 1
+#define GW_CMD_GETINFO_DRIVE 7
 #define GW_CMD_SEEK       2
 #define GW_CMD_HEAD       3
 #define GW_CMD_SETPARAMS  4
@@ -123,17 +128,44 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_SINKBYTES 19
 #define GW_CMD_GETPIN 20
 #define GW_CMD_GETPIN_TRACK0 26
+#define GW_CMD_GETPIN_WRPROT 28
 #define GW_ACK_OK (byte)0
 #define GW_ACK_BADCMD 1
 #define GW_ACK_NOINDEX 2
 #define GW_ACK_NOTRACK0 3
+#define GW_ACK_OVERFLOW 4
 #define GW_ACK_WRPROT 6
 #define GW_ACK_NOUNIT 7
+#define GW_ACK_NOBUS 8
+#define GW_ACK_BADUNIT 9
 #define GW_ACK_BADPIN 10
+#define GW_ACK_BADCYLINDER 11
 
 uint32_t timestamp = 0;
+uint8_t flux_status = GW_ACK_OK; // result of last flux read, write, or erase
+uint8_t busType = 0;
+uint8_t selectedUnit = 255;
+
+void stop_drive();
+
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+// Board setup and continuous PSRAM capture only. Protocol commands stay here.
+#include "floppsy_rp2350.h"
+#endif
 
 bool setbustype(int bustype) {
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+  if (bustype != -1 && bustype != GW_CMD_SETBUSTYPE_IBM &&
+      bustype != GW_CMD_SETBUSTYPE_SHUGART)
+    return false;
+  stop_drive();
+  if (!floppy)
+    floppy = &floppsy.drive1;
+  busType = 0;
+  if (bustype != -1)
+    busType = bustype;
+  return true;
+#else
   if (floppy) {
     floppy->end();
   }
@@ -162,10 +194,15 @@ bool setbustype(int bustype) {
   auto result = floppy->begin();
   Serial1.printf("setbustype() floppy = %p result=%d\n", floppy, result);
   return result;
+#endif
 }
 
 void setup() {
   Serial.begin(115200);
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+  // Do not start Serial1: its default UART pins are used by this board.
+  floppsySetup();
+#else
   Serial1.begin(115200);
 
 #if defined(FLOPPY_DIRECTION_PIN)
@@ -176,7 +213,10 @@ void setup() {
   pinMode(FLOPPY_ENABLE_PIN, OUTPUT);
   digitalWrite(FLOPPY_ENABLE_PIN, LOW); // do second after setting direction
 #endif
+#endif
 
+  // Hosts can request firmware information and delays before SetBusType.
+  setbustype(-1);
   delay(100);
 
   //while (!Serial) delay(100);
@@ -187,20 +227,30 @@ void setup() {
 }
 
 uint8_t get_cmd(uint8_t *buff, uint8_t maxbuff) {
-  int i = 0;
-
-  if (Serial.available() < 2) return 0;
-  buff[i++] = Serial.read();
-  buff[i++] = Serial.read();
-  // wait for remaining data
-  while (Serial.available() < (buff[1] - 2)) {
-    delay(1);
-    yield();
+  static uint32_t lastByte = 0;
+  // A partial or malformed request must not overrun the buffer or block the
+  // idle watchdog. Keep one parser for every supported board.
+  if (cmd_buff_idx && millis() - lastByte > 250) {
+    Serial.write(buff[0]);
+    Serial.write((uint8_t)GW_ACK_BADCMD);
+    cmd_buff_idx = 0;
   }
-  for (; i < buff[1]; i++) {
-    buff[i] = Serial.read();
+  while (Serial.available()) {
+    buff[cmd_buff_idx++] = Serial.read();
+    lastByte = millis();
+    if (cmd_buff_idx == 2 && (buff[1] < 2 || buff[1] > maxbuff)) {
+      Serial.write(buff[0]);
+      Serial.write((uint8_t)GW_ACK_BADCMD);
+      cmd_buff_idx = 0;
+      return 0;
+    }
+    if (cmd_buff_idx >= 2 && cmd_buff_idx == buff[1]) {
+      uint8_t length = cmd_buff_idx;
+      cmd_buff_idx = 0;
+      return length;
+    }
   }
-  return i;
+  return 0;
 }
 
 uint32_t bandwidth_timer;
@@ -209,12 +259,26 @@ uint32_t transfered_bytes;
 uint32_t captured_pulses;
 // WARNING! there are 100K max flux pulses per track!
 uint8_t flux_transitions[MAX_FLUX_PULSE_PER_TRACK];
-uint8_t flux_status = GW_ACK_OK; // result of last flux read, write, or erase
 
 
 void loop() {
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+  if (gwCancelled()) {
+    stop_drive();
+    cmd_buff_idx = 0;
+    timestamp = millis();
+    return;
+  }
+#endif
   uint8_t cmd_len = get_cmd(cmd_buffer, sizeof(cmd_buffer));
   if (!cmd_len) {
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+    if (floppy && floppy->watchdog_delay_ms &&
+        millis() - timestamp > floppy->watchdog_delay_ms) {
+      stop_drive();
+      timestamp = millis();
+    }
+#else
     if ((millis() > timestamp) && ((millis() - timestamp) > 10000)) {
       Serial1.println("Timed out waiting for command, resetting motor");
       if (floppy && floppy->motor_is_spinning()) {
@@ -231,6 +295,7 @@ void loop() {
       Serial1.println("motor reset");
       timestamp = millis();
     }
+#endif
     return;
   }
   timestamp = millis();
@@ -242,6 +307,31 @@ void loop() {
   memset(reply_buffer, 0, sizeof(reply_buffer));
   reply_buffer[i++] = cmd;  // echo back the cmd itself
 
+  if (!valid_command_length(cmd, len)) {
+    reply_buffer[i++] = GW_ACK_BADCMD;
+    Serial.write(reply_buffer, 2);
+    return;
+  }
+
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+  // Share the protocol without enabling writes in the Floppsy read-only build.
+  if (cmd == GW_CMD_WRITEFLUX || cmd == GW_CMD_ERASEFLUX) {
+    reply_buffer[i++] = GW_ACK_WRPROT;
+    Serial.write(reply_buffer, 2);
+    return;
+  }
+  if (cmd == GW_CMD_SOURCEBYTES || cmd == GW_CMD_SINKBYTES) {
+    reply_buffer[i++] = GW_ACK_BADCMD;
+    Serial.write(reply_buffer, 2);
+    return;
+  }
+  if (selectedUnit > 1 && (cmd == GW_CMD_SEEK || cmd == GW_CMD_HEAD ||
+      cmd == GW_CMD_READFLUX || (cmd == GW_CMD_MOTOR && cmd_buffer[3]))) {
+    reply_buffer[i++] = GW_ACK_NOUNIT;
+    Serial.write(reply_buffer, 2);
+    return;
+  }
+#endif
   Serial1.printf("Got command 0x%02x of length %d\n\r", cmd, len);
 
 
@@ -254,7 +344,7 @@ void loop() {
       reply_buffer[i++] = GW_FIRMVER_MINOR; // 1 byte
       reply_buffer[i++] = 1; // is main firm
       reply_buffer[i++] = GW_MAXCMD;
-      uint32_t samplefreq = floppy->getSampleFrequency();
+      uint32_t samplefreq = sample_frequency();
       reply_buffer[i++] = samplefreq & 0xFF;
       reply_buffer[i++] = (samplefreq >> 8) & 0xFF;
       reply_buffer[i++] = (samplefreq >> 16) & 0xFF;
@@ -262,6 +352,10 @@ void loop() {
       reply_buffer[i++] = GW_HW_MODEL;
       reply_buffer[i++] = GW_HW_SUBMODEL;
       reply_buffer[i++] = GW_USB_SPEED;
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+      reply_buffer[14] = 240; // CPU MHz, little-endian uint16_t.
+      reply_buffer[17] = 2;   // 512 KiB SRAM, little-endian uint16_t.
+#endif
       Serial.write(reply_buffer, 34);
     }
     else if (sub_cmd == GW_CMD_GETINFO_BANDWIDTH) {
@@ -292,12 +386,30 @@ void loop() {
       // TODO more?
       Serial.write(reply_buffer, 34);
     }
+    else if (sub_cmd == GW_CMD_GETINFO_DRIVE && floppy) {
+      reply_buffer[i++] = GW_ACK_OK;
+      uint32_t flags = 0;
+      if (floppy->track() >= 0)
+        flags |= 1;
+      if (floppy->motor_is_spinning())
+        flags |= 2;
+      uint32_t cylinder = floppy->track();
+      for (uint8_t byteIndex = 0; byteIndex < 4; byteIndex++) {
+        reply_buffer[2 + byteIndex] = flags >> (byteIndex * 8);
+        reply_buffer[6 + byteIndex] = cylinder >> (byteIndex * 8);
+      }
+      Serial.write(reply_buffer, 34);
+    } else {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+      Serial.write(reply_buffer, 2);
+    }
   }
 
   else if (cmd == GW_CMD_GETPARAMS) {
+    if (!floppy) goto needfloppy;
     Serial1.println("Get params");
-    uint8_t sub_cmd = cmd_buffer[2];
-    if (sub_cmd == GW_CMD_GETPARAMS_DELAYS) {
+    if (len == 4 && cmd_buffer[2] == GW_CMD_GETPARAMS_DELAYS &&
+        cmd_buffer[3] <= 10) {
       reply_buffer[i++] = GW_ACK_OK;
       reply_buffer[i++] = floppy->select_delay_us & 0xFF;
       reply_buffer[i++] = floppy->select_delay_us >> 8;
@@ -309,14 +421,48 @@ void loop() {
       reply_buffer[i++] = floppy->motor_delay_ms >> 8;
       reply_buffer[i++] = floppy->watchdog_delay_ms & 0xFF;
       reply_buffer[i++] = floppy->watchdog_delay_ms >> 8;
-      Serial.write(reply_buffer, 12);
+      Serial.write(reply_buffer, 2 + cmd_buffer[3]);
+    } else {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+      Serial.write(reply_buffer, 2);
     }
+  }
+
+  else if (cmd == GW_CMD_SETPARAMS) {
+    if (!floppy) goto needfloppy;
+    // Delay fields are little-endian uint16_t values. Hosts may update a prefix.
+    if (len >= 5 && len <= 13 && (len - 3) % 2 == 0 &&
+        cmd_buffer[2] == GW_CMD_GETPARAMS_DELAYS) {
+      uint16_t *delays[] = {&floppy->select_delay_us, &floppy->step_delay_us,
+        &floppy->settle_delay_ms, &floppy->motor_delay_ms,
+        &floppy->watchdog_delay_ms};
+      for (uint8_t field = 0; field < (len - 3) / 2; field++) {
+        *delays[field] = cmd_buffer[3 + field * 2] |
+          (uint16_t)cmd_buffer[4 + field * 2] << 8;
+      }
+      reply_buffer[i++] = GW_ACK_OK;
+    } else {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+    }
+    Serial.write(reply_buffer, 2);
   }
 
   else if (cmd == GW_CMD_RESET) {
     Serial1.println("Soft reset");
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+    stop_drive();
+    floppsy.drive0.soft_reset();
+    floppsy.drive1.soft_reset();
+    floppsy.drive0.watchdog_delay_ms = 10000;
+    floppsy.drive1.watchdog_delay_ms = 10000;
+    // soft_reset() releases WRITE GATE as an input; drive it inactive again.
+    floppsy.enable(false);
+    busType = 0;
+#else
     if (floppy)
       floppy->soft_reset();
+#endif
+    flux_status = GW_ACK_OK;
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
@@ -336,10 +482,17 @@ void loop() {
   else if (cmd == GW_CMD_SEEK) {
     if (!floppy) goto needfloppy;
 
-    int track = cmd_buffer[2];
+    int16_t track = (int8_t)cmd_buffer[2];
     if (len > 3) {
-      track |= cmd_buffer[3] << 8;
+      track = (int16_t)(cmd_buffer[2] | (uint16_t)cmd_buffer[3] << 8);
     }
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+    if (track < 0 || track > 83) {
+      reply_buffer[i++] = GW_ACK_BADCYLINDER;
+      Serial.write(reply_buffer, 2);
+      return;
+    }
+#endif
 
     Serial1.printf("Seek track %d\n\r", track);
     bool r = floppy->goto_track(track);
@@ -355,6 +508,11 @@ void loop() {
     if (!floppy) goto needfloppy;
 
     uint8_t head = cmd_buffer[2];
+    if (head > 1) {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+      Serial.write(reply_buffer, 2);
+      return;
+    }
     Serial1.printf("Seek head %d\n\r", head);
     floppy->side(head);
     reply_buffer[i++] = GW_ACK_OK;
@@ -367,8 +525,24 @@ void loop() {
     uint8_t unit = cmd_buffer[2];
     uint8_t state = cmd_buffer[3];
     Serial1.printf("Turn motor %d %s\n\r", unit, state ? "on" : "off");
-    floppy->spin_motor(state);
-    reply_buffer[i++] = GW_ACK_OK;
+    if (state > 1) {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+    } else {
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+      if (state && unit != selectedUnit) {
+        reply_buffer[i++] = GW_ACK_NOUNIT;
+      } else {
+        bool started = floppy->spin_motor(state);
+        if (started || !state || floppy->index_pulses_missing())
+          reply_buffer[i++] = GW_ACK_OK;
+        else
+          reply_buffer[i++] = GW_ACK_NOINDEX;
+      }
+#else
+      floppy->spin_motor(state);
+      reply_buffer[i++] = GW_ACK_OK;
+#endif
+    }
     Serial.write(reply_buffer, 2);
   }
 
@@ -377,12 +551,16 @@ void loop() {
 
     uint8_t sub_cmd = cmd_buffer[2];
     Serial1.printf("Select drive %d\n\r", sub_cmd);
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+    reply_buffer[i++] = floppsySelect(sub_cmd);
+#else
     if (sub_cmd == 0) {
       floppy->select(true);
       reply_buffer[i++] = GW_ACK_OK;
     } else {
       reply_buffer[i++] = GW_ACK_NOUNIT;
     }
+#endif
     Serial1.printf("Reply buffer = %d %d\n", reply_buffer[0], reply_buffer[1]);
     Serial.write(reply_buffer, 2);
   }
@@ -391,7 +569,11 @@ void loop() {
     if (!floppy) goto needfloppy;
 
     Serial1.printf("Deselect drive\n\r");
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+    stop_drive();
+#else
     floppy->select(false);
+#endif
     reply_buffer[i++] = GW_ACK_OK;
     Serial.write(reply_buffer, 2);
   }
@@ -411,6 +593,26 @@ void loop() {
     revs = cmd_buffer[7];
     revs <<= 8;
     revs |= cmd_buffer[6];
+
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+    // The request/reply is shared; this board captures continuous timestamps
+    // into PSRAM instead of the generic one-track byte buffer below.
+    uint8_t status = floppsyReadStatus(flux_ticks, revs);
+    reply_buffer[i++] = status;
+    Serial.write(reply_buffer, 2);
+    if (status != GW_ACK_OK)
+      return;
+    flux_status = GW_ACK_OK;
+    uint8_t revolutions = 0;
+    if (revs > 1)
+      revolutions = revs - 1;
+    if (!gwReadFlux(revolutions, flux_ticks) && flux_status == GW_ACK_OK)
+      flux_status = GW_ACK_OVERFLOW;
+    gwFlush();
+    const uint8_t end = 0;
+    gwSend(&end, 1);
+    timestamp = millis();
+#else
     bool use_index;
     if (revs) {
       revs -= 1;
@@ -498,6 +700,7 @@ void loop() {
     // THE END
     Serial.write((byte)0);
     flux_status = GW_ACK_OK;
+#endif
   }
   else if (cmd == GW_CMD_WRITEFLUX) {
     if (!floppy) goto needfloppy;
@@ -677,19 +880,44 @@ void loop() {
     Serial1.print(bytes_per_sec);
     Serial1.println(" bytes per sec");
   } else if (cmd == GW_CMD_GETPIN) {
+    if (!floppy) goto needfloppy;
+    if (len != 3) {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+      Serial.write(reply_buffer, 2);
+      return;
+    }
     uint32_t pin = cmd_buffer[2];
     Serial1.printf("getpin %d\n\r", pin);
 
     switch (pin) {
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+      case GW_CMD_SETPIN_DENSITY:
+        reply_buffer[i++] = GW_ACK_OK;
+        reply_buffer[i++] = digitalRead(FLOPPY_DENSITY);
+        break;
+      case 8: // INDEX electrical level.
+        reply_buffer[i++] = GW_ACK_OK;
+        reply_buffer[i++] = digitalRead(FLOPPY_INDEX);
+        break;
+      case 34: // READY electrical level.
+        reply_buffer[i++] = GW_ACK_OK;
+        reply_buffer[i++] = digitalRead(FLOPPY_READY);
+        break;
+#endif
       case GW_CMD_GETPIN_TRACK0:
         reply_buffer[i++] = GW_ACK_OK;
         reply_buffer[i++] = !floppy->get_track0_sense();
         break;
 
+      case GW_CMD_GETPIN_WRPROT:
+        reply_buffer[i++] = GW_ACK_OK;
+        // GetPin reports the electrical level: /WRPROT is active low.
+        reply_buffer[i++] = !floppy->get_write_protect();
+        break;
+
       default:
         // unknown pin, don't pretend we did it right
         reply_buffer[i++] = GW_ACK_BADPIN;
-        reply_buffer[i++] = 0;
     }
     Serial.write(reply_buffer, i);
   } else if (cmd == GW_CMD_SETPIN) {
@@ -729,4 +957,60 @@ needfloppy:
   Serial.write(reply_buffer, 2);
 
   //Serial1.println("cmd complete!");
+}
+
+// All boards use the same framing and accepted command lengths.
+bool valid_command_length(uint8_t command, uint8_t length) {
+  switch (command) {
+    case GW_CMD_GETINFO:
+    case GW_CMD_HEAD:
+    case GW_CMD_SELECT:
+    case GW_CMD_SETBUSTYPE:
+    case GW_CMD_GETPIN:
+      return length == 3;
+    case GW_CMD_SEEK:
+      return length == 3 || length == 4;
+    case GW_CMD_GETPARAMS:
+    case GW_CMD_MOTOR:
+    case GW_CMD_WRITEFLUX:
+    case GW_CMD_SETPIN:
+      return length == 4;
+    case GW_CMD_SETPARAMS:
+      return length >= 5 && length <= 13 && (length - 3) % 2 == 0;
+    case GW_CMD_READFLUX:
+      return length == 8;
+    case GW_CMD_ERASEFLUX:
+      return length == 6;
+    case GW_CMD_SOURCEBYTES:
+    case GW_CMD_SINKBYTES:
+      return length == 10;
+    case GW_CMD_GETFLUXSTATUS:
+    case GW_CMD_DESELECT:
+    case GW_CMD_RESET:
+      return length == 2;
+    default:
+      return false;
+  }
+}
+
+uint32_t sample_frequency() {
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+  return 40000000;
+#else
+  if (!floppy)
+    return 0;
+  return floppy->getSampleFrequency();
+#endif
+}
+
+void stop_drive() {
+#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+  floppsy.enable(false);
+#else
+  if (floppy) {
+    floppy->spin_motor(false);
+    floppy->select(false);
+  }
+#endif
+  selectedUnit = 255;
 }
