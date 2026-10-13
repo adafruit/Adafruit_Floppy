@@ -1,4 +1,6 @@
 var searchData=
 [
-  ['quartertrack',['quartertrack',['../class_adafruit___apple2_floppy.html#a1b7b22545e9ba2d357ec1b630de9c7b9',1,'Adafruit_Apple2Floppy']]]
+  ['powermonitor',['powerMonitor',['../class_adafruit___floppsy.html#a20b795ffd64ee4d7728eea31799ba051',1,'Adafruit_Floppsy']]],
+  ['print_5fpulse_5fbins',['print_pulse_bins',['../class_adafruit___floppy_base.html#aa14051eda6d466396bc79e5266caa23d',1,'Adafruit_FloppyBase']]],
+  ['print_5fpulses',['print_pulses',['../class_adafruit___floppy_base.html#af9f469b2c5f969718a95adf3c341b615',1,'Adafruit_FloppyBase']]]
 ];
