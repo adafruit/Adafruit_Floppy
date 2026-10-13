@@ -4,10 +4,6 @@
 #include <Adafruit_TinyUSB.h>
 #include <hardware/gpio.h>
 
-#if !defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
-#error "Select Adafruit Floppsy RP2350 with Adafruit TinyUSB"
-#endif
-
 Adafruit_Floppsy floppsy;
 
 void check(bool passed, const char *message) {

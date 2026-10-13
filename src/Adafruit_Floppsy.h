@@ -3,7 +3,9 @@
 #ifndef ADAFRUIT_FLOPPSY_H
 #define ADAFRUIT_FLOPPSY_H
 
-#if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350) || defined(DOXYGEN)
+#if !defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350) && !defined(DOXYGEN)
+#error "Select Adafruit Floppsy RP2350 in Tools > Board"
+#else
 #include "Adafruit_Floppy.h"
 #include <Adafruit_INA3221.h>
 
