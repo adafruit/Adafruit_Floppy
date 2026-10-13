@@ -17,7 +17,8 @@ Adafruit_Floppsy::Adafruit_Floppsy()
 }
 
 /**
- * @brief Initialize the drive pins, level shifters, and INA3221 power monitor.
+ * @brief Initialize the drive pins, level shifters, BOOT button, and power
+ * monitor.
  * @return True when both drive interfaces and the power monitor are
  * initialized.
  * @note The cable remains isolated on both success and failure. No drive is
@@ -32,6 +33,9 @@ bool Adafruit_Floppsy::begin() {
   gpio_put(FLOPPY_STAT_OE, true);
   pinMode(FLOPPY_STAT_OE, OUTPUT);
   _initialized = false;
+
+  // The BOOT button also serves as an active-low input for sketches.
+  pinMode(PIN_BUTTON_BOOT, INPUT_PULLUP);
 
   // Preload inactive outputs before the generic drive initialization runs.
   const uint8_t commands[] = {FLOPPY_SIDE,    FLOPPY_WRDATA,  FLOPPY_STEP,
