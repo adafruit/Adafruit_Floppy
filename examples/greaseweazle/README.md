@@ -1,9 +1,10 @@
 # Greaseweazle USB firmware
 
 This example implements the Greaseweazle USB serial protocol using Adafruit
-Floppy. Existing Feather M4, Feather RP2040, Pico and older Floppsy code remains
-in `greaseweazle.ino`. The RP2350B Floppsy uses `floppsy_rp2350.h` and the library's
-continuous PIO/DMA capture engine.
+Floppy. Feather M4, Feather RP2040, Pico and both Floppsy versions share the
+command parser and handlers in `greaseweazle.ino`. The RP2350B board setup and
+continuous PIO/DMA capture adapter live in `floppsy_rp2350.h`; `Adafruit_Floppsy`
+handles its drive GPIO, level shifters, BOOT input and power monitor.
 
 ## Floppsy RP2350
 
