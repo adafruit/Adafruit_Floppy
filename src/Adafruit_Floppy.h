@@ -180,7 +180,8 @@ public:
                           uint8_t *sector_validity, const uint8_t *pulses,
                           size_t n_pulses, float nominal_bit_time_us,
                           bool clear_validity = false,
-                          uint8_t *logical_track = nullptr);
+                          uint8_t *logical_track = nullptr,
+                          int expected_track = -1);
 
   size_t encode_track_mfm(const uint8_t *sectors, size_t n_sectors,
                           uint8_t *pulses, size_t max_pulses,

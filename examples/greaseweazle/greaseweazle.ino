@@ -123,6 +123,7 @@ uint8_t cmd_buff_idx = 0;
 #define GW_CMD_SINKBYTES 19
 #define GW_CMD_GETPIN 20
 #define GW_CMD_GETPIN_TRACK0 26
+#define GW_CMD_GETPIN_WRPROT 28
 #define GW_ACK_OK (byte)0
 #define GW_ACK_BADCMD 1
 #define GW_ACK_NOINDEX 2
@@ -177,6 +178,8 @@ void setup() {
   digitalWrite(FLOPPY_ENABLE_PIN, LOW); // do second after setting direction
 #endif
 
+  // Hosts can request firmware information and delays before SetBusType.
+  setbustype(-1);
   delay(100);
 
   //while (!Serial) delay(100);
@@ -295,9 +298,10 @@ void loop() {
   }
 
   else if (cmd == GW_CMD_GETPARAMS) {
+    if (!floppy) goto needfloppy;
     Serial1.println("Get params");
-    uint8_t sub_cmd = cmd_buffer[2];
-    if (sub_cmd == GW_CMD_GETPARAMS_DELAYS) {
+    if (len == 4 && cmd_buffer[2] == GW_CMD_GETPARAMS_DELAYS &&
+        cmd_buffer[3] <= 10) {
       reply_buffer[i++] = GW_ACK_OK;
       reply_buffer[i++] = floppy->select_delay_us & 0xFF;
       reply_buffer[i++] = floppy->select_delay_us >> 8;
@@ -309,8 +313,30 @@ void loop() {
       reply_buffer[i++] = floppy->motor_delay_ms >> 8;
       reply_buffer[i++] = floppy->watchdog_delay_ms & 0xFF;
       reply_buffer[i++] = floppy->watchdog_delay_ms >> 8;
-      Serial.write(reply_buffer, 12);
+      Serial.write(reply_buffer, 2 + cmd_buffer[3]);
+    } else {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+      Serial.write(reply_buffer, 2);
     }
+  }
+
+  else if (cmd == GW_CMD_SETPARAMS) {
+    if (!floppy) goto needfloppy;
+    // Delay fields are little-endian uint16_t values. Hosts may update a prefix.
+    if (len >= 5 && len <= 13 && (len - 3) % 2 == 0 &&
+        cmd_buffer[2] == GW_CMD_GETPARAMS_DELAYS) {
+      uint16_t *delays[] = {&floppy->select_delay_us, &floppy->step_delay_us,
+        &floppy->settle_delay_ms, &floppy->motor_delay_ms,
+        &floppy->watchdog_delay_ms};
+      for (uint8_t field = 0; field < (len - 3) / 2; field++) {
+        *delays[field] = cmd_buffer[3 + field * 2] |
+          (uint16_t)cmd_buffer[4 + field * 2] << 8;
+      }
+      reply_buffer[i++] = GW_ACK_OK;
+    } else {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+    }
+    Serial.write(reply_buffer, 2);
   }
 
   else if (cmd == GW_CMD_RESET) {
@@ -677,6 +703,12 @@ void loop() {
     Serial1.print(bytes_per_sec);
     Serial1.println(" bytes per sec");
   } else if (cmd == GW_CMD_GETPIN) {
+    if (!floppy) goto needfloppy;
+    if (len != 3) {
+      reply_buffer[i++] = GW_ACK_BADCMD;
+      Serial.write(reply_buffer, 2);
+      return;
+    }
     uint32_t pin = cmd_buffer[2];
     Serial1.printf("getpin %d\n\r", pin);
 
@@ -686,10 +718,15 @@ void loop() {
         reply_buffer[i++] = !floppy->get_track0_sense();
         break;
 
+      case GW_CMD_GETPIN_WRPROT:
+        reply_buffer[i++] = GW_ACK_OK;
+        // GetPin reports the electrical level: /WRPROT is active low.
+        reply_buffer[i++] = !floppy->get_write_protect();
+        break;
+
       default:
         // unknown pin, don't pretend we did it right
         reply_buffer[i++] = GW_ACK_BADPIN;
-        reply_buffer[i++] = 0;
     }
     Serial.write(reply_buffer, i);
   } else if (cmd == GW_CMD_SETPIN) {
