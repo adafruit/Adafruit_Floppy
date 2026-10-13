@@ -79,7 +79,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:a20ace6e05c19705d403f4b8a33f09f56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Construct the two drive interfaces without touching hardware. <br /></td></tr>
 <tr class="separator:a20ace6e05c19705d403f4b8a33f09f56"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a312ac8b4168dd4ad39efadff6a6bce60"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppsy.html#a312ac8b4168dd4ad39efadff6a6bce60">begin</a> ()</td></tr>
-<tr class="memdesc:a312ac8b4168dd4ad39efadff6a6bce60"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize the drive pins, level shifters, and INA3221 power monitor.  <a href="#a312ac8b4168dd4ad39efadff6a6bce60">More...</a><br /></td></tr>
+<tr class="memdesc:a312ac8b4168dd4ad39efadff6a6bce60"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize the drive pins, level shifters, BOOT button, and power monitor.  <a href="#a312ac8b4168dd4ad39efadff6a6bce60">More...</a><br /></td></tr>
 <tr class="separator:a312ac8b4168dd4ad39efadff6a6bce60"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3dbe200d2a55ad8df408eee94d7ca323"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___floppsy.html#a3dbe200d2a55ad8df408eee94d7ca323">enable</a> (bool enabled)</td></tr>
 <tr class="memdesc:a3dbe200d2a55ad8df408eee94d7ca323"><td class="mdescLeft">&#160;</td><td class="mdescRight">Connect the drive interface, or stop both drives and isolate the cable.  <a href="#a3dbe200d2a55ad8df408eee94d7ca323">More...</a><br /></td></tr>
@@ -113,7 +113,7 @@ Adafruit_INA3221&#160;</td><td class="memItemRight" valign="bottom"><a class="el
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Board setup for RP2350 Floppsy in drive-controller mode. </p>
-<p>Own one instance per board. The two drive interfaces share the cable and motor signal; select only one drive at a time. Call <a class="el" href="class_adafruit___floppsy.html#a312ac8b4168dd4ad39efadff6a6bce60" title="Initialize the drive pins, level shifters, and INA3221 power monitor. ">begin()</a>, check the supply voltages required by your drive, then enable(true) before drive operations. Display, touch, SD, USB host, and drive-emulation setup are separate. </p>
+<p>Own one instance per board. The two drive interfaces share the cable and motor signal; select only one drive at a time. Call <a class="el" href="class_adafruit___floppsy.html#a312ac8b4168dd4ad39efadff6a6bce60" title="Initialize the drive pins, level shifters, BOOT button, and power monitor. ">begin()</a>, check the supply voltages required by your drive, then enable(true) before drive operations. Display, touch, SD, USB host, and drive-emulation setup are separate. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
 <a id="a312ac8b4168dd4ad39efadff6a6bce60"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a312ac8b4168dd4ad39efadff6a6bce60">&#9670;&nbsp;</a></span>begin()</h2>
@@ -130,7 +130,7 @@ Adafruit_INA3221&#160;</td><td class="memItemRight" valign="bottom"><a class="el
       </table>
 </div><div class="memdoc">
 
-<p>Initialize the drive pins, level shifters, and INA3221 power monitor. </p>
+<p>Initialize the drive pins, level shifters, BOOT button, and power monitor. </p>
 <dl class="section return"><dt>Returns</dt><dd>True when both drive interfaces and the power monitor are initialized. </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>The cable remains isolated on both success and failure. No drive is selected, no motor starts, and write gate remains inactive. Repeat calls stop any active drive and restore the default drive timings. </dd></dl>
 
@@ -159,7 +159,7 @@ Adafruit_INA3221&#160;</td><td class="memItemRight" valign="bottom"><a class="el
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>False if enabling before a successful <a class="el" href="class_adafruit___floppsy.html#a312ac8b4168dd4ad39efadff6a6bce60" title="Initialize the drive pins, level shifters, and INA3221 power monitor. ">begin()</a>; true otherwise. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>False if enabling before a successful <a class="el" href="class_adafruit___floppsy.html#a312ac8b4168dd4ad39efadff6a6bce60" title="Initialize the drive pins, level shifters, BOOT button, and power monitor. ">begin()</a>; true otherwise. </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>This controls signal buffers, not drive power. The caller must check the rails required by its drive. Enabling does not require 12 V universally. Use only between synchronous drive operations, not during capture or writing. </dd></dl>
 
 </div>
