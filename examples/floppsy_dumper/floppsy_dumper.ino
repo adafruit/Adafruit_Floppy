@@ -8,21 +8,32 @@
 #include <SPI.h>
 #include <Adafruit_FloppyFluxCapture.h>
 #include <Adafruit_FloppySCP.h>
+#include <Fonts/FreeSansBold9pt7b.h>
 
 #if F_CPU != 240000000 || !defined(USE_TINYUSB)
 #error Select 240 MHz and Adafruit TinyUSB for the Floppsy dumper.
 #endif
 
 Adafruit_ILI9341 tft(&SPI, TFT_DC, TFT_CS, TFT_RESET);
+// An indexed framebuffer leaves SRAM available for the 300 KB flux buffer.
+// Expand one scanline to RGB565 when sending a finished frame to the TFT.
+GFXcanvas8 screen(320, 240);
+enum NeonColor { INK, GRID, PANEL, CYAN, PINK, WHITE, MUTED, LIME, AMBER };
+const uint16_t neonPalette[] = {
+  0x0843, 0x18CB, 0x1086, 0x07FF, 0xF8B6, 0xF7BF, 0x9519, 0xAFE8, 0xFDC0
+};
 Adafruit_Floppsy floppsy;
 SdFs sd;
 bool boardOK = false;
 uint8_t floppyMenu = 5;
 uint8_t selectPin = FLOPPY_SELECT1;
-char floppyStatus[48] = "Ready; WRITE OFF";
+char floppyStatus[48] = "Ready to read";
 char floppyProgress[48] = "";
 char lastDump[20] = "";
 char lastMap[20] = "";
+bool reading = false;
+uint16_t tracksDone = 0;
+uint16_t tracksTotal = 0;
 
 void setup() {
   // Initialize the drive pins, BOOT input and power monitor with the cable
@@ -44,8 +55,14 @@ void setup() {
 
 void loop() {
   static bool connected = false;
-  if (Serial && !connected) { printHelp(); connected = true; }
-  if (!Serial) connected = false;
+  if (Serial && !connected) { printHelp(); connected = true; drawStatus(); }
+  if (!Serial && connected) { connected = false; drawStatus(); }
+  static bool lastUSB = false;
+  bool usb = TinyUSBDevice.mounted();
+  if (usb != lastUSB) { lastUSB = usb; drawStatus(); }
+  static int lastCard = -1;
+  int card = digitalRead(PIN_SD_DETECT);
+  if (card != lastCard) { lastCard = card; drawStatus(); }
   if (Serial.available()) {
     char command = Serial.read();
     if (command == '?') printHelp();
@@ -79,8 +96,10 @@ void loop() {
 
 void stopFloppy(const char *message) {
   floppsy.enable(false);
+  reading = false;
   snprintf(floppyStatus, sizeof(floppyStatus), "%s", message);
   Serial.println(message);
+  drawStatus();
 }
 
 bool floppyCancelled() {
@@ -96,7 +115,11 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
   bool dump = mode >= 2;
   bool raw = mode == 4;
   bool doubleDensity = mode == 3;
+  tracksDone = 0;
+  tracksTotal = 0;
+  floppyProgress[0] = 0;
   stopFloppy(raw ? "Preparing raw flux capture" : "Preparing read-only MFM test");
+  reading = true;
   // A new disk may have been inserted since the previous request. Reset the
   // cached track/index state before checking supplies and enabling the drive.
   boardOK = floppsy.begin();
@@ -242,6 +265,7 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
   uint16_t decodedSectors = 0;
   uint16_t badSectors = 0;
   uint16_t trackCount = dump ? 160 : 2;
+  tracksTotal = trackCount;
   for (uint16_t track = 0; success && track < trackCount; track++) {
     uint8_t cylinder = track / 2;
     uint8_t head = track % 2;
@@ -303,6 +327,7 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
                     cylinder, head, (unsigned)capture.count, (unsigned)bytes,
                     2400000000.0 / (boundaries[0] - boundaries[1]), timed ? " assumed" : " measured");
       completed++;
+      tracksDone = completed;
       continue;
     }
     uint8_t valid[36] = {};
@@ -345,7 +370,10 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
         break;
       }
     }
-    if (success) completed++;
+    if (success) {
+      completed++;
+      tracksDone = completed;
+    }
   }
   // Stop the mechanics before final SD metadata operations, including errors.
   floppsy.enable(false);
@@ -523,30 +551,137 @@ void sendDump(const char *name) {
   sd.end();
   Serial.println(success ? "\nEND" : "\nERROR: transfer interrupted");
   snprintf(floppyStatus, sizeof(floppyStatus), "%s", success ? "USB download complete" : "USB download interrupted");
+  drawStatus();
+}
+
+// Keep complete words inside the result panel, including longer fault messages.
+void drawResult(const char *message) {
+  char words[48];
+  snprintf(words, sizeof(words), "%s", message);
+  screen.setFont(&FreeSansBold9pt7b);
+  screen.setTextSize(1);
+  int16_t x = 19;
+  int16_t y = 160;
+  char *word = strtok(words, " ");
+  while (word) {
+    int16_t left, top;
+    uint16_t width, height;
+    screen.getTextBounds(word, x, y, &left, &top, &width, &height);
+    if (left + width > 301 && x > 19) {
+      x = 19;
+      y += 21;
+    }
+    screen.setCursor(x, y);
+    screen.print(word);
+    screen.print(' ');
+    x = screen.getCursorX();
+    word = strtok(nullptr, " ");
+  }
+  screen.setFont();
 }
 
 void drawStatus() {
-  tft.fillScreen(ILI9341_BLACK);
-  tft.setTextWrap(true);
-  tft.setTextColor(ILI9341_CYAN);
-  tft.setTextSize(2);
-  tft.setCursor(8, 10);
-  tft.println("FLOPPSY DUMPER");
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(8, 40);
-  tft.printf("DS%u   ", selectPin == FLOPPY_SELECT0 ? 0 : 1);
-  const char *names[] = {"", "TRACK 0", "IMG 1.44MB", "IMG 720KB", "FLUX SCP", "AUTO IBM"};
-  tft.println(names[floppyMenu]);
-  tft.setCursor(8, 82);
-  tft.println(floppyStatus);
-  tft.setCursor(8, 140);
-  tft.println(floppyProgress);
-  tft.setTextSize(1);
-  tft.setTextColor(ILI9341_YELLOW);
-  tft.setCursor(8, 205);
-  tft.println("UP/DN: mode   L/R: drive   SEL: start");
-  tft.setCursor(8, 220);
-  tft.println("BOOT: cancel   Keep hardware WRITE OFF");
+  if (!screen.getBuffer()) return;
+  screen.fillScreen(INK);
+  screen.setFont();
+  screen.setTextWrap(false);
+  screen.setTextSize(1);
+
+  // A subdued arcade grid stays behind the cards, never behind result text.
+  for (int16_t y = 75; y < 215; y += 16) {
+    screen.drawFastHLine(0, y, 320, GRID);
+  }
+  for (int16_t x = -120; x < 440; x += 40) {
+    screen.drawLine(160 + (x - 160) / 3, 75, x, 215, GRID);
+  }
+
+  // Pixel lettering and an offset pink shadow give the title its arcade look.
+  screen.setTextSize(4);
+  screen.setCursor(14, 13);
+  screen.setTextColor(PINK);
+  screen.print("FLOPPSY");
+  screen.setCursor(11, 10);
+  screen.setTextColor(WHITE);
+  screen.print("FLOPPSY");
+  screen.setTextSize(1);
+  screen.setTextColor(CYAN);
+  screen.setCursor(12, 46);
+  screen.print("N E O N  A R C A D E");
+  screen.drawFastHLine(12, 62, 190, PINK);
+  screen.drawFastHLine(202, 62, 106, CYAN);
+
+  screen.drawRoundRect(246, 9, 62, 31, 5, CYAN);
+  screen.setTextSize(2);
+  screen.setCursor(259, 17);
+  screen.printf("DS%u", selectPin == FLOPPY_SELECT0 ? 0 : 1);
+  screen.setTextSize(1);
+  screen.setTextColor(LIME);
+  screen.setCursor(254, 46);
+  screen.print("READ ONLY");
+
+  // All five modes stay visible. UP/DOWN moves the highlighted card.
+  const char *labels[] = {"CHECK", "IMAGE", "IMAGE", "FLUX", "AUTO"};
+  const char *details[] = {"TRK 0", "1.44M", "720K", "SCP", "IBM"};
+  for (uint8_t mode = 1; mode <= 5; mode++) {
+    int16_t x = 10 + (mode - 1) * 61;
+    bool selected = mode == floppyMenu;
+    screen.fillRoundRect(x, 77, 56, 38, 4, PANEL);
+    screen.drawRoundRect(x, 77, 56, 38, 4, selected ? PINK : GRID);
+    if (selected) screen.fillRect(x + 7, 113, 42, 3, CYAN);
+    screen.setTextColor(selected ? WHITE : MUTED);
+    screen.setCursor(x + 13, 85);
+    screen.print(labels[mode - 1]);
+    screen.setTextColor(selected ? CYAN : MUTED);
+    screen.setCursor(x + 13, 99);
+    screen.print(details[mode - 1]);
+  }
+
+  bool warning = strstr(floppyStatus, "FAIL") ||
+                 strstr(floppyStatus, "Connect") ||
+                 strstr(floppyStatus, "Unknown") ||
+                 strstr(floppyStatus, " *");
+  screen.fillRoundRect(10, 125, 300, 84, 5, PANEL);
+  screen.drawFastVLine(10, 133, 67, warning ? AMBER : CYAN);
+  screen.setTextColor(warning ? AMBER : CYAN);
+  screen.setCursor(19, 133);
+  if (warning) screen.print("CHECK DRIVE / MEDIA");
+  else if (reading) screen.print("CAPTURE IN PROGRESS");
+  else screen.print("DISK LAB // STATUS");
+  screen.setTextColor(warning ? AMBER : WHITE);
+  drawResult(floppyStatus);
+
+  screen.setTextColor(MUTED);
+  screen.setCursor(19, 194);
+  if (floppyProgress[0]) screen.print(floppyProgress);
+  else screen.print("Choose a mode, then press SELECT");
+
+  // Progress counts completed track sides, including sides with bad sectors.
+  if (tracksTotal) {
+    screen.fillRect(19, 205, 282 * tracksDone / tracksTotal, 2, CYAN);
+  }
+  screen.fillRect(0, 216, 320, 24, INK);
+  screen.setTextColor(digitalRead(PIN_SD_DETECT) == HIGH ? LIME : AMBER);
+  screen.setCursor(12, 217);
+  screen.print(digitalRead(PIN_SD_DETECT) == HIGH ? "SD READY" : "NO SD CARD");
+  screen.setTextColor(MUTED);
+  screen.setCursor(248, 217);
+  screen.print(TinyUSBDevice.mounted() ? "USB ONLINE" : "STANDALONE");
+  screen.setTextColor(WHITE);
+  screen.setCursor(12, 230);
+  screen.print("UP/DN MODE  L/R DS  SEL GO  BOOT STOP");
+
+  // Send only finished frames: no visible clear/redraw flash between screens.
+  uint16_t row[320];
+  uint8_t *pixels = screen.getBuffer();
+  tft.startWrite();
+  tft.setAddrWindow(0, 0, 320, 240);
+  for (uint16_t y = 0; y < 240; y++) {
+    for (uint16_t x = 0; x < 320; x++) {
+      row[x] = neonPalette[pixels[y * 320 + x]];
+    }
+    tft.writePixels(row, 320);
+  }
+  tft.endWrite();
 }
 
 void printHelp() {
