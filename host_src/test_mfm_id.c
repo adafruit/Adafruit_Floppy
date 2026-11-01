@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Adafruit Industries
 // SPDX-License-Identifier: MIT
-// Host-side regression test for strict MFM sector identification. This runs on
+// Host-side regression tests for MFM sector identification and timing. Run on
 // a computer using synthetic flux in memory; no board or floppy drive is
 // needed. It belongs with the host tools, rather than the hardware tests, and
 // is not included in Arduino firmware. Run manually from host_src (not part of
@@ -84,7 +84,34 @@ int main(void) {
     encode_track_mfm(&io);
     assert(decode(37, 1, 2, true) == sector_count);
     assert(memcmp(original, decoded, sector_count * 512) == 0);
+
+    // Move one transition without changing the overall track duration. A late
+    // edge shortens the following interval; an early edge lengthens it. Push
+    // that following 3T interval across a fixed 2T/3T or 3T/4T boundary. This
+    // reproduces a CRC failure from a real Floppsy capture that Greaseweazle
+    // could decode. Phase tracking should recover the original bytes at each
+    // data rate, without weakening the CRC or cylinder/head/size checks.
+    for (int direction = -1; direction <= 1; direction += 2) {
+      size_t transition = 2000; // Skip the index and first sector header.
+      int preceding_cells = direction > 0 ? 4 : 2;
+      while (transition < sizeof(flux) &&
+             (flux[transition - 1] != preceding_cells * nominal ||
+              flux[transition] != 3 * nominal)) {
+        transition++;
+      }
+      assert(transition < sizeof(flux));
+      int shift = direction * (nominal * 3 / 5);
+      flux[transition - 1] += shift;
+      flux[transition] -= shift;
+
+      assert(decode(37, 1, 2, true) == sector_count);
+      assert(memcmp(original, decoded, sector_count * 512) == 0);
+
+      flux[transition - 1] -= shift;
+      flux[transition] += shift;
+    }
   }
   puts("PASS: 9/10/11/18/21/22/36 sectors at 250/500/1000 kbit/s");
+  puts("PASS: early and late transitions crossing fixed timing boundaries");
   return 0;
 }
