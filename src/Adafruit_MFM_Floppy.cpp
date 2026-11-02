@@ -42,11 +42,21 @@ Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
 
   // The same profile supplies geometry and timing before and after insertion.
   // AUTODETECT remains empty until a valid boot sector has been read.
-  if (_format >= IBMPC360K && _format < AUTODETECT) {
+  switch (_format) {
+  case IBMPC360K:
+  case IBMPC720K:
+  case IBMPC720K_360RPM:
+  case IBMPC1200K:
+  case IBMPC1440K:
+  case IBMPC1440K_360RPM: {
     const auto &info = _format_info[_format];
     _sectors_per_track = info.sectors;
     _tracks_per_side = info.cylinders;
     _bit_time_ns = info.bit_time_ns;
+    break;
+  }
+  case AUTODETECT:
+    break;
   }
 }
 
