@@ -18,6 +18,10 @@ Adafruit_FloppyFluxCapture capture;
 uint8_t writeFlux[300000];
 uint8_t *bits;
 const size_t BIT_BUFFER_BYTES = 200000;
+bool seenSectors[256];
+unsigned uniqueSectors;
+unsigned requestedCylinder, requestedHead;
+unsigned expectedSectors, firstSector;
 
 bool cancelled();
 void halt(const char *message);
@@ -129,14 +133,24 @@ void loop() {
   }
   Adafruit_FloppyCodec::Encoding encoding = Adafruit_FloppyCodec::IBM_MFM;
   size_t bitCount = 0;
+  float clock = 0;
+  expectedSectors = 0;
+  firstSector = 1;
+  memset(seenSectors, 0, sizeof(seenSectors));
+  uniqueSectors = 0;
+  requestedCylinder = cylinder;
+  requestedHead = head;
   if (formatHint) {
-    // A known source image needs one PLL/decoder pass, not a search through
+    // A known source image needs one encoding/rate, not a search through
     // unrelated formats on every track. This is a hint, not autodetection;
     // the host must still compare every decoded sector with its source.
-    float clock = formatHint == 1 ? 2.0f : 1.0f;
+    clock = formatHint == 1 ? 2.0f : 1.0f;
+    expectedSectors = formatHint == 1 ? 9 : 18;
     if (formatHint >= 3) {
       encoding = Adafruit_FloppyCodec::AMIGA_MFM;
       clock = formatHint == 3 ? 14e6f / 7093790 : 7e6f / 7093790;
+      expectedSectors = formatHint == 3 ? 11 : 22;
+      firstSector = 0;
     }
     bitCount = Adafruit_FloppyBitstream::recover(capture.samples, capture.count - 1,
                                                 40000000, clock, bits, BIT_BUFFER_BYTES);
@@ -148,11 +162,43 @@ void loop() {
                   found.encoding, found.uniqueSectors, found.cylinder, found.head,
                   found.bitCellMicroseconds, found.sectorBytes);
     encoding = found.encoding;
-    if (found.found) bitCount = found.bitCount;
+    if (found.found) {
+      bitCount = found.bitCount;
+      clock = found.bitCellMicroseconds;
+    }
   }
   if (bitCount) {
     auto result = Adafruit_FloppyCodec::decode(encoding, bits, bitCount,
                                                showSector, nullptr);
+    Serial.printf("DECODE default %u %u %u %u\n\r", uniqueSectors,
+                  (unsigned)result.sectors, (unsigned)result.badHeaders,
+                  (unsigned)result.badData);
+
+    // Retry the SAME flux once using Greaseweazle's conservative PLL profile.
+    // Keep every checksum-valid observation from both passes so the host can
+    // merge recovered sectors and reject conflicting payloads. No reread or
+    // rewrite is needed, and a clean known-format capture needs no extra pass.
+    bool retry = expectedSectors ? uniqueSectors < expectedSectors
+                                 : !result.sectors || result.badHeaders || result.badData;
+    if (retry && !cancelled()) {
+      Adafruit_FloppyBitstream pll;
+      if (!pll.begin(bits, BIT_BUFFER_BYTES, 40000000, clock, 0.1f, 0.01f)) {
+        halt("Conservative PLL setup failed");
+      }
+      for (size_t i = 0; i < capture.count - 1; i++) {
+        if (!pll.addInterval(capture.samples[i])) {
+          halt("Conservative PLL input invalid or buffer full");
+        }
+      }
+      auto fallback = Adafruit_FloppyCodec::decode(encoding, bits, pll.bitCount(),
+                                                   showSector, nullptr);
+      Serial.printf("DECODE conservative %u %u %u %u\n\r", uniqueSectors,
+                    (unsigned)fallback.sectors, (unsigned)fallback.badHeaders,
+                    (unsigned)fallback.badData);
+      result.sectors += fallback.sectors;
+      result.badHeaders += fallback.badHeaders;
+      result.badData += fallback.badData;
+    }
     Serial.printf("RESULT %u %u %u\n\r", (unsigned)result.sectors,
                   (unsigned)result.badHeaders, (unsigned)result.badData);
   }
@@ -206,6 +252,16 @@ void receiveBytes(uint8_t *data, size_t length) {
 }
 
 bool showSector(void *, const Adafruit_FloppyCodec::Sector &sector) {
+  // Count only expected identities for the known-format early exit. Still
+  // transmit unexpected headers/payloads so host verification can reject them.
+  bool expectedID = !expectedSectors ||
+                    (sector.size == 512 && sector.number >= firstSector &&
+                     sector.number < firstSector + expectedSectors);
+  if (requestedCylinder == sector.cylinder && requestedHead == sector.head &&
+      expectedID && !seenSectors[sector.number]) {
+    seenSectors[sector.number] = true;
+    uniqueSectors++;
+  }
   Serial.printf("SECTOR %u %u %u %u %u %u\n\r", sector.cylinder, sector.head,
                 sector.number, sector.size, sector.volume, sector.deleted);
   sendBytes(sector.data, sector.size);

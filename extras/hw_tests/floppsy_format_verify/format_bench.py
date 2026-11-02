@@ -125,6 +125,12 @@ def main():
                 elif fields[0] == 'RESULT':
                     result['decoded'], result['bad_headers'], result['bad_data'] = map(int, fields[1:])
                     report(text)
+                elif fields[0] == 'DECODE':
+                    unique, decoded, bad_headers, bad_data = map(int, fields[2:])
+                    result.setdefault('decode_passes', []).append(
+                        dict(profile=fields[1], unique_sectors=unique, decoded=decoded,
+                             bad_headers=bad_headers, bad_data=bad_data))
+                    report(text)
                 elif fields[0] == 'DONE':
                     result['complete'] = True
                     break

@@ -40,11 +40,25 @@ An acknowledged write or a valid on-disk checksum alone is not a byte comparison
 The optional fixture check works on reads too. Each output directory must be new.
 
 For a known source format, add `--format ibm.720`, `ibm.1440`,
-`amiga.amigados`, or `amiga.amigados_hd`. This runs one PLL/decoder pass
+`amiga.amigados`, or `amiga.amigados_hd`. This selects one encoding and rate
 instead of searching all encodings and rates on every track. The log and JSON
 call this a format hint, not detection. Sector checksums and payload comparisons
 still apply. Omit the option for a separate autodetection check. Media density
 remains independently selected with `--hd`.
+
+If a known-format capture is missing expected sectors, the reader decodes the
+same flux once more with the conservative PLL settings used by Greaseweazle
+(phase correction 0.1, period correction 0.01). After autodetection, a failed
+header/data checksum or no decoded sectors triggers that retry. There is no
+extra capture or write, no checksum relaxation, and no unbounded retry loop.
+A clean known-format capture skips the second pass.
+
+`DECODE` lines and `decode_passes` in the JSON distinguish the default and
+conservative passes. `unique_sectors` is cumulative across both passes;
+`decoded`, `bad_headers`, and `bad_data` describe that individual pass. Every
+checksum-valid observation is retained, including duplicates, so byte checks
+can reject conflicting payloads. A fallback cannot guarantee recovery, and
+successful autodetection alone does not prove the expected disk geometry.
 
 On the Sony drive, a 720 KB track read with all nine payloads verified took
 3.6 seconds with the hint versus 9.8 seconds with autodetection. These times
@@ -66,6 +80,14 @@ and use 20..65534-tick intervals. Raw replay preserves supplied timing; it does
 not normalize drive RPM or decode and regenerate sectors.
 
 ## Bench evidence and limits
+
+On 2026-11-02, six read-only three-revolution captures of the marginal PC
+1.44 MB track C45/H0 all recovered 17/18 sectors with the default PLL. The
+conservative retry recovered sector 12 in five of those captures, completing
+18/18 with every observed byte matching the source image. The sixth capture
+and adjacent C44/H0 still lacked sector 12. A C0/H0 control recovered all 18
+sectors without invoking the fallback. This establishes improved recovery,
+not a fully verified disk or a diagnosis of the underlying signal problem.
 
 On the available Sony 3.5-inch drive and disposable HD disk, exact sector payloads
 were recovered after writes of IBM MFM HD/DD, IBM FM, and Amiga MFM HD/DD tracks.
