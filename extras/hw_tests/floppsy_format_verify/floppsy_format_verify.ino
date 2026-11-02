@@ -3,6 +3,7 @@
 // Engineering test for a DISPOSABLE disk in a standard DS1 floppy drive.
 // R C H HD: capture and identify. T C H HD: force a timed, INDEX-less capture.
 // W C H HD BYTES: receive packed 24 MHz flux and write, then capture/identify.
+// Optional sixth field: 0=auto, 1=IBM 720K, 2=IBM 1.44M, 3=Amiga DD, 4=Amiga HD.
 // No write happens on startup. BOOT cancels. The production self-test is separate.
 #include <Adafruit_Floppsy.h>
 #include <Adafruit_FloppyBitstream.h>
@@ -47,11 +48,12 @@ void loop() {
   char line[80] = {}, command = 0;
   size_t length = Serial.readBytesUntil('\n', line, sizeof(line) - 1);
   line[length] = 0;
-  unsigned cylinder = 0, head = 0, hd = 0, bytes = 0;
-  int fields = sscanf(line, "%c %u %u %u %u", &command, &cylinder, &head, &hd, &bytes);
+  unsigned cylinder = 0, head = 0, hd = 0, bytes = 0, formatHint = 0;
+  int fields = sscanf(line, "%c %u %u %u %u %u", &command, &cylinder, &head, &hd,
+                      &bytes, &formatHint);
   if ((command != 'R' && command != 'T' && command != 'W') ||
-      cylinder >= 80 || head > 1 || hd > 1 || fields < 4 ||
-      (command == 'W' && (fields != 5 || !bytes || bytes > sizeof(writeFlux)))) {
+      cylinder >= 80 || head > 1 || hd > 1 || formatHint > 4 || fields < 4 ||
+      (command == 'W' && (fields < 5 || !bytes || bytes > sizeof(writeFlux)))) {
     Serial.print("REJECT command\n\r");
     return;
   }
@@ -125,13 +127,31 @@ void loop() {
   for (size_t i = 1; i < capture.count; i++) {
     capture.samples[i - 1] -= capture.samples[i];
   }
-  auto found = Adafruit_FloppyCodec::detect(capture.samples, capture.count - 1,
-                                           40000000, bits, BIT_BUFFER_BYTES);
-  Serial.printf("DETECT %u %u %u %u %u %.6f %u\n\r", found.found,
-                found.encoding, found.uniqueSectors, found.cylinder, found.head,
-                found.bitCellMicroseconds, found.sectorBytes);
-  if (found.found) {
-    auto result = Adafruit_FloppyCodec::decode(found.encoding, bits, found.bitCount,
+  Adafruit_FloppyCodec::Encoding encoding = Adafruit_FloppyCodec::IBM_MFM;
+  size_t bitCount = 0;
+  if (formatHint) {
+    // A known source image needs one PLL/decoder pass, not a search through
+    // unrelated formats on every track. This is a hint, not autodetection;
+    // the host must still compare every decoded sector with its source.
+    float clock = formatHint == 1 ? 2.0f : 1.0f;
+    if (formatHint >= 3) {
+      encoding = Adafruit_FloppyCodec::AMIGA_MFM;
+      clock = formatHint == 3 ? 14e6f / 7093790 : 7e6f / 7093790;
+    }
+    bitCount = Adafruit_FloppyBitstream::recover(capture.samples, capture.count - 1,
+                                                40000000, clock, bits, BIT_BUFFER_BYTES);
+    Serial.printf("FORMAT %u %.6f\n\r", encoding, clock);
+  } else {
+    auto found = Adafruit_FloppyCodec::detect(capture.samples, capture.count - 1,
+                                             40000000, bits, BIT_BUFFER_BYTES);
+    Serial.printf("DETECT %u %u %u %u %u %.6f %u\n\r", found.found,
+                  found.encoding, found.uniqueSectors, found.cylinder, found.head,
+                  found.bitCellMicroseconds, found.sectorBytes);
+    encoding = found.encoding;
+    if (found.found) bitCount = found.bitCount;
+  }
+  if (bitCount) {
+    auto result = Adafruit_FloppyCodec::decode(encoding, bits, bitCount,
                                                showSector, nullptr);
     Serial.printf("RESULT %u %u %u\n\r", (unsigned)result.sectors,
                   (unsigned)result.badHeaders, (unsigned)result.badData);

@@ -30,6 +30,9 @@ def main():
     parser.add_argument('--input', type=Path)
     parser.add_argument('--destructive', action='store_true')
     parser.add_argument('--fixture', help='compare every observed byte with this codec fixture name')
+    formats = ['ibm.720', 'ibm.1440', 'amiga.amigados', 'amiga.amigados_hd']
+    parser.add_argument('--format', choices=formats,
+                        help='decode a known format directly; omit for autodetection')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not 0 <= args.cylinder < 80 or args.head not in (0, 1):
@@ -51,6 +54,7 @@ def main():
     log, sectors = [], []
     result = dict(command=args.command, cylinder=args.cylinder, head=args.head,
                   high_density=args.hd, complete=False)
+    format_hint = formats.index(args.format) + 1 if args.format else 0
     if payload:
         result['write_sha256'] = hashlib.sha256(payload).hexdigest()
 
@@ -78,7 +82,7 @@ def main():
             time.sleep(0.4)
             port.reset_input_buffer()
             command = {'read': 'R', 'timed': 'T', 'write': 'W'}[args.command]
-            port.write(f'{command} {args.cylinder} {args.head} {int(args.hd)} {len(payload)}\n'.encode())
+            port.write(f'{command} {args.cylinder} {args.head} {int(args.hd)} {len(payload)} {format_hint}\n'.encode())
             while True:
                 text = line()
                 fields = text.split()
@@ -104,6 +108,10 @@ def main():
                                               sectors=int(fields[3]), cylinder=int(fields[4]),
                                               head=int(fields[5]), clock_us=float(fields[6]),
                                               sector_bytes=int(fields[7]))
+                    report(text)
+                elif fields[0] == 'FORMAT':
+                    result['format_hint'] = dict(name=args.format, encoding=int(fields[1]),
+                                                 clock_us=float(fields[2]))
                     report(text)
                 elif fields[0] == 'SECTOR':
                     c, h, r, length, volume, deleted = map(int, fields[1:])
@@ -142,8 +150,9 @@ def main():
                 wrong.append(sector['file'])
             else:
                 good.add(identity[2])
+        observed_format = result.get('detection', result.get('format_hint', {}))
         passed = (len(good) == fixture['sectors'] and not wrong and
-                  result['detection']['encoding'] == fixture['encoding'])
+                  observed_format.get('encoding') == fixture['encoding'])
         comparison = dict(fixture=args.fixture, passed=passed, correct_sectors=len(good),
                           expected_sectors=fixture['sectors'], wrong_observations=wrong)
         (args.output / 'comparison.json').write_text(json.dumps(comparison, indent=2) + '\n')

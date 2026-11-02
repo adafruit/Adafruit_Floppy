@@ -39,6 +39,17 @@ pattern and fails on missing sectors, wrong layout, or any conflicting payload.
 An acknowledged write or a valid on-disk checksum alone is not a byte comparison.
 The optional fixture check works on reads too. Each output directory must be new.
 
+For a known source format, add `--format ibm.720`, `ibm.1440`,
+`amiga.amigados`, or `amiga.amigados_hd`. This runs one PLL/decoder pass
+instead of searching all encodings and rates on every track. The log and JSON
+call this a format hint, not detection. Sector checksums and payload comparisons
+still apply. Omit the option for a separate autodetection check. Media density
+remains independently selected with `--hd`.
+
+On the Sony drive, a 720 KB track read with all nine payloads verified took
+3.6 seconds with the hint versus 9.8 seconds with autodetection. These times
+include motor startup, capture, transfer and decoding, not just disk rotation.
+
 Files retained:
 
 - `timestamps.u32`: original descending 40 MHz counter samples, little-endian.
