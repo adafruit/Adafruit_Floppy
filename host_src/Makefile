@@ -13,6 +13,11 @@ test_mfm_files: test_mfm_files.c ../src/mfm_impl.h
 test_mfm_bpb: test_mfm_bpb.c ../src/mfm_bpb.h
 	$(CC) -iquote ../src -Wall -Werror -ggdb3 -Og -o $@ $<
 
+.PHONY: check-catalog
+check-catalog:
+	$(CXX) -std=c++11 -Wall -Wextra -Werror -I../src image_catalog.cpp ../src/Adafruit_FloppyImage.cpp -o /tmp/floppsy-image-catalog
+	$(PYTHON3) test_image_catalog.py /tmp/floppsy-image-catalog
+
 .PHONY: all
 all: check checkfm
 
