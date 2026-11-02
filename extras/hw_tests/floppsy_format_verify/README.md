@@ -58,7 +58,12 @@ not normalize drive RPM or decode and regenerate sectors.
 
 On the available Sony 3.5-inch drive and disposable HD disk, exact sector payloads
 were recovered after writes of IBM MFM HD/DD, IBM FM, and Amiga MFM HD/DD tracks.
-Full-disk IBM write reliability remains a separate investigation. Normal-rate
+With the separate IBM encoder-layout fix and a replacement HD disk in the same
+drive, all 2,880 sectors passed write/CRC/byte verification on the first read.
+A separate full-image readback matched every byte without retries or rewrites.
+The previous disk's failures followed physical disk angle; retain those failed
+captures as negative cases, not as evidence that the replacement disk failed.
+Normal-rate
 C64/Apple tracks had unreliable physical readback; internal MCU write-pin
 captures recovered every expected sector. Running their streams at twice the
 normal rate recovered all expected payloads from disk using an explicitly
