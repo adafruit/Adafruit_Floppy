@@ -1,0 +1,26 @@
+{
+  "1440.bits": {
+    "sha256": "225b53c1a11031dd9a3b15c2132ee4ffa3322922e8e63d7b41f43b94f83818ff",
+    "bytes": 25000,
+    "cylinder": 43,
+    "head": 0,
+    "sectors": 18,
+    "sector_bytes": 512
+  },
+  "720.bits": {
+    "sha256": "300f9eaab8d6f8e55b2dc369cd85479dac2e22cd3f1350f5579eac373a00fb72",
+    "bytes": 12500,
+    "cylinder": 43,
+    "head": 0,
+    "sectors": 9,
+    "sector_bytes": 512
+  },
+  "fm26.bits": {
+    "sha256": "03459129a4a45b32d40b35d650308d9ad972c7cc0937e1e97e141a9c67e4e9d8",
+    "bytes": 10416,
+    "cylinder": 43,
+    "head": 0,
+    "sectors": 26,
+    "sector_bytes": 128
+  }
+}
