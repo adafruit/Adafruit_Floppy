@@ -114,7 +114,10 @@ uint32_t Adafruit_MFM_Floppy::size(void) const {
 */
 /**************************************************************************/
 int32_t Adafruit_MFM_Floppy::readTrack(int logical_track, bool head) {
-  syncDevice();
+  // A failed flush must retain the pending track, not replace it with a read.
+  if (!syncDevice()) {
+    return -1;
+  }
 
   uint8_t physical_track = _double_step ? 2 * logical_track : logical_track;
 
@@ -172,7 +175,7 @@ uint32_t Adafruit_MFM_Floppy::sectorCount() {
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::isBusy() {
-  // since writing is not supported yet
+  // Hardware writes are synchronous; a dirty cache is not an active write.
   return false;
 }
 
@@ -235,11 +238,11 @@ bool Adafruit_MFM_Floppy::readSectors(uint32_t block, uint8_t *dst, size_t nb) {
 
 /**************************************************************************/
 /*!
-    @brief  Write a 512 byte block of data NOT IMPLEMENTED YET
+    @brief  Update a 512-byte block in the track cache; syncDevice() writes it
     @param  block Block number, will be split into head and track based on
     expected formatting
     @param  src Source buffer
-    @returns True on success, false if failed or unimplemented
+    @returns True if cached, false if protected or the track could not be read
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
@@ -277,12 +280,12 @@ bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
 
 /**************************************************************************/
 /*!
-    @brief  Write multiple 512 byte blocks of data NOT IMPLEMENTED YET
+    @brief  Update consecutive 512-byte blocks, flushing when changing tracks
     @param  block Starting lock number, will be split into head and track based
    on expected formatting
     @param  src Source buffer
     @param  nb Number of consecutive blocks to write
-    @returns True on success, false if failed or unimplemented
+    @returns True if all blocks were accepted, false on a read/write failure
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::writeSectors(uint32_t block, const uint8_t *src,
@@ -297,15 +300,18 @@ bool Adafruit_MFM_Floppy::writeSectors(uint32_t block, const uint8_t *src,
 
 /**************************************************************************/
 /*!
-    @brief  Sync written blocks NOT IMPLEMENTED YET
-    @returns True on success, false if failed or unimplemented
+    @brief  Write the complete dirty track, retaining it if the write fails
+    @returns True if clean or written; false leaves pending data available
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::syncDevice() {
   if (!_dirty || _last_track_read == NO_TRACK) {
     return true;
   }
-  _dirty = false;
+  // The disk's write-protect tab may have changed since writeSector().
+  if (_floppy->get_write_protect()) {
+    return false;
+  }
 
   int logical_track = _last_track_read / FLOPPY_HEADS;
   int head = _last_track_read % FLOPPY_HEADS;
@@ -338,11 +344,12 @@ bool Adafruit_MFM_Floppy::syncDevice() {
                                       sizeof(_flux), _high_density ? 1.f : 2.f,
                                       logical_track);
 
-  if (!_floppy->write_track(_flux, _n_flux, false)) {
+  if (!_n_flux || !_floppy->write_track(_flux, _n_flux, false)) {
     Serial.println("failed to write track");
     return false;
   }
 
+  _dirty = false;
   return true;
 }
 
