@@ -49,3 +49,20 @@ test_flux.h: make_flux.py greaseweazle/scripts/greaseweazle/version.py
 
 greaseweazle/scripts/greaseweazle/version.py:
 	$(MAKE) -C greaseweazle
+
+# Portable codecs: no Arduino installation or Greaseweazle checkout is needed.
+# Use CODEC_FLAGS='-fsanitize=address,undefined -g' for sanitizer coverage.
+CODEC_SOURCES = ../src/Adafruit_FloppyBitstream.cpp ../src/Adafruit_FloppyCodec.cpp ../src/Adafruit_FloppyScan.cpp
+CODEC_HEADERS = ../src/Adafruit_FloppyBitstream.h ../src/Adafruit_FloppyCodec.h
+CODEC_FLAGS ?= -O2
+
+.PHONY: check-codecs
+check-codecs: track_codec test_bitstream
+	./test_bitstream
+	$(PYTHON3) test_track_codecs.py ./track_codec
+
+track_codec: track_codec.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
+	$(CXX) -std=c++11 -Wall -Wextra -Werror $(CODEC_FLAGS) -I../src $< $(CODEC_SOURCES) -o $@
+
+test_bitstream: test_bitstream.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
+	$(CXX) -std=c++11 -Wall -Wextra -Werror $(CODEC_FLAGS) -I../src $< $(CODEC_SOURCES) -o $@

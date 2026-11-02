@@ -6,3 +6,5 @@
 /doxygen
 /examples/*/build
 /html
+/host_src/track_codec
+/host_src/test_bitstream
