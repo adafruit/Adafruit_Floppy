@@ -1,4 +1,17 @@
 PYTHON3 = python3
+.DEFAULT_GOAL := all
+
+# File fixtures are checked without the optional Greaseweazle dependency.
+.PHONY: check-files
+check-files: test_mfm_files test_mfm_bpb
+	./test_mfm_files
+	./test_mfm_bpb
+
+test_mfm_files: test_mfm_files.c ../src/mfm_impl.h
+	$(CC) -iquote ../src -Wall -Werror -ggdb3 -Og -o $@ $<
+
+test_mfm_bpb: test_mfm_bpb.c ../src/mfm_bpb.h
+	$(CC) -iquote ../src -Wall -Werror -ggdb3 -Og -o $@ $<
 
 .PHONY: all
 all: check checkfm

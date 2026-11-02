@@ -1,4 +1,6 @@
 test_flux.h
+test_mfm_files
+test_mfm_bpb
 main
 main_fm
 flux[0-9]
