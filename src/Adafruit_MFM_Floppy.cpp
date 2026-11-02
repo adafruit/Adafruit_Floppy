@@ -2,30 +2,27 @@
 #include <Adafruit_Floppy.h>
 
 /// @cond false
-static const uint16_t flux_rates[] = {2000, 1000, 867, 1667};
+static const uint16_t flux_rates[] = {2000, 1000, 833, 1667};
 
 struct adafruit_floppy_format_info_t {
   uint8_t cylinders, sectors;
   uint16_t bit_time_ns;
-  uint16_t track_time_ms;
 };
 
 // must match the order of adafruit_floppy_disk_t
 static const adafruit_floppy_format_info_t _format_info[] = {
     /* IBMPC360K */
-    {40, 9, 2000, 167},
-    /* IBMPC1200K */
-    {80, 15, 1000, 200},
-
+    {40, 9, 2000},
     /* IBMPC720K */
-    {80, 9, 1000, 200},
+    {80, 9, 2000},
     /* IBMPC720K_360RPM */
-    {80, 9, 1667, 167},
-
+    {80, 9, 1667},
+    /* IBMPC1200K: 500 kbit/s in a 360 RPM drive. */
+    {80, 15, 1000},
     /* IBMPC1440K */
-    {80, 18, 1000, 200},
+    {80, 18, 1000},
     /* IBMPC1440K_360RPM */
-    {80, 18, 867, 167},
+    {80, 18, 833},
 };
 /// @endcond
 
@@ -44,15 +41,23 @@ Adafruit_MFM_Floppy::Adafruit_MFM_Floppy(Adafruit_Floppy *floppy,
   _floppy = floppy;
   _format = format;
 
-  // different formats have different 'hardcoded' sectors and tracks
-  if (_format == IBMPC1440K) {
-    _sectors_per_track = MFM_IBMPC1440K_SECTORS_PER_TRACK;
-    _tracks_per_side = FLOPPY_IBMPC_HD_TRACKS;
-    _high_density = true;
-  } else if (_format == IBMPC360K) {
-    _sectors_per_track = MFM_IBMPC360K_SECTORS_PER_TRACK;
-    _tracks_per_side = FLOPPY_IBMPC_DD_TRACKS;
-    _high_density = false;
+  // The same profile supplies geometry and timing before and after insertion.
+  // AUTODETECT remains empty until a valid boot sector has been read.
+  switch (_format) {
+  case IBMPC360K:
+  case IBMPC720K:
+  case IBMPC720K_360RPM:
+  case IBMPC1200K:
+  case IBMPC1440K:
+  case IBMPC1440K_360RPM: {
+    const auto &info = _format_info[_format];
+    _sectors_per_track = info.sectors;
+    _tracks_per_side = info.cylinders;
+    _bit_time_ns = info.bit_time_ns;
+    break;
+  }
+  case AUTODETECT:
+    break;
   }
 }
 
@@ -187,7 +192,7 @@ bool Adafruit_MFM_Floppy::isBusy() {
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::readSector(uint32_t block, uint8_t *dst) {
-  if (block > sectorCount()) {
+  if (block >= sectorCount()) {
     return false;
   }
 
@@ -244,7 +249,7 @@ bool Adafruit_MFM_Floppy::readSectors(uint32_t block, uint8_t *dst, size_t nb) {
 */
 /**************************************************************************/
 bool Adafruit_MFM_Floppy::writeSector(uint32_t block, const uint8_t *src) {
-  if (block > sectorCount()) {
+  if (block >= sectorCount()) {
     return false;
   }
 
@@ -336,7 +341,7 @@ bool Adafruit_MFM_Floppy::syncDevice() {
     return false;
   }
   _n_flux = _floppy->encode_track_mfm(track_data, _sectors_per_track, _flux,
-                                      sizeof(_flux), _high_density ? 1.f : 2.f,
+                                      sizeof(_flux), _bit_time_ns / 1000.f,
                                       logical_track);
 
   if (!_floppy->write_track(_flux, _n_flux, false)) {
@@ -408,13 +413,14 @@ bool Adafruit_MFM_Floppy::autodetect() {
 }
 
 bool Adafruit_MFM_Floppy::inserted(adafruit_floppy_disk_t floppy_type) {
+  if (!_floppy || floppy_type < IBMPC360K || floppy_type > AUTODETECT) {
+    return false;
+  }
   _floppy->goto_track(0);
   _floppy->side(0);
 
   if (floppy_type == AUTODETECT) {
     return autodetect();
-  } else if (floppy_type < 0 || floppy_type > AUTODETECT) {
-    return false;
   }
   const auto &info = _format_info[floppy_type];
 
@@ -422,6 +428,7 @@ bool Adafruit_MFM_Floppy::inserted(adafruit_floppy_disk_t floppy_type) {
   _tracks_per_side = info.cylinders;
   _sectors_per_track = info.sectors;
   _bit_time_ns = info.bit_time_ns;
+  _double_step = false;
   _last_track_read = NO_TRACK;
   _dirty = false;
   interrupts();
