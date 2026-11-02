@@ -1,3 +1,4 @@
+#include "mfm_bpb.h"
 #include <Adafruit_Floppy.h>
 
 /// @cond false
@@ -354,8 +355,6 @@ void Adafruit_MFM_Floppy::removed() {
   interrupts();
 }
 
-static uint16_t le16_at(uint8_t *ptr) { return ptr[0] | (ptr[1] << 8); }
-
 bool Adafruit_MFM_Floppy::autodetect() {
   Serial.printf("autodetecting\r\n");
   int32_t index_offset;
@@ -367,21 +366,15 @@ bool Adafruit_MFM_Floppy::autodetect() {
         _floppy->decode_track_mfm(track_data, 1, track_validity, _flux, _n_flux,
                                   flux_rate_ns / 1000.f, true);
     if (captured_sectors) {
-      auto valid_signature =
-          track_data[0] == 0xeb && // short jump
-          track_data[1] >= 0x1e && // minimum BPB size (DOS 3.0 BPB)
-          track_data[2] == 0x90;   // NOP
-      if (!valid_signature) {
-        Serial.printf("Invalid signature %02x %02x %02x\r\n", track_data[0],
-                      track_data[1], track_data[2]);
+      mfm_bpb_geometry_t geometry;
+      if (!mfm_bpb_geometry(track_data, &geometry)) {
+        Serial.print("Invalid or unsupported DOS geometry\n\r");
         continue;
       }
-      auto heads = le16_at(track_data + 0x1A);
-      auto total_logical_sectors = le16_at(track_data + 0x13);
 
       _bit_time_ns = flux_rate_ns;
-      _sectors_per_track = le16_at(track_data + 0x18);
-      _tracks_per_side = total_logical_sectors / heads / _sectors_per_track;
+      _sectors_per_track = geometry.sectors;
+      _tracks_per_side = geometry.cylinders;
       _last_track_read = NO_TRACK;
       _dirty = false;
 
@@ -389,14 +382,14 @@ bool Adafruit_MFM_Floppy::autodetect() {
         _floppy->goto_track(2);
         _n_flux = _floppy->capture_track(_flux, sizeof(_flux) / 16,
                                          &index_offset, false, 220);
-        uint8_t track_number;
+        uint8_t track_number = 0;
         auto captured_sectors = _floppy->decode_track_mfm(
             track_data, 1, track_validity, _flux, _n_flux,
             flux_rate_ns / 1000.f, true, &track_number);
         if (!captured_sectors) {
           Serial.printf("failed to read on physical track 2\r\n");
         }
-        _double_step = (track_number == 1);
+        _double_step = captured_sectors && (track_number == 1);
         Serial.printf(
             "on physical track 2, track_number=%d. _double_step <- %d\r\n",
             track_number, _double_step);
@@ -404,7 +397,8 @@ bool Adafruit_MFM_Floppy::autodetect() {
         _double_step = false;
       }
       Serial.printf("Detected flux rate %dns/bit\r\n%d/%d/%d C/H/S\r\n",
-                    flux_rate_ns, _tracks_per_side, heads, _sectors_per_track);
+                    flux_rate_ns, _tracks_per_side, FLOPPY_HEADS,
+                    _sectors_per_track);
       return true;
     }
   }
