@@ -597,7 +597,7 @@ size_t Adafruit_FloppyBase::encode_track_mfm(const uint8_t *sectors,
                                              float nominal_bit_time_us,
                                              uint8_t logical_track) {
   mfm_io_t io = {};
-  io.settings = &standard_mfm;
+  io.settings = mfm_io_standard_settings(n_sectors, 2, false);
 
   set_timings(getSampleFrequency(), io, nominal_bit_time_us);
 

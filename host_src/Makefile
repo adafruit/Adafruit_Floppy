@@ -3,6 +3,11 @@ PYTHON3 = python3
 .PHONY: all
 all: check checkfm
 
+.PHONY: check-layout
+check-layout:
+	$(CC) -iquote ../src -Wall -Werror -ggdb3 -Og -o /tmp/floppy-test-layout test_track_layout.c
+	/tmp/floppy-test-layout
+
 .PHONY: check
 check: main check_flux.py
 	./main
