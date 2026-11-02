@@ -26,6 +26,22 @@ Tested working on:
    * RP2040 chipset hardware - Works with philhower core and TinyUSB stack.  Overclock to 200MHz and select -O3 optimization for best performance
 
 
+## Identify a decoded disk image
+
+`Adafruit_FloppyImage` identifies a filesystem and lists its root directory from
+a caller-supplied byte reader. It accepts FAT12 (PC and Atari ST), Amiga OFS/FFS
+ADF, Commodore 1541 D64, Apple DOS 3.3 DOS-ordered images, and ProDOS block-ordered
+images. The `floppy_image_catalog` example opens an image on microSD, using SDIO
+on Floppsy RP2350 or SPI on other boards.
+
+Names, file types, sizes or allocated-block counts, and protection flags are
+reported without modifying the image. FAT12 alone does not identify which
+computer created a disk. Listing is limited to the root directory and does not
+verify file contents or traverse subdirectories. Apple sector ordering must
+match the forms above; NIB, WOZ, SCP, and other bitstream/flux containers must
+first be decoded to sectors. Special copy protection and nonstandard
+filesystems may remain unidentified.
+
 ## Follow our progress!
 
 [We have a full playlist on YouTube of our progress!](https://www.youtube.com/playlist?list=PLjF7R1fz_OOWexf2WmY8cgM65ltPaAvyT), or check out some of these videos of the software at a very early stage of development:

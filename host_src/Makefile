@@ -1,5 +1,10 @@
 PYTHON3 = python3
 
+.PHONY: check-catalog
+check-catalog:
+	$(CXX) -std=c++11 -Wall -Wextra -Werror -I../src image_catalog.cpp ../src/Adafruit_FloppyImage.cpp -o /tmp/floppsy-image-catalog
+	$(PYTHON3) test_image_catalog.py /tmp/floppsy-image-catalog
+
 .PHONY: all
 all: check checkfm
 
