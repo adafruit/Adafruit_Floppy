@@ -31,7 +31,11 @@ inputs; availability and rights remain with their respective sources.
 
 The local FAT12 scratch-disk image also lists README.TXT, HELLO.BAT, PATTERN.BIN
 and TAIL.BIN with the same names and lengths as 7-Zip's independent FAT reader.
-ProDOS currently has generated-fixture coverage, not an archived-image result.
+The official [ProDOS 2.4.3 release image](https://github.com/ProDOS-8/ProDOS8-Releases/releases/tag/2.4.3)
+was also checked: SHA-256
+`398d333cb2ab92df9f8bb2cf64b946f2567116910eb8359cf4bdee5d4194f0fa`,
+volume `PRODOS.2.4.3`, and 17 root entries. Its full 35-track image also
+round-tripped through the Apple GCR decoder byte-for-byte.
 
 Format references:
 
