@@ -49,7 +49,7 @@ different drive RPM. Only INDEX-cued tracks spliced at INDEX are supported.
 Native `.flux24` stores one unsigned 24 MHz interval per byte. `--packed` selects
 the library's `greasepack` interval encoding, **not** a complete Greaseweazle USB
 command stream. SCP automatically uses this packed form. The firmware accepts
-18..65534-tick intervals, at most 300,000 bytes, with 210 ms to 1 s of input. The
+20..65534-tick intervals, at most 300,000 bytes, with 210 ms to 1 s of input. The
 overlap accommodates one 300 RPM revolution; writing ends at the next INDEX.
 Timed, unaligned captures must not be replayed as indexed tracks.
 

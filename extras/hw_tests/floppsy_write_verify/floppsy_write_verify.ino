@@ -136,7 +136,9 @@ void loop() {
       bool malformed = false;
       while (next < end) {
         unsigned interval = greaseunpack(&next, end, packed);
-        if (interval < 18 || interval == 0xffff)
+        // The RP2 writer spends 20 clocks in its fixed pulse/loop overhead.
+        // Shorter intervals would be lengthened instead of replayed exactly.
+        if (interval < 20 || interval == 0xffff)
           malformed = true;
         ticks += interval;
       }

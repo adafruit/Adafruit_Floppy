@@ -41,7 +41,7 @@ def scp_write_data(path, cylinder, head):
         scaled = interval * 24000000 / writeout.sample_freq + remainder
         ticks = round(scaled)
         remainder = scaled - ticks
-        if not 18 <= ticks < 0xffff:
+        if not 20 <= ticks < 0xffff:
             raise ValueError("SCP interval is outside this bench writer's range")
         if ticks < 250:
             data.append(ticks)
