@@ -24,6 +24,9 @@ const uint16_t neonPalette[] = {
 };
 Adafruit_Floppsy floppsy;
 SdFs sd;
+// Standard 3.5-inch drives need only 5 V. Enable this check for a drive that
+// also needs 12 V, such as a 5.25-inch PC mechanism.
+const bool require12V = false;
 bool boardOK = false;
 uint8_t floppyMenu = 5;
 uint8_t selectPin = FLOPPY_SELECT1;
@@ -127,8 +130,7 @@ void readFloppy(uint8_t selectPin, uint8_t mode) {
     stopFloppy("FAIL: floppy 5V missing");
     return;
   }
-  // The first prototype browned out starting this drive on computer USB alone.
-  if (floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_12V) < 10.8) {
+  if (require12V && floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_12V) < 10.8) {
     stopFloppy("Connect 12V for drive testing");
     return;
   }
@@ -685,7 +687,9 @@ void drawStatus() {
 }
 
 void printHelp() {
-  Serial.println("Floppsy standalone dumper; 12V connected, hardware WRITE OFF.");
+  Serial.print("Floppsy standalone dumper; hardware WRITE OFF.\n\r");
+  Serial.print(require12V ? "Drive requires 5V and 12V.\n\r"
+                         : "5V drive mode; 12V is optional.\n\r");
   Serial.println("a=auto IBM IMG, r=track zero, d=IMG 1.44MB, j=IMG 720KB, g=raw SCP (DS1)");
   Serial.println("A/R/D/J/G use DS0. BOOT or !=cancel. No floppy write commands.");
   Serial.println("AUTO: 720/800/880/1440/1680/1760/2880 KiB IBM MFM; other encodings use SCP.");

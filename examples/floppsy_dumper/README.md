@@ -9,22 +9,22 @@ images and genuine multi-revolution flux captures to microSD. The existing
 Select **Adafruit Floppsy RP2350**, **240 MHz**, **Adafruit TinyUSB**. The board
 definition provides 16 MB flash and 8 MB PSRAM. Tested with Arduino-Pico 6.1.1,
 Adafruit GFX 1.12.6, ILI9341 1.6.3, INA3221 1.0.3, TinyUSB 3.7.7 and
-SdFat - Adafruit Fork 2.3.103. Use Adafruit Floppy's
-[`fix-rp2350-capture-validation`](https://github.com/ladyada-eagleclaw/Adafruit_Floppy/tree/fix-rp2350-capture-validation)
-branch; stock 0.6.1 lacks the RP2350 fixes and strict sector-ID argument.
+SdFat - Adafruit Fork 2.3.103. Build against current Adafruit Floppy `main`,
+which includes the merged RP2350 capture support and MFM timing fixes.
 
 ```sh
 arduino-cli compile --fqbn rp2040:rp2040:adafruit_floppsy_rp2350:freq=240,usbstack=tinyusb --library /path/to/SdFat_-_Adafruit_Fork --library /path/to/Adafruit_Floppy floppsy_dumper
 ```
 
-Connect one PC/Shugart or laptop FPC drive, a FAT/exFAT microSD, and the 12 V
-barrel supply. Computer USB alone browned out this prototype on motor start;
-the dumper requires measured 5 V and 12 V before enabling the drive. It does
-not renegotiate USB PD. Keep the hardware **WRITE switch OFF**. No floppy
+Connect one PC/Shugart or laptop FPC drive and a FAT/exFAT microSD. Standard
+3.5-inch drives need the 5 V rail; the dumper checks it before enabling the drive.
+For a drive that also needs 12 V, connect that supply and set `require12V = true`
+in the sketch. Use a source capable of the drive's motor-start current. The
+dumper does not renegotiate USB PD. Keep the hardware **WRITE switch OFF**. No floppy
 write/format operation exists in this sketch. Apple Disk II drive control
 and the USB-A camera are not implemented here.
 
-The plain TFT interface uses UP/DOWN for mode, LEFT/RIGHT for DS0/DS1 and SELECT
+The buffered NEON ARCADE TFT interface uses UP/DOWN for mode, LEFT/RIGHT for DS0/DS1 and SELECT
 to start. DS1 is the default for the connected PC drive. BOOT or serial `!`
 cancels. The motor, drive selects and both cable drivers turn off on exit.
 File writes never overwrite existing captures or format the card.

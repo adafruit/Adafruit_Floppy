@@ -51,6 +51,7 @@ struct mfm_io {
   uint16_t T2_max;     ///< MFM decoder max length of 2us pulse
   uint16_t T3_max;     ///< MFM decoder max length of 3us pulse
   uint16_t T1_nom;     ///< MFM nominal 1us pulse value
+  int16_t phase_error; ///< Residual transition timing error, in flux ticks
 
   size_t n_valid; ///< Count of valid sectors decoded
 
@@ -116,12 +117,25 @@ static mfm_io_symbol_t mfm_io_read_symbol(mfm_io_t *io) {
   if (mfm_io_eof(io)) {
     return mfm_io_pulse_10;
   }
-  uint8_t pulse_len = io->pulses[io->pos++];
-  if (pulse_len > io->T3_max)
-    return mfm_io_pulse_1000;
-  if (pulse_len > io->T2_max)
-    return mfm_io_pulse_100;
-  return mfm_io_pulse_10;
+  // A late transition lengthens one interval and shortens the next. Carry
+  // part of its timing error forward so a borderline interval does not slip
+  // by a whole bit cell. Limit the correction across gaps or damaged flux.
+  int pulse_len = io->pulses[io->pos++] + io->phase_error;
+  mfm_io_symbol_t symbol = mfm_io_pulse_10;
+  if (pulse_len > io->T3_max) {
+    symbol = mfm_io_pulse_1000;
+  } else if (pulse_len > io->T2_max) {
+    symbol = mfm_io_pulse_100;
+  }
+  int expected_length = ((int)symbol + 2) * io->T1_nom;
+  int error = (pulse_len - expected_length) / 2;
+  int limit = io->T1_nom / 2;
+  if (error > limit)
+    error = limit;
+  if (error < -limit)
+    error = -limit;
+  io->phase_error = error;
+  return symbol;
 }
 
 // Automatically generated CRC function
@@ -274,6 +288,7 @@ __attribute__((sentinel)) static uint16_t receive_crc(mfm_io_t *io, ...) {
 MFM_MAYBE_UNUSED
 static size_t decode_track_mfm(mfm_io_t *io) {
   io->pos = 0;
+  io->phase_error = 0;
 
   // count previous valid sectors, so we can early-terminate if we're just
   // picking up some errored sectors on a 2nd pass
