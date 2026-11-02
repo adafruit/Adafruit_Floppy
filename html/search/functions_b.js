@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['quartertrack',['quartertrack',['../class_adafruit___apple2_floppy.html#a1b7b22545e9ba2d357ec1b630de9c7b9',1,'Adafruit_Apple2Floppy']]]
+  ['operator_3d',['operator=',['../class_adafruit___floppsy.html#a60d24eaefe2e59be273f185ae40f6020',1,'Adafruit_Floppsy']]]
 ];

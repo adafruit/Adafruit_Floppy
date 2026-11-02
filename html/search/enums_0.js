@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['stepmode',['StepMode',['../class_adafruit___apple2_floppy.html#abebf0b0b583c2f9ea3df6252b83225fd',1,'Adafruit_Apple2Floppy']]]
+  ['format',['Format',['../class_adafruit___floppy_image.html#a2eea563239236e08424515bc99d41e18',1,'Adafruit_FloppyImage']]]
 ];

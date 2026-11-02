@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['quartertrack',['quartertrack',['../class_adafruit___apple2_floppy.html#a1b7b22545e9ba2d357ec1b630de9c7b9',1,'Adafruit_Apple2Floppy']]]
+  ['name',['name',['../struct_adafruit___floppy_image_1_1_entry.html#ab43abc6040774e5ee153b1e5074974c1',1,'Adafruit_FloppyImage::Entry']]]
 ];

@@ -1,8 +1,5 @@
 var searchData=
 [
-  ['read_5findex',['read_index',['../class_adafruit___floppy_base.html#a26bd88e603c296fb5aeab87674e66efd',1,'Adafruit_FloppyBase']]],
-  ['readsector',['readSector',['../class_adafruit___m_f_m___floppy.html#a1df6a6200fdc117b8ac2a36cc1073e30',1,'Adafruit_MFM_Floppy']]],
-  ['readsectors',['readSectors',['../class_adafruit___m_f_m___floppy.html#afd596417afdf95fdcf22812eda66518d',1,'Adafruit_MFM_Floppy']]],
-  ['readtrack',['readTrack',['../class_adafruit___m_f_m___floppy.html#a5d8a1a8442768ce6b4b066a8365c8205',1,'Adafruit_MFM_Floppy']]],
-  ['removed',['removed',['../class_adafruit___m_f_m___floppy.html#a82f698b0ddee5b5602d9437c72ee5759',1,'Adafruit_MFM_Floppy']]]
+  ['print_5fpulse_5fbins',['print_pulse_bins',['../class_adafruit___floppy_base.html#aa14051eda6d466396bc79e5266caa23d',1,'Adafruit_FloppyBase']]],
+  ['print_5fpulses',['print_pulses',['../class_adafruit___floppy_base.html#af9f469b2c5f969718a95adf3c341b615',1,'Adafruit_FloppyBase']]]
 ];

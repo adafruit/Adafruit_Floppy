@@ -1,7 +1,9 @@
 var searchData=
 [
-  ['watchdog_5fdelay_5fms',['watchdog_delay_ms',['../class_adafruit___floppy_base.html#ab1eee6f14f6d5a838833ab1b1402adec',1,'Adafruit_FloppyBase']]],
-  ['write_5ftrack',['write_track',['../class_adafruit___floppy_base.html#a03e34278e9fcc25a121b38a7b2bd4c68',1,'Adafruit_FloppyBase']]],
-  ['writesector',['writeSector',['../class_adafruit___m_f_m___floppy.html#aae3f8d9eaad3a96be99b63d95aa4fdac',1,'Adafruit_MFM_Floppy']]],
-  ['writesectors',['writeSectors',['../class_adafruit___m_f_m___floppy.html#a65e150ebde8ecd595e157bc41b1be748',1,'Adafruit_MFM_Floppy']]]
+  ['read',['Read',['../class_adafruit___floppy_image.html#aec4825d4028048c5a56fb8ce34ef9fd1',1,'Adafruit_FloppyImage']]],
+  ['read_5findex',['read_index',['../class_adafruit___floppy_base.html#a26bd88e603c296fb5aeab87674e66efd',1,'Adafruit_FloppyBase']]],
+  ['readsector',['readSector',['../class_adafruit___m_f_m___floppy.html#a1df6a6200fdc117b8ac2a36cc1073e30',1,'Adafruit_MFM_Floppy']]],
+  ['readsectors',['readSectors',['../class_adafruit___m_f_m___floppy.html#afd596417afdf95fdcf22812eda66518d',1,'Adafruit_MFM_Floppy']]],
+  ['readtrack',['readTrack',['../class_adafruit___m_f_m___floppy.html#a5d8a1a8442768ce6b4b066a8365c8205',1,'Adafruit_MFM_Floppy']]],
+  ['removed',['removed',['../class_adafruit___m_f_m___floppy.html#a82f698b0ddee5b5602d9437c72ee5759',1,'Adafruit_MFM_Floppy']]]
 ];

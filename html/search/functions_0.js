@@ -4,5 +4,6 @@ var searchData=
   ['adafruit_5ffloppsy',['Adafruit_Floppsy',['../class_adafruit___floppsy.html#a20ace6e05c19705d403f4b8a33f09f56',1,'Adafruit_Floppsy::Adafruit_Floppsy()'],['../class_adafruit___floppsy.html#a1c862465811cb0296bcb7be63b5c8a67',1,'Adafruit_Floppsy::Adafruit_Floppsy(const Adafruit_Floppsy &amp;)=delete']]],
   ['adafruit_5ffloppy',['Adafruit_Floppy',['../class_adafruit___floppy.html#abde4580fa7f965c87b9e434f85d62178',1,'Adafruit_Floppy']]],
   ['adafruit_5ffloppybase',['Adafruit_FloppyBase',['../class_adafruit___floppy_base.html#af48b94459046214f7995a50f9457d40c',1,'Adafruit_FloppyBase']]],
+  ['adafruit_5ffloppyimage',['Adafruit_FloppyImage',['../class_adafruit___floppy_image.html#a0bfd6f3c584193937539f6995afe41ed',1,'Adafruit_FloppyImage']]],
   ['adafruit_5fmfm_5ffloppy',['Adafruit_MFM_Floppy',['../class_adafruit___m_f_m___floppy.html#aa59bf5f29248b129ada8f3e7b9901204',1,'Adafruit_MFM_Floppy']]]
 ];

@@ -4,5 +4,6 @@ var searchData=
   ['adafruit_5ffloppsy',['Adafruit_Floppsy',['../class_adafruit___floppsy.html',1,'']]],
   ['adafruit_5ffloppy',['Adafruit_Floppy',['../class_adafruit___floppy.html',1,'']]],
   ['adafruit_5ffloppybase',['Adafruit_FloppyBase',['../class_adafruit___floppy_base.html',1,'']]],
+  ['adafruit_5ffloppyimage',['Adafruit_FloppyImage',['../class_adafruit___floppy_image.html',1,'']]],
   ['adafruit_5fmfm_5ffloppy',['Adafruit_MFM_Floppy',['../class_adafruit___m_f_m___floppy.html',1,'']]]
 ];
