@@ -117,7 +117,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memdesc:ae2dbb3778bf9da61803e934c64182324"><td class="mdescLeft">&#160;</td><td class="mdescRight">Max capacity in sector block.  <a href="#ae2dbb3778bf9da61803e934c64182324">More...</a><br /></td></tr>
 <tr class="separator:ae2dbb3778bf9da61803e934c64182324"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac6c74df035223e2a89c4f6ee652ab7e4"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#ac6c74df035223e2a89c4f6ee652ab7e4">syncDevice</a> ()</td></tr>
-<tr class="memdesc:ac6c74df035223e2a89c4f6ee652ab7e4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sync written blocks NOT IMPLEMENTED YET.  <a href="#ac6c74df035223e2a89c4f6ee652ab7e4">More...</a><br /></td></tr>
+<tr class="memdesc:ac6c74df035223e2a89c4f6ee652ab7e4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write the complete dirty track, retaining it if the write fails.  <a href="#ac6c74df035223e2a89c4f6ee652ab7e4">More...</a><br /></td></tr>
 <tr class="separator:ac6c74df035223e2a89c4f6ee652ab7e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1df6a6200fdc117b8ac2a36cc1073e30"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a1df6a6200fdc117b8ac2a36cc1073e30">readSector</a> (uint32_t block, uint8_t *dst)</td></tr>
 <tr class="memdesc:a1df6a6200fdc117b8ac2a36cc1073e30"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read a 512 byte block of data, may used cached data.  <a href="#a1df6a6200fdc117b8ac2a36cc1073e30">More...</a><br /></td></tr>
@@ -126,10 +126,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memdesc:afd596417afdf95fdcf22812eda66518d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read multiple 512 byte block of data, may used cached data.  <a href="#afd596417afdf95fdcf22812eda66518d">More...</a><br /></td></tr>
 <tr class="separator:afd596417afdf95fdcf22812eda66518d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aae3f8d9eaad3a96be99b63d95aa4fdac"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#aae3f8d9eaad3a96be99b63d95aa4fdac">writeSector</a> (uint32_t block, const uint8_t *src)</td></tr>
-<tr class="memdesc:aae3f8d9eaad3a96be99b63d95aa4fdac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write a 512 byte block of data NOT IMPLEMENTED YET.  <a href="#aae3f8d9eaad3a96be99b63d95aa4fdac">More...</a><br /></td></tr>
+<tr class="memdesc:aae3f8d9eaad3a96be99b63d95aa4fdac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Update a 512-byte block in the track cache; <a class="el" href="class_adafruit___m_f_m___floppy.html#ac6c74df035223e2a89c4f6ee652ab7e4" title="Write the complete dirty track, retaining it if the write fails. ">syncDevice()</a> writes it.  <a href="#aae3f8d9eaad3a96be99b63d95aa4fdac">More...</a><br /></td></tr>
 <tr class="separator:aae3f8d9eaad3a96be99b63d95aa4fdac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a65e150ebde8ecd595e157bc41b1be748"><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_adafruit___m_f_m___floppy.html#a65e150ebde8ecd595e157bc41b1be748">writeSectors</a> (uint32_t block, const uint8_t *src, size_t ns)</td></tr>
-<tr class="memdesc:a65e150ebde8ecd595e157bc41b1be748"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write multiple 512 byte blocks of data NOT IMPLEMENTED YET.  <a href="#a65e150ebde8ecd595e157bc41b1be748">More...</a><br /></td></tr>
+<tr class="memdesc:a65e150ebde8ecd595e157bc41b1be748"><td class="mdescLeft">&#160;</td><td class="mdescRight">Update consecutive 512-byte blocks, flushing when changing tracks.  <a href="#a65e150ebde8ecd595e157bc41b1be748">More...</a><br /></td></tr>
 <tr class="separator:a65e150ebde8ecd595e157bc41b1be748"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
@@ -472,8 +472,8 @@ Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Sync written blocks NOT IMPLEMENTED YET. </p>
-<dl class="section return"><dt>Returns</dt><dd>True on success, false if failed or unimplemented </dd></dl>
+<p>Write the complete dirty track, retaining it if the write fails. </p>
+<dl class="section return"><dt>Returns</dt><dd>True if clean or written; false leaves pending data available </dd></dl>
 
 </div>
 </div>
@@ -610,7 +610,7 @@ Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Write a 512 byte block of data NOT IMPLEMENTED YET. </p>
+<p>Update a 512-byte block in the track cache; <a class="el" href="class_adafruit___m_f_m___floppy.html#ac6c74df035223e2a89c4f6ee652ab7e4" title="Write the complete dirty track, retaining it if the write fails. ">syncDevice()</a> writes it. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">block</td><td>Block number, will be split into head and track based on expected formatting </td></tr>
@@ -618,7 +618,7 @@ Public Attributes</h2></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True on success, false if failed or unimplemented </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>True if cached, false if protected or the track could not be read </dd></dl>
 
 </div>
 </div>
@@ -662,7 +662,7 @@ Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Write multiple 512 byte blocks of data NOT IMPLEMENTED YET. </p>
+<p>Update consecutive 512-byte blocks, flushing when changing tracks. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">block</td><td>Starting lock number, will be split into head and track based on expected formatting </td></tr>
@@ -671,7 +671,7 @@ Public Attributes</h2></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True on success, false if failed or unimplemented </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>True if all blocks were accepted, false on a read/write failure </dd></dl>
 
 </div>
 </div>
