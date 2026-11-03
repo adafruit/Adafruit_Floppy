@@ -243,16 +243,30 @@ bool Adafruit_FloppyImage::identifyProDOS() {
     @param context Opaque visitor context.
     @return True on completion/visitor stop, false for invalid data or I/O. */
 bool Adafruit_FloppyImage::listRoot(Visit visitor, void *context) {
+  return listDirectory(0, visitor, context);
+}
+
+/** @brief List a directory in an identified image.
+    @param directory Zero for root, or an Amiga directory Entry::id.
+    @param visitor Callback for each live entry.
+    @param context Caller-owned visitor context.
+    @return True on completion or visitor stop; false on I/O or invalid data.
+    @note Subdirectories are currently supported for Amiga OFS/FFS only. */
+bool Adafruit_FloppyImage::listDirectory(uint32_t directory, Visit visitor,
+                                         void *context) {
   _error = "";
   if (!visitor) {
     return fail("No directory visitor");
+  }
+  if (directory && _format != AMIGA_OFS && _format != AMIGA_FFS) {
+    return fail("Subdirectories unsupported for this format");
   }
   switch (_format) {
   case FAT12:
     return listFAT(visitor, context);
   case AMIGA_OFS:
   case AMIGA_FFS:
-    return listAmiga(visitor, context);
+    return listAmiga(directory ? directory : _root, visitor, context);
   case CBM_DOS:
     return listCBM(visitor, context);
   case APPLE_DOS33:
@@ -298,11 +312,15 @@ bool Adafruit_FloppyImage::listFAT(Visit visitor, void *context) {
   return true;
 }
 
-bool Adafruit_FloppyImage::listAmiga(Visit visitor, void *context) {
+bool Adafruit_FloppyImage::listAmiga(uint32_t directory, Visit visitor,
+                                     void *context) {
   uint8_t visited[512] = {};
   uint32_t buckets[72];
-  if (!readAt(_root * 512) || !amigaSum(_buffer)) {
-    return fail("Invalid Amiga root");
+  if (directory < 2 || directory >= _blocks || !readAt(directory * 512) ||
+      !amigaSum(_buffer) || be32(_buffer) != 2 ||
+      be32(_buffer + 508) != (directory == _root ? 1u : 2u) ||
+      (directory != _root && be32(_buffer + 4) != directory)) {
+    return fail("Invalid Amiga directory");
   }
   for (uint8_t i = 0; i < 72; i++) {
     buckets[i] = be32(_buffer + 24 + i * 4);
@@ -318,11 +336,12 @@ bool Adafruit_FloppyImage::listAmiga(Visit visitor, void *context) {
       }
       int32_t kind = (int32_t)be32(_buffer + 508);
       if (!amigaSum(_buffer) || be32(_buffer) != 2 ||
-          be32(_buffer + 4) != block || be32(_buffer + 500) != _root ||
+          be32(_buffer + 4) != block || be32(_buffer + 500) != directory ||
           !_buffer[432] || _buffer[432] > 30) {
         return fail("Invalid Amiga entry");
       }
       Entry entry = {};
+      entry.id = block;
       text(entry.name, _buffer + 433, _buffer[432]);
       entry.bytes = be32(_buffer + 324);
       entry.directory = kind == 2;
@@ -356,7 +375,7 @@ bool Adafruit_FloppyImage::listCBM(Visit visitor, void *context) {
     if (seen(visited, block)) {
       return fail("Loop in CBM directory");
     }
-    if (!readAt(block * 256, 256)) {
+    if (!readCBMBlock(block)) {
       return false;
     }
     track = _buffer[0];
@@ -367,6 +386,7 @@ bool Adafruit_FloppyImage::listCBM(Visit visitor, void *context) {
         continue;
       }
       Entry entry = {};
+      entry.id = block * 256 + 2 + i * 32;
       text(entry.name, p + 3, 16, true);
       strcpy(entry.kind, types[p[0] & 7]);
       entry.blocks = le16(p + 28);
@@ -377,6 +397,210 @@ bool Adafruit_FloppyImage::listCBM(Visit visitor, void *context) {
     }
   }
   return true;
+}
+
+bool Adafruit_FloppyImage::readCBMBlock(uint32_t block) {
+  uint32_t blocks = cbmBlock(_tracks, cbmSectors(_tracks));
+  if (block >= blocks) {
+    return fail("CBM sector outside image");
+  }
+  // Some D64 images append one drive-error byte per sector. Do not silently
+  // turn a sector explicitly marked unreadable into successful file contents.
+  if (_size == blocks * 257) {
+    if (!readAt(blocks * 256 + block, 1)) {
+      return false;
+    }
+    if (_buffer[0] != 1) {
+      return fail("CBM sector has recorded read error");
+    }
+  }
+  return readAt(block * 256, 256);
+}
+
+/** @brief Open an Amiga or D64 file without modifying the image.
+    @param id Identifier returned in a directory Entry.
+    @param entry Receives validated metadata and exact byte length.
+    @return True for a readable regular file; false for links, directories,
+    unsupported files, or corrupt data. D64 PRG load-address bytes are retained.
+    @note D64 REL data is exposed as its linear byte stream, not records. */
+bool Adafruit_FloppyImage::openFile(uint32_t id, Entry &entry) {
+  _error = "";
+  entry = {};
+  entry.id = id;
+  if (_format == AMIGA_OFS || _format == AMIGA_FFS) {
+    if (id < 2 || id >= _blocks || !readAt(id * 512) || !amigaSum(_buffer) ||
+        be32(_buffer) != 2 || be32(_buffer + 4) != id ||
+        (int32_t)be32(_buffer + 508) != -3 || !_buffer[432] ||
+        _buffer[432] > 30) {
+      return fail("Invalid Amiga file header");
+    }
+    text(entry.name, _buffer + 433, _buffer[432]);
+    strcpy(entry.kind, "FILE");
+    entry.bytes = be32(_buffer + 324);
+    if (entry.bytes > _size) {
+      return fail("Amiga file exceeds image");
+    }
+  } else if (_format == CBM_DOS) {
+    if (id % 32 != 2 || !readCBMBlock(id / 256)) {
+      return fail("Invalid CBM file entry");
+    }
+    const uint8_t *p = _buffer + id % 256;
+    uint8_t kind = p[0] & 7;
+    if (!(p[0] & 0x80) || kind < 1 || kind > 4) {
+      return fail("CBM file is unclosed or unsupported");
+    }
+    text(entry.name, p + 3, 16, true);
+    const char *kinds[] = {"", "SEQ", "PRG", "USR", "REL"};
+    strcpy(entry.kind, kinds[kind]);
+    entry.blocks = le16(p + 28);
+    if (!readCBM(entry, 0, nullptr, 0)) {
+      return false;
+    }
+  } else {
+    return fail("File bytes unsupported for this format");
+  }
+  entry.exactBytes = true;
+  return true;
+}
+
+/** @brief Read raw file bytes, retaining original character encoding.
+    @param entry File metadata returned by openFile(), for this same image.
+    @param offset Byte offset within the file.
+    @param data Destination for up to length bytes.
+    @param length Capacity of data; reads stop at end of file.
+    @return Bytes read, zero at EOF, or -1 on failure. Discard data on failure.
+    @note File access is supported for Amiga OFS/FFS and D64 only. */
+int32_t Adafruit_FloppyImage::readFile(const Entry &entry, uint32_t offset,
+                                       uint8_t *data, size_t length) {
+  _error = "";
+  if (!entry.exactBytes || entry.directory || offset > entry.bytes ||
+      (!data && length)) {
+    fail("Invalid file read");
+    return -1;
+  }
+  if (length > entry.bytes - offset) {
+    length = entry.bytes - offset;
+  }
+  bool valid = false;
+  if (_format == AMIGA_OFS || _format == AMIGA_FFS) {
+    valid = readAmiga(entry, offset, data, length);
+  } else if (_format == CBM_DOS) {
+    Entry checked = entry;
+    valid =
+        readCBM(checked, offset, data, length) && checked.bytes == entry.bytes;
+    if (!valid && !_error[0]) {
+      fail("CBM file length changed");
+    }
+  } else {
+    fail("File bytes unsupported for this format");
+  }
+  return valid ? (int32_t)length : -1;
+}
+
+bool Adafruit_FloppyImage::readCBM(Entry &entry, uint32_t offset, uint8_t *data,
+                                   size_t length) {
+  if (entry.id % 32 != 2 || !readCBMBlock(entry.id / 256)) {
+    return fail("Invalid CBM file entry");
+  }
+  uint8_t track = _buffer[entry.id % 256 + 1];
+  uint8_t sector = _buffer[entry.id % 256 + 2];
+  uint8_t visited[101] = {};
+  uint32_t position = 0;
+  while (track) {
+    if (track > _tracks || sector >= cbmSectors(track)) {
+      return fail("Invalid CBM file pointer");
+    }
+    uint32_t block = cbmBlock(track, sector);
+    if (seen(visited, block)) {
+      return fail("Loop in CBM file");
+    }
+    if (!readCBMBlock(block)) {
+      return false;
+    }
+    track = _buffer[0];
+    sector = _buffer[1];
+    if (!track && !sector) {
+      return fail("Invalid CBM final byte count");
+    }
+    uint16_t bytes = track ? 254 : sector - 1;
+    if (length && offset < position + bytes) {
+      uint16_t skip = offset > position ? offset - position : 0;
+      size_t count = bytes - skip;
+      if (count > length) {
+        count = length;
+      }
+      memcpy(data, _buffer + 2 + skip, count);
+      data += count;
+      offset += count;
+      length -= count;
+    }
+    position += bytes;
+  }
+  entry.bytes = position;
+  return length == 0 || fail("Truncated CBM file");
+}
+
+bool Adafruit_FloppyImage::readAmiga(const Entry &entry, uint32_t offset,
+                                     uint8_t *data, size_t length) {
+  uint8_t visited[512] = {};
+  uint32_t table = entry.id, position = 0, sequence = 0;
+  const uint16_t payload = _format == AMIGA_OFS ? 488 : 512;
+  do {
+    if (table < 2 || table >= _blocks || seen(visited, table) ||
+        !readAt(table * 512) || !amigaSum(_buffer) ||
+        be32(_buffer) != (table == entry.id ? 2u : 16u) ||
+        be32(_buffer + 4) != table || (int32_t)be32(_buffer + 508) != -3 ||
+        (table != entry.id && be32(_buffer + 500) != entry.id)) {
+      return fail("Invalid Amiga file block list");
+    }
+    if (table == entry.id && be32(_buffer + 324) != entry.bytes) {
+      return fail("Amiga file length changed");
+    }
+    uint32_t count = be32(_buffer + 8), next = be32(_buffer + 504);
+    if (count > 72 || (!count && position < entry.bytes)) {
+      return fail("Invalid Amiga data pointer count");
+    }
+    uint32_t blocks[72];
+    for (uint32_t i = 0; i < count; i++) {
+      blocks[i] = be32(_buffer + 308 - i * 4);
+    }
+    for (uint32_t i = 0; i < count; i++) {
+      uint32_t block = blocks[i];
+      if (position >= entry.bytes || block < 2 || block >= _blocks ||
+          seen(visited, block)) {
+        return fail("Invalid Amiga data pointer");
+      }
+      if (!readAt(block * 512)) {
+        return false;
+      }
+      uint32_t bytes = entry.bytes - position;
+      if (bytes > payload) {
+        bytes = payload;
+      }
+      sequence++;
+      if (_format == AMIGA_OFS &&
+          (!amigaSum(_buffer) || be32(_buffer) != 8 ||
+           be32(_buffer + 4) != entry.id || be32(_buffer + 8) != sequence ||
+           be32(_buffer + 12) != bytes)) {
+        return fail("Invalid Amiga OFS data block");
+      }
+      if (length && offset < position + bytes) {
+        uint16_t skip = offset > position ? offset - position : 0;
+        size_t amount = bytes - skip;
+        if (amount > length) {
+          amount = length;
+        }
+        memcpy(data, _buffer + (512 - payload) + skip, amount);
+        data += amount;
+        offset += amount;
+        length -= amount;
+      }
+      position += bytes;
+    }
+    table = next;
+  } while (table);
+  return (position == entry.bytes && length == 0) ||
+         fail("Truncated Amiga file");
 }
 
 bool Adafruit_FloppyImage::listDOS33(Visit visitor, void *context) {

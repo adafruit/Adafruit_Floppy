@@ -64,11 +64,23 @@ on Floppsy RP2350 or SPI on other boards.
 
 Names, file types, sizes or allocated-block counts, and protection flags are
 reported without modifying the image. FAT12 alone does not identify which
-computer created a disk. Listing is limited to the root directory and does not
-verify file contents or traverse subdirectories. Apple sector ordering must
+computer created a disk. Amiga OFS/FFS supports subdirectory traversal and file
+reads; D64 supports file reads with exact lengths determined from sector chains.
+`listDirectory()`, `openFile()` and `readFile()` use the opaque IDs in catalog
+entries. Broken chains, out-of-bounds blocks and bad Amiga checksums are rejected.
+Other formats retain root catalog support. Apple sector ordering must
 match the forms above; NIB, WOZ, SCP, and other bitstream/flux containers must
 first be decoded to sectors. Special copy protection and nonstandard
 filesystems may remain unidentified.
+
+`Adafruit_FloppySCPReader` validates an immutable SCP source before converting a
+track's first revolution to the packed 24 MHz stream accepted by `write_track()`.
+It supports index-cued, 25 ns, 300 RPM captures up to 80 cylinders, scales timing
+to the target revolution period, and rejects pulses outside the RP2 writer's
+range. Missing track sides are left untouched. This is raw replay, without
+sector regeneration or automatic readback verification; it does not reproduce
+weak-bit or other multi-revolution protection behavior. The host SCP tests cover
+checksum/bounds rejection, absolute timing, circular seams and capacity limits.
 
 ## Follow our progress!
 

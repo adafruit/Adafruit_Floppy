@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** @brief Read-only identification and root catalogs for decoded floppy images.
+/** @brief Read-only catalogs and file access for decoded floppy images.
  * The caller supplies bounded byte reads from an image file or sector cache.
  * This class does not control a drive, decode flux, or write filesystem data.
  */
@@ -22,6 +22,7 @@ public:
   };
   /** @brief One root-directory entry; valid only during the visitor call. */
   struct Entry {
+    uint32_t id;     ///< Opaque entry identifier, valid only in this image.
     char name[64];   ///< Printable name, terminated with NUL.
     char kind[12];   ///< File type such as FILE, DIR, PRG, or BASIC.
     uint32_t bytes;  ///< Exact file length when exactBytes is true.
@@ -39,6 +40,10 @@ public:
   Adafruit_FloppyImage(Read reader, void *context, uint32_t imageBytes);
   bool identify();
   bool listRoot(Visit visitor, void *context);
+  bool listDirectory(uint32_t directory, Visit visitor, void *context);
+  bool openFile(uint32_t id, Entry &entry);
+  int32_t readFile(const Entry &entry, uint32_t offset, uint8_t *data,
+                   size_t length);
   Format format() const;
   const char *formatName() const;
   const char *volumeName() const;
@@ -67,8 +72,12 @@ private:
   bool identifyDOS33();
   bool identifyProDOS();
   bool listFAT(Visit visitor, void *context);
-  bool listAmiga(Visit visitor, void *context);
+  bool listAmiga(uint32_t directory, Visit visitor, void *context);
   bool listCBM(Visit visitor, void *context);
+  bool readAmiga(const Entry &entry, uint32_t offset, uint8_t *data,
+                 size_t length);
+  bool readCBM(Entry &entry, uint32_t offset, uint8_t *data, size_t length);
+  bool readCBMBlock(uint32_t block);
   bool listDOS33(Visit visitor, void *context);
   bool listProDOS(Visit visitor, void *context);
 };
