@@ -11,7 +11,9 @@ handles its drive GPIO, level shifters, BOOT input and power monitor.
 Select **Adafruit Floppsy RP2350**, **240 MHz**, **Adafruit TinyUSB**, with the
 board definition's **8 MB PSRAM / 80 MHz** setting. Install Adafruit INA3221,
 ILI9341, GFX and their dependencies in addition to Adafruit Floppy and TinyUSB.
-Connect the 12 V supply and keep the hardware WRITE switch **OFF**.
+Standard 3.5-inch drives need the 5 V rail. For a drive that also needs 12 V,
+connect that supply and set `require12V = true` in `floppsy_rp2350.h`.
+Keep the hardware WRITE switch **OFF** for normal read-only use.
 
 This firmware is **read-only**: write and erase commands return Write Protected,
 and SET PIN cannot change WRITE GATE. Both transceivers remain disabled until

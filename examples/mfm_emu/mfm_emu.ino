@@ -351,7 +351,8 @@ static void encode_track(uint8_t head, uint8_t cylinder) {
       .head = head,
       .cylinder = cylinder,
       .n = cur_format->n,
-      .settings = cur_format->is_fm ? &standard_fm : &standard_mfm,
+      .settings = mfm_io_standard_settings(cur_format->sectors, cur_format->n,
+                                           cur_format->is_fm),
   };
 
   size_t pos = encode_track_mfm(&io);

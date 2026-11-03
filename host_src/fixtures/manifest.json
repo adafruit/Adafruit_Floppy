@@ -1,0 +1,46 @@
+{
+  "bad-crc.flux24": {
+    "bytes": 83476,
+    "sha256": "67bd6ac89b7d05226bad4e99ba87b981b694f32a413c14369a89b473aa03923e"
+  },
+  "boot-1440.img": {
+    "bytes": 512,
+    "sha256": "91b4c6d55ba2e159257cf5295012375f723c6b0346db30ba89e74419ebcc552e"
+  },
+  "boot-zero-heads.img": {
+    "bytes": 512,
+    "sha256": "ff3e871d26ca3f572590cfc7dcd7b170afb54f4d1ba15784c5c6528bdeabe724"
+  },
+  "borderline.flux24": {
+    "bytes": 94865,
+    "sha256": "865ba736b53453634b17570a857c3b1a3d608e4a8fad414765feef0a6ac384cc"
+  },
+  "c01h0.img": {
+    "bytes": 9216,
+    "sha256": "9d9571eae75a28709b748666266a59e1c30bdccec61ecdfb563f7ace4508cd9b"
+  },
+  "c05h0.img": {
+    "bytes": 9216,
+    "sha256": "328483c355456142e6d9f8c42e7afc5150f4cffdcb6408bcf0350cc34c6a26aa"
+  },
+  "clean.flux24": {
+    "bytes": 83476,
+    "sha256": "9357d87460bf4c68d0b8899d3071b206d199f557dd821fe64b8ec19e1e0c17fe"
+  },
+  "clean.scp": {
+    "bytes": 152493,
+    "sha256": "9ac20b073e9f4ece21549caaeb8cf406e0ec8ce81e833c71f2761b45fb5dd3e9"
+  },
+  "missing-dam.flux24": {
+    "bytes": 90105,
+    "sha256": "3a6aab5a9ed76b9a51b1f1ef4ea98025c813802562a7970d4c1f335fad6653ae"
+  },
+  "truncated.flux24": {
+    "bytes": 41738,
+    "sha256": "7b6ac50894d78ffd48464d22d573dbf868a7f6f2914ade82e19d28753cb57763"
+  },
+  "wrong-byte.img": {
+    "bytes": 9216,
+    "sha256": "ba3e8a854d149510fe317781f594d49a10b3120c96ca59c4c9cca61c7cd806ff"
+  }
+}

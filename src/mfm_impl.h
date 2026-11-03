@@ -46,6 +46,21 @@ static const mfm_io_settings_t standard_fm = {
     26, 11, {27, 42, 58, 138, 255, 255, 255, 255}, 40, 6, 0xff, true,
 };
 
+// IBM 1.44 MB uses a longer inter-sector gap than the DD/1.2 MB layouts.
+// Match Greaseweazle's ibm.1440 layout without changing other 512-byte formats.
+static const mfm_io_settings_t standard_mfm_1440 = {
+    50, 22, {32, 54, 108, 116, 255, 255, 255, 255}, 80, 12, 0x4e, false,
+};
+
+static inline const mfm_io_settings_t *
+mfm_io_standard_settings(size_t sectors, uint8_t size, bool fm) {
+  if (fm)
+    return &standard_fm;
+  if (sectors == 18 && size == 2)
+    return &standard_mfm_1440;
+  return &standard_mfm;
+}
+
 struct mfm_io {
   bool encode_compact; ///< When writing flux, use compact form
   uint16_t T2_max;     ///< MFM decoder max length of 2us pulse
@@ -107,7 +122,9 @@ static const uint8_t mfm_io_iam_sync_bytes_mfm[] = {0x52, 0x24, 0x52,
                                                     0x24, 0x52, 0x24};
 
 static const uint8_t mfm_io_sync_bytes_fm[] = {};
-static const uint8_t mfm_io_iam_sync_bytes_fm[] = {0xaa, 0xaa, 0xf7, 0x7a};
+// FM's IAM is the FC byte itself with the special D7 clock pattern. Unlike
+// MFM's three C2 sync bytes, it must not be followed by another ordinary FC.
+static const uint8_t mfm_io_iam_sync_bytes_fm[] = {0xf7, 0x7a};
 
 enum { fm_default_sync_clk = 0xc7 };
 
@@ -502,8 +519,8 @@ static void mfm_io_encode_iam(mfm_io_t *io) {
   } else {
     mfm_io_encode_raw_buf(io, mfm_io_iam_sync_bytes_mfm,
                           sizeof(mfm_io_iam_sync_bytes_mfm));
+    mfm_io_encode_byte(io, MFM_IO_IAM);
   }
-  mfm_io_encode_byte(io, MFM_IO_IAM);
 }
 
 static void mfm_io_encode_buf(mfm_io_t *io, const uint8_t *buf, size_t n) {
@@ -584,7 +601,10 @@ static size_t encode_track_mfm(mfm_io_t *io) {
     mfm_io_encode_buf_crc(io, &io->sectors[io_block_size * i], io_block_size);
     mfm_io_encode_crc(io);
 
-    mfm_io_encode_gap_and_sync(io, io->settings->gap_3[io->n]);
+    // There is no following sector after the final CRC. Fill its remaining
+    // pre-index gap below, without an orphan sync/address mark in the gap.
+    if (i + 1 < io->n_sectors)
+      mfm_io_encode_gap_and_sync(io, io->settings->gap_3[io->n]);
   }
   size_t result = io->pos;
   DEBUG_ASSERT(!mfm_io_eof(io));

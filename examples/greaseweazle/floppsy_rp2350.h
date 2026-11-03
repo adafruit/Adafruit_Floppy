@@ -13,6 +13,9 @@
 
 Adafruit_FloppyFluxCapture fluxCapture;
 Adafruit_ILI9341 gwTft(&SPI, TFT_DC, TFT_CS, TFT_RESET);
+// Standard 3.5-inch drives only need 5 V. Set this to true when the attached
+// drive also requires 12 V (for example, a 5.25-inch PC drive).
+const bool require12V = false;
 bool boardOK = false;
 bool captureOK = false;
 uint8_t streamBuffer[1024];
@@ -49,7 +52,8 @@ uint8_t floppsySelect(uint8_t unit) {
 
   stop_drive();
   if (!boardOK || floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_5V) < 4.5 ||
-      floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_12V) < 10.8)
+      (require12V &&
+       floppsy.powerMonitor.getBusVoltage(FLOPPSY_POWER_12V) < 10.8))
     return GW_ACK_NOUNIT;
 
   Adafruit_Floppy *next = &floppsy.drive0;

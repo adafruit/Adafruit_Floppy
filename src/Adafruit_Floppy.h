@@ -404,8 +404,7 @@ private:
   uint8_t _sectors_per_track = 0;
   uint8_t _tracks_per_side = 0;
   uint8_t _last_track_read = NO_TRACK; // last cached track
-  uint16_t _bit_time_ns;
-  bool _high_density = true;
+  uint16_t _bit_time_ns = 0;
   bool _dirty = false, _track_has_errors = false;
   bool _double_step = false;
   Adafruit_Floppy *_floppy = nullptr;
