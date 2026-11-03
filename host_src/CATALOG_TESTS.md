@@ -5,13 +5,21 @@ good and bad images for inspection, run
 `python3 test_image_catalog.py /tmp/floppsy-image-catalog --fixtures NEW_DIRECTORY`.
 These are minimal catalog fixtures, not bootable operating-system disks.
 
-The 26 cases cover FAT12, Amiga OFS/FFS, Commodore 1541 DOS, Apple DOS 3.3,
+The 27 catalog cases cover FAT12, Amiga OFS/FFS, Commodore 1541 DOS, Apple DOS 3.3,
 and ProDOS; invalid geometry, checksums, pointers, loops, truncated images, and
 unformatted media. The same tests also pass with GCC AddressSanitizer and
 UndefinedBehaviorSanitizer. The host CLI uses the library implementation directly.
 
-The catalog API lists root entries only. It does not validate allocation maps,
-file chains, executable contents, or optional D64 sector-error tables. Apple
+The file-content suite adds 77 cases for Amiga OFS/FFS directories, extension
+blocks and noncontiguous file data, plus C64 SEQ/PRG/USR/REL linear byte streams.
+It checks sector/cache boundaries, end-of-file, empty and locked files, and
+rejects unclosed/unsupported types, bad chains and recorded D64 sector errors.
+REL tests cover linear data only, not record access or side-sector indexing.
+The generated images contain only synthetic text and byte patterns.
+
+The catalog API lists roots and Amiga subdirectories. It does not validate
+allocation maps or executable contents; the file API validates the chains it
+reads and rejects recorded D64 sector errors. Apple
 images must use DOS order for DOS 3.3 and block order for ProDOS. Character names
 are rendered as printable ASCII approximations; custom PETSCII glyphs and
 international characters are not preserved as Unicode. Amiga directory caches

@@ -76,16 +76,16 @@ def cbm_file():
 def run(executable, folder):
     checks = 0
 
-    def check(name, image, path, offset=0, length=4096, valid=True):
+    def check(name, image, path, offset=0, length=4096, valid=True, payload=PAYLOAD):
         nonlocal checks
         file = folder / name
         file.write_bytes(image)
         result = subprocess.run([executable, str(file), path, str(offset), str(length)],
                                 capture_output=True, text=True, timeout=5)
         if valid:
-            expected = PAYLOAD[offset:offset + length]
+            expected = payload[offset:offset + length]
             assert result.returncode == 0, (name, result.stderr)
-            assert f'SIZE {len(PAYLOAD)} READ {len(expected)}' in result.stdout
+            assert f'SIZE {len(payload)} READ {len(expected)}' in result.stdout
             assert expected.hex() in result.stdout, (name, offset, result.stdout)
         else:
             assert result.returncode != 0, (name, result.stdout)
@@ -108,17 +108,45 @@ def run(executable, folder):
         broken = bytearray(image)
         broken[883 * 512 + 20] ^= 1
         check(f'{name}-bad-checksum.adf', broken, '/DOCS/HELLO.TXT', valid=False)
+    # All four closed CBM file types expose the same unmodified byte stream.
+    # REL coverage is linear data only: this does not test record/side-sector APIs.
+    type_offset = 358 * 256 + 2
+    for kind, name in enumerate(('SEQ', 'PRG', 'USR', 'REL'), 1):
+        image = cbm_file()
+        image[type_offset] = 0x80 + kind
+        image_name = f'C64-{name}.d64'
+        if kind == 2:
+            image_name = 'C64.d64'  # Preserve the existing TFT fixture filename.
+        for offset in (0, 253, 254, 4090, len(PAYLOAD) - 31, len(PAYLOAD)):
+            check(image_name, image, '/HELLO', offset)
+        check(f'C64-{name}-past-eof.d64', image, '/HELLO', len(PAYLOAD) + 1, valid=False)
+
+        locked = bytearray(image)
+        locked[type_offset] = 0xc0 + kind
+        check(f'C64-{name}-locked.d64', locked, '/HELLO')
+        unclosed = bytearray(image)
+        unclosed[type_offset] = kind
+        check(f'C64-{name}-unclosed.d64', unclosed, '/HELLO', valid=False)
+
+        # A final-sector count of one represents zero payload bytes. Unused
+        # bytes in the sector must never leak into the empty file's preview.
+        empty = bytearray(image)
+        empty[:2] = bytes([0, 1])
+        put16(empty, 358 * 256 + 30, 1)
+        check(f'C64-{name}-empty.d64', empty, '/HELLO', payload=b'')
+        check(f'C64-{name}-empty-past-eof.d64', empty, '/HELLO', 1, valid=False)
+
     image = cbm_file()
-    for offset in (0, 253, 254, 4090, len(PAYLOAD) - 31, len(PAYLOAD)):
-        check('C64.d64', image, '/HELLO', offset)
+    for kind in (0, 5, 6, 7):
+        unsupported = bytearray(image)
+        unsupported[type_offset] = 0x80 + kind
+        check(f'C64-unsupported-{kind}.d64', unsupported, '/HELLO', valid=False)
     broken = bytearray(image); broken[:2] = bytes([1, 0])
     check('C64-loop.d64', broken, '/HELLO', valid=False)
     broken = bytearray(image); broken[:2] = bytes([36, 0])
     check('C64-outside.d64', broken, '/HELLO', valid=False)
     broken = bytearray(image); broken[:2] = bytes([0, 0])
     check('C64-bad-tail.d64', broken, '/HELLO', valid=False)
-    broken = bytearray(image); broken[358 * 256 + 2] = 2
-    check('C64-unclosed.d64', broken, '/HELLO', valid=False)
     with_errors = image + bytes([1]) * 683
     check('C64-error-table.d64', with_errors, '/HELLO')
     broken = bytearray(with_errors); broken[174848] = 5
