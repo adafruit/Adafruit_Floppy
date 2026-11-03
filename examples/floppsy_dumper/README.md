@@ -29,6 +29,21 @@ to start. DS1 is the default for the connected PC drive. BOOT or serial `!`
 cancels. The motor, drive selects and both cable drivers turn off on exit.
 File writes never overwrite existing captures or format the card.
 
+## References for upcoming work
+
+- **Apple Disk II:** [Introducing the Applesauce+ (June 10, 2025)](https://applesaucefdc.com/2025/06/10/introducing-the-applesauce/).
+  Saved at Limor's request, 2026-11-03. Design references include buffering
+  captures before host transfer, external sync-sensor inputs, and selectable
+  or adaptive capture resolution. The article distinguishes the Disk II-compatible
+  port from the Apple 19-pin port. It is a product overview, not a Disk II pinout
+  or phase-sequencing specification; verify those details before implementation.
+- **Possible on-device BASIC scripting:** [Microsoft BASIC-M6502](https://github.com/microsoft/BASIC-M6502).
+  Saved at Limor's request, 2026-11-03. This is the MIT-licensed Microsoft BASIC
+  1.1 source in 6502 assembly, with Apple II and other system configurations.
+  A Floppsy implementation would need a 6502 execution layer or a source port,
+  plus console/filesystem bindings; it is not directly executable RP2350 code.
+  This is a future reference, not an interpreter dependency or implementation plan.
+
 ## Modes and serial commands
 
 | Command | DS1 operation |
