@@ -548,13 +548,15 @@ static void set_timings(uint32_t sampleFrequency, mfm_io_t &io,
     @param  expected_track When nonnegative, accept only sectors with this
    cylinder, the currently selected head, and 512-byte sector size. The default
    -1 retains decoding without cylinder/head filtering.
+    @param format On-disk layout; 1581 reverses the header head ID.
     @return Number of sectors we actually captured
 */
 /**************************************************************************/
 size_t Adafruit_FloppyBase::decode_track_mfm(
     uint8_t *sectors, size_t n_sectors, uint8_t *sector_validity,
     const uint8_t *pulses, size_t n_pulses, float nominal_bit_time_us,
-    bool clear_validity, uint8_t *logical_track, int expected_track) {
+    bool clear_validity, uint8_t *logical_track, int expected_track,
+    MFMFormat format) {
   mfm_io_t io;
 
   if (clear_validity)
@@ -567,6 +569,8 @@ size_t Adafruit_FloppyBase::decode_track_mfm(
   io.n_sectors = n_sectors;
   io.n = 2;
   io.head = get_side();
+  if (format == MFM_1581)
+    io.head = 1 - io.head;
   io.validate_id = expected_track >= 0;
   io.cylinder = expected_track;
   io.cylinder_ptr = logical_track;
@@ -588,6 +592,8 @@ size_t Adafruit_FloppyBase::decode_track_mfm(
    (high density) or 2.0f (double density)
     @param  logical_track The logical
    track number, or -1 to use track()
+    @param format Standard PC or 1581 layout. The 1581 profile requires ten
+    512-byte sectors at a nominal bit time of 2 microseconds.
     @return Number of pulses actually generated
 */
 /**************************************************************************/
@@ -595,9 +601,15 @@ size_t Adafruit_FloppyBase::encode_track_mfm(const uint8_t *sectors,
                                              size_t n_sectors, uint8_t *pulses,
                                              size_t max_pulses,
                                              float nominal_bit_time_us,
-                                             uint8_t logical_track) {
+                                             uint8_t logical_track,
+                                             MFMFormat format) {
   mfm_io_t io = {};
   io.settings = mfm_io_standard_settings(n_sectors, 2, false);
+  if (format == MFM_1581) {
+    if (n_sectors != 10 || nominal_bit_time_us != 2)
+      return 0;
+    io.settings = &standard_mfm_1581;
+  }
 
   set_timings(getSampleFrequency(), io, nominal_bit_time_us);
 
@@ -607,6 +619,8 @@ size_t Adafruit_FloppyBase::encode_track_mfm(const uint8_t *sectors,
   io.n_sectors = n_sectors;
   io.n = 2;
   io.head = get_side();
+  if (format == MFM_1581)
+    io.head = 1 - io.head;
   io.cylinder = logical_track;
   io.sector_validity = NULL;
 

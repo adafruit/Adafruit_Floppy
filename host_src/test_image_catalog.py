@@ -134,6 +134,12 @@ def run_tests(executable, folder):
         checks += 1
 
     check('fat12-good.img', fat12(), ['FAT12', 'FIXTURE', 'HELLO.TXT\t123 bytes'])
+    # Atari ST uses a 68000 branch/OEM/serial header and need not have the
+    # IBM-PC boot signature. The FAT12 BPB and directory remain readable.
+    image = fat12()
+    image[:11] = b'\x60\x1cFLOPPY\x00\x00\x01'
+    image[510:512] = b'\x00\x00'
+    check('atari-st-good.st', image, ['FAT12', 'FIXTURE', 'HELLO.TXT\t123 bytes'])
     check('amiga-ofs-good.adf', amiga(), ['Amiga OFS', 'FIXTURE', 'HELLO.TXT\t123 bytes'])
     check('amiga-ffs-good.adf', amiga(True), ['Amiga FFS', 'HELLO.TXT\t123 bytes'])
     check('cbm-good.d64', cbm(), ['Commodore 1541 DOS', 'HELLO\t3 blocks'])

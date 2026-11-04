@@ -63,6 +63,11 @@ protected:
                       bool is_apple2 = false);
 
 public:
+  /** @brief MFM on-disk layout and head-ID convention. */
+  enum MFMFormat {
+    MFM_PC,  ///< Standard PC layout; header head matches the selected head.
+    MFM_1581 ///< 1581: 10 sectors, no IAM, 30-byte gap, inverted header head.
+  };
   bool begin(void);
   virtual void end();
 
@@ -181,11 +186,12 @@ public:
                           size_t n_pulses, float nominal_bit_time_us,
                           bool clear_validity = false,
                           uint8_t *logical_track = nullptr,
-                          int expected_track = -1);
+                          int expected_track = -1, MFMFormat format = MFM_PC);
 
   size_t encode_track_mfm(const uint8_t *sectors, size_t n_sectors,
                           uint8_t *pulses, size_t max_pulses,
-                          float nominal_bit_time_us, uint8_t logical_track);
+                          float nominal_bit_time_us, uint8_t logical_track,
+                          MFMFormat format = MFM_PC);
 
   size_t capture_track(volatile uint8_t *pulses, size_t max_pulses,
                        int32_t *falling_index_offset,

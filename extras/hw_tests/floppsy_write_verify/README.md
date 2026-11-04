@@ -78,7 +78,7 @@ Restore a known FAT12 IMG after destructive tests, read it back, compare it, and
 inspect its files using an independent tool such as 7-Zip. For an independent
 flux check, install the Greaseweazle example, capture SCP with `gw read --raw`,
 then decode it with `gw convert --format ibm.1440`. Finally reinstall the regular
-hardware self-test. It remains read-only.
+hardware self-test; its read/check operations do not write to the floppy.
 
 To create your own source image with mtools, use `mformat -C -f 1440 -i source.img ::`
 and `mcopy -i source.img file.bin ::`. Keep hashes of the original files and

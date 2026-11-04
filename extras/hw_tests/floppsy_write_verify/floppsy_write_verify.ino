@@ -1,6 +1,6 @@
 // Destructive engineering test: use only a disposable 1.44 MB floppy.
 // Serial W overwrites cylinder 1, head 0. Serial B tests both heads at
-// cylinders 0, 40 and 79. The production self-test remains read-only.
+// cylinders 0, 40 and 79. Writing begins only after the explicit serial command.
 // Serial F receives a 1,474,560-byte IMG from the host, 9216 bytes after
 // each IMAGE Cxx Hx READY line, and writes/verifies all 160 track sides.
 // Hold BOOT to cancel. Writes require an INDEX pulse from the drive.

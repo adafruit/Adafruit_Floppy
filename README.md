@@ -25,22 +25,73 @@ Tested working on:
    * SAMD51 chipset hardware - Overclock to 180MHz, select Fastest optimization, and use TinyUSB stack for best performance
    * RP2040 chipset hardware - Works with philhower core and TinyUSB stack.  Overclock to 200MHz and select -O3 optimization for best performance
 
+## Floppsy RP2350
+
+The RP2350B Floppsy has two separate reader examples:
+
+* [Floppsy Dumper](examples/floppsy_dumper) saves IBM IMG files and three-revolution,
+  unnormalized SCP flux captures to microSD. It identifies common 80-cylinder IBM
+  MFM layouts and records unreadable sectors in a companion map.
+* [Greaseweazle](examples/greaseweazle) lets the current computer tools read the
+  drive over USB, with format decoding and image conversion on the host.
+
+Both Floppsy examples are read-only. Select the RP2350 Floppsy board, 240 MHz,
+8 MB PSRAM and Adafruit TinyUSB. The library provides a continuous RP2350
+PIO/DMA timestamp capture class and a portable SCP encoder; see the examples
+for power, drive and format limitations.
+
+Keep INDEX connected even when a drive does not pulse it. The standalone
+dumper reports the missing pulse, uses 250 ms reads for IBM sector decoding,
+and captures 600 ms per side for raw SCP. Such SCP files clear the index-cued
+flag and include companion `.TXT` notes: their three 200 ms windows assume
+300 RPM; they do not measure spindle position or normalize flux timing.
+A missing INDEX alone does not prove that a disk is inserted.
+
+For the Floppsy Greaseweazle firmware, use `gw read --fake-index 300` with
+an INDEX-less 300 RPM drive. Timed requests are limited to one second and
+contain no fabricated INDEX events. Normal indexed reads still fail when
+INDEX is absent. This transport remains read-only; the older generic
+Greaseweazle adapter has not gained this timed PSRAM capture path.
+
 
 ## Identify a decoded disk image
 
 `Adafruit_FloppyImage` identifies a filesystem and lists its root directory from
 a caller-supplied byte reader. It accepts FAT12 (PC and Atari ST), Amiga OFS/FFS
-ADF, Commodore 1541 D64, Apple DOS 3.3 DOS-ordered images, and ProDOS block-ordered
-images. The `floppy_image_catalog` example opens an image on microSD, using SDIO
+ADF, Commodore 1541 D64 and 1581 D81, Apple DOS 3.3 DOS-ordered images, ProDOS
+block-ordered images, and raw classic Macintosh HFS volumes.
+The `floppy_image_catalog` example opens an image on microSD, using SDIO
 on Floppsy RP2350 or SPI on other boards.
 
 Names, file types, sizes or allocated-block counts, and protection flags are
 reported without modifying the image. FAT12 alone does not identify which
-computer created a disk. Listing is limited to the root directory and does not
-verify file contents or traverse subdirectories. Apple sector ordering must
+computer created a disk. Amiga OFS/FFS supports subdirectory traversal and file
+reads; D64/D81 supports file reads with exact lengths determined from sector chains.
+Commodore PRG load-address bytes are preserved; REL files expose linear bytes,
+not record access. D81 partition entries are listed but not followed.
+`listDirectory()`, `openFile()` and `readFile()` use the opaque IDs in catalog
+entries. Broken chains, out-of-bounds blocks and bad Amiga checksums are rejected.
+Other formats retain root catalog support. Apple sector ordering must
 match the forms above; NIB, WOZ, SCP, and other bitstream/flux containers must
 first be decoded to sectors. Special copy protection and nonstandard
 filesystems may remain unidentified.
+
+Classic HFS supports folders and data-fork reads, including file/catalog
+overflow extents. The extents-overflow tree itself must fit its first three
+extents. File sizes and previews refer to the data fork; resource forks and
+Finder metadata remain preserved in the whole sector image, but have no separate
+file-access API here. Non-ASCII MacRoman name characters display as `?`.
+Disk Copy containers, partition maps, MFS and HFS+ are not supported. Identifying
+an HFS filesystem does not imply drive support for Mac 400/800 KB GCR media.
+
+`Adafruit_FloppySCPReader` validates an immutable SCP source before converting a
+track's first revolution to the packed 24 MHz stream accepted by `write_track()`.
+It supports index-cued, 25 ns, 300 RPM captures up to 80 cylinders, scales timing
+to the target revolution period, and rejects pulses outside the RP2 writer's
+range. Missing track sides are left untouched. This is raw replay, without
+sector regeneration or automatic readback verification; it does not reproduce
+weak-bit or other multi-revolution protection behavior. The host SCP tests cover
+checksum/bounds rejection, absolute timing, circular seams and capacity limits.
 
 ## Follow our progress!
 

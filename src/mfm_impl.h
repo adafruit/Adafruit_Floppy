@@ -36,20 +36,27 @@ typedef struct mfm_io_settings {
   uint16_t gap_presync;
   uint8_t gap_byte;
   bool is_fm;
+  bool omit_iam;
 } mfm_io_settings_t;
 
 static const mfm_io_settings_t standard_mfm = {
-    50, 22, {32, 54, 84, 116, 255, 255, 255, 255}, 80, 12, 0x4e, false,
+    50, 22, {32, 54, 84, 116, 255, 255, 255, 255}, 80, 12, 0x4e, false, false,
 };
 
 static const mfm_io_settings_t standard_fm = {
-    26, 11, {27, 42, 58, 138, 255, 255, 255, 255}, 40, 6, 0xff, true,
+    26, 11, {27, 42, 58, 138, 255, 255, 255, 255}, 40, 6, 0xff, true, false,
 };
 
 // IBM 1.44 MB uses a longer inter-sector gap than the DD/1.2 MB layouts.
 // Match Greaseweazle's ibm.1440 layout without changing other 512-byte formats.
 static const mfm_io_settings_t standard_mfm_1440 = {
-    50, 22, {32, 54, 108, 116, 255, 255, 255, 255}, 80, 12, 0x4e, false,
+    50, 22, {32, 54, 108, 116, 255, 255, 255, 255}, 80, 12, 0x4e, false, false,
+};
+
+// Commodore 1581: Greaseweazle's commodore.1581 layout. Without an IAM,
+// the initial 80 gap bytes lead directly into the first ID sync.
+static const mfm_io_settings_t standard_mfm_1581 = {
+    80, 22, {32, 54, 30, 116, 255, 255, 255, 255}, 0, 12, 0x4e, false, true,
 };
 
 static inline const mfm_io_settings_t *
@@ -571,7 +578,8 @@ static size_t encode_track_mfm(mfm_io_t *io) {
 
   unsigned char buf[mfm_io_idam_size + 1];
 
-  mfm_io_encode_iam(io);
+  if (!io->settings->omit_iam)
+    mfm_io_encode_iam(io);
 
   mfm_io_encode_gap_and_sync(io, io->settings->gap_1);
   for (size_t i = 0; i < io->n_sectors; i++) {

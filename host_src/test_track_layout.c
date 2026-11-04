@@ -30,6 +30,10 @@ static void check(const char *name, size_t count, uint8_t size, bool fm) {
                  .head = 0,
                  .n = size,
                  .settings = mfm_io_standard_settings(count, size, fm)};
+  if (!strcmp(name, "1581")) {
+    io.settings = &standard_mfm_1581;
+    io.head = 1; // Physical head 0 stores logical head 1 on a 1581.
+  }
   encode_track_mfm(&io);
   assert(io.pos == bytes);
   for (size_t i = 0; i < bytes; i++) {
@@ -46,5 +50,6 @@ int main(void) {
   check("1440", 18, 2, false);
   check("720", 9, 2, false);
   check("fm26", 26, 0, true);
+  check("1581", 10, 2, false);
   return 0;
 }

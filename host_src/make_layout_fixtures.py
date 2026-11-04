@@ -17,7 +17,8 @@ root.mkdir(exist_ok=True)
 manifest = {}
 for name, sectors, size, fm in [("1440", 18, 512, False),
                                 ("720", 9, 512, False),
-                                ("fm26", 26, 128, True)]:
+                                ("fm26", 26, 128, True),
+                                ("1581", 10, 512, False)]:
     if fm:
         definition = IBMTrack_FixedDef("ibm.fm")
         for key, value in [("secs", "26"), ("bps", "128"),
@@ -25,6 +26,8 @@ for name, sectors, size, fm in [("1440", 18, 512, False),
             definition.add_param(key, value)
         definition.finalise()
         track = definition.mk_track(43, 0)
+    elif name == "1581":
+        track = get_diskdef("commodore.1581").mk_track(43, 0)
     else:
         track = get_diskdef("ibm." + name).mk_track(43, 0)
     data = bytes((i * 17 + i // size) % 256 for i in range(sectors * size))
