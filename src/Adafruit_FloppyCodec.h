@@ -4,7 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** @brief Decode standard floppy sectors from recovered MSB-first bit cells.
+/** @brief Decode standard floppy sectors and encode standard Amiga tracks.
+ * Decoders consume recovered MSB-first bit cells.
  * Callbacks receive only sectors with valid header and data checksums. Multiple
  * revolutions can repeat sectors; the caller decides how to merge them. These
  * formats do not cover custom copy protection or identify a filesystem.
@@ -58,4 +59,8 @@ public:
                           uint32_t sampleFrequency, uint8_t *workBuffer,
                           size_t workCapacity);
   static const char *name(Encoding encoding);
+  static size_t encodeAmiga(const uint8_t *sectors, uint8_t sectorsPerTrack,
+                            uint8_t cylinder, uint8_t head, uint8_t *pulses,
+                            size_t capacity,
+                            uint32_t revolutionMicroseconds = 200000);
 };

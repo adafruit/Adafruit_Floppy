@@ -43,3 +43,11 @@ track_codec: track_codec.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
 
 test_bitstream: test_bitstream.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
 	$(CXX) -std=c++11 -Wall -Wextra -Werror $(CODEC_FLAGS) -I../src $< $(CODEC_SOURCES) -o $@
+
+# Independent encoder oracle needs Greaseweazle on PYTHONPATH.
+test_amiga_encode: test_amiga_encode.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
+	$(CXX) -std=c++11 -Wall -Wextra -Werror $(CODEC_FLAGS) -I../src $< $(CODEC_SOURCES) -o $@
+
+.PHONY: check-amiga-encode
+check-amiga-encode: test_amiga_encode
+	$(PYTHON3) test_amiga_encode.py ./test_amiga_encode

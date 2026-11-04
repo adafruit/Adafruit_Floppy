@@ -22,6 +22,12 @@ transitions, and truncation. Separate C++ cases check invalid parameters and
 buffer boundaries. No drive, Arduino installation, network, or Greaseweazle is
 needed for ordinary runs.
 
+The Amiga encoder has an additional independent check (requires Greaseweazle
+on `PYTHONPATH`): `make check-amiga-encode`. It compares every generated flux
+interval with Greaseweazle for DD/HD, both heads, cylinders 0/39/79, zero/ones/
+patterned sectors and 180/200/220 ms rotations (54 cases). The C++ adapter also
+checks invalid arguments and output-capacity rejection under sanitizers.
+
 To retain the generated good and bad files for replay/debugging:
 
 ```sh

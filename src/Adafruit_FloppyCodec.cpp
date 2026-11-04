@@ -452,6 +452,106 @@ Codec::Result decodeApple(const Bits &bits, Codec::Visit visitor,
 }
 } // namespace
 
+/** @brief Encode a standard Amiga track as 24 MHz flux intervals.
+    @param sectors Exactly sectorsPerTrack * 512 bytes, in sector-ID order.
+    @param sectorsPerTrack 11 for DD or 22 for HD.
+    @param cylinder Cylinder 0 through 79.
+    @param head Head 0 or 1.
+    @param pulses Caller-owned output, one byte per transition interval.
+    @param capacity Output capacity in bytes; 210000 accommodates HD.
+    @param revolutionMicroseconds Measured rotation period, 180000 to 220000.
+    @return Bytes produced, or zero for invalid arguments/capacity. Discard
+    partial output on failure. Emits two revolutions to provide overlap for
+    an INDEX-bounded write; use write_track with packing disabled and INDEX
+    enabled. Sector labels are zero. No allocation or drive access. */
+size_t Adafruit_FloppyCodec::encodeAmiga(const uint8_t *sectors,
+                                         uint8_t sectorsPerTrack,
+                                         uint8_t cylinder, uint8_t head,
+                                         uint8_t *pulses, size_t capacity,
+                                         uint32_t revolutionMicroseconds) {
+  if (!sectors || !pulses || (sectorsPerTrack != 11 && sectorsPerTrack != 22) ||
+      cylinder >= 80 || head > 1 || revolutionMicroseconds < 180000 ||
+      revolutionMicroseconds > 220000)
+    return 0;
+
+  // Amiga PAL cell clock: 14/7093790 seconds (DD), half that for HD.
+  // Round the nominal 200 ms track up to a whole 32-cell word, as in
+  // Greaseweazle's AmigaDOS encoder (Keir Fraser, public domain).
+  uint32_t trackBits =
+      ((7093790 / (sectorsPerTrack == 11 ? 70 : 35) + 31) / 32) * 32;
+  uint32_t periodTicks = revolutionMicroseconds * 24;
+  uint32_t cells = 0, previousEdge = 0;
+  size_t count = 0;
+  uint8_t previousByte = 0;
+  auto byte = [&](uint8_t value) {
+    // Alternating bit positions carry data (0x55) and clocks (0xaa).
+    // Sync bytes already contain their deliberately missing clock bits.
+    uint16_t pair = (uint16_t)previousByte * 256 + value;
+    if ((value & 0xaa) == 0)
+      pair |= ~((pair >> 1) | (pair << 1)) & 0xaaaa;
+    previousByte = pair;
+    for (int bit = 7; bit >= 0; bit--) {
+      cells++;
+      if (!(previousByte & (1u << bit)))
+        continue;
+      uint32_t edge =
+          ((uint64_t)cells * periodTicks + trackBits / 2) / trackBits;
+      uint32_t interval = edge - previousEdge;
+      // The RP2 writer needs at least 20 ticks. A standard Amiga track has
+      // no long gaps requiring Greaseweazle escape-byte packing.
+      if (interval < 20 || interval >= 250 || count == capacity)
+        return false;
+      pulses[count++] = interval;
+      previousEdge = edge;
+    }
+    return true;
+  };
+  auto field = [&](const uint8_t *data, size_t size) {
+    // Each field stores all odd data bits, then all even data bits.
+    for (uint8_t odd = 1;; odd--) {
+      for (size_t i = 0; i < size; i++) {
+        if (!byte((data[i] >> odd) & 0x55))
+          return false;
+      }
+      if (!odd)
+        break;
+    }
+    return true;
+  };
+  auto checksum = [&](const uint8_t *data, size_t size) {
+    uint32_t sum = amigaChecksum(data, size);
+    uint8_t encoded[] = {(uint8_t)(sum >> 24), (uint8_t)(sum >> 16),
+                         (uint8_t)(sum >> 8), (uint8_t)sum};
+    return field(encoded, sizeof(encoded));
+  };
+  for (uint8_t revolution = 0; revolution < 2; revolution++) {
+    // Post-INDEX zero-data gap, doubled for HD.
+    for (unsigned i = 0; i < 256u * (sectorsPerTrack / 11); i++) {
+      if (!byte(0))
+        return 0;
+    }
+    for (uint8_t sector = 0; sector < sectorsPerTrack; sector++) {
+      uint8_t header[20] = {0xff, (uint8_t)(cylinder * 2 + head), sector,
+                            (uint8_t)(sectorsPerTrack - sector)};
+      const uint8_t *data = sectors + sector * 512;
+      // Two 0x4489 sync words, ID, 16 zero label bytes, checksums and payload.
+      if (!byte(0x44) || !byte(0x89) || !byte(0x44) || !byte(0x89) ||
+          !field(header, 4) || !field(header + 4, 16) ||
+          !checksum(header, sizeof(header)) || !checksum(data, 512) ||
+          !field(data, 512))
+        return 0;
+      for (uint8_t i = 0; i < 4; i++)
+        if (!byte(0))
+          return 0;
+    }
+    // Fill to INDEX without changing the measured revolution duration.
+    while (cells < (revolution + 1) * trackBits)
+      if (!byte(0))
+        return 0;
+  }
+  return count;
+}
+
 /** @brief Decode checksum-verified sectors from a bounded packed bitstream.
     @param encoding Standard sector layout to attempt.
     @param bits Packed bytes, with the earliest bit in bit 7 of byte 0.
