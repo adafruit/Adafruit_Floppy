@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic file fixtures: no downloaded software or personal data.
 
-Exercise Amiga OFS/FFS folders, extension blocks, and D64 chains using the
+Exercise Amiga OFS/FFS folders, HFS extents, and D64/D81 chains using the
 portable library API. --fixtures retains images for the TFT browser as well.
 """
 import argparse
@@ -93,6 +93,95 @@ def d81_file():
         image[block * 256:block * 256 + 2] = link
         image[block * 256 + 2:block * 256 + 2 + len(chunk)] = chunk
     return image
+
+
+def hfs_file(catalog_overflow=False):
+    """Classic HFS: two catalog leaves, a folder, and fragmented data fork.
+
+    Use three initial extents plus an overflow record. Resource bytes are
+    different so a mistaken fork selection cannot pass a data-fork comparison.
+    """
+    image = bytearray(1474560)
+    payload = PAYLOAD
+
+    def be16(at, value):
+        image[at:at + 2] = value.to_bytes(2, 'big')
+
+    def be32(at, value):
+        image[at:at + 4] = value.to_bytes(4, 'big')
+
+    def node(at, kind, records, forward=0, backward=0):
+        be32(at, forward)
+        be32(at + 4, backward)
+        image[at + 8:at + 10] = bytes([kind, 1 if kind == 255 else 0])
+        be16(at + 10, len(records))
+        offset = 14
+        for i, record in enumerate(records):
+            be16(at + 510 - i * 2, offset)
+            image[at + offset:at + offset + len(record)] = record
+            offset += len(record)
+        be16(at + 510 - len(records) * 2, offset)
+
+    def tree_header(at, first, last, total):
+        header = bytearray(106)
+        header[10:14] = first.to_bytes(4, 'big')
+        header[14:18] = last.to_bytes(4, 'big')
+        header[18:20] = (512).to_bytes(2, 'big')
+        header[22:26] = total.to_bytes(4, 'big')
+        node(at, 1, [header, bytes(128), bytes(256)])
+
+    def catalog(parent, name, kind, cnid):
+        key = bytes([6 + len(name), 0]) + parent.to_bytes(4, 'big') + bytes([len(name)]) + name
+        key += bytes(len(key) % 2)
+        body = bytearray(70 if kind == 1 else 102)
+        body[:2] = (kind * 256).to_bytes(2, 'big')
+        at = 6 if kind == 1 else 20
+        body[at:at + 4] = cnid.to_bytes(4, 'big')
+        return key, body
+
+    mdb = 1024
+    be16(mdb, 0x4244)
+    be16(mdb + 18, 2874)
+    be32(mdb + 20, 512)
+    be16(mdb + 28, 4)
+    image[mdb + 36:mdb + 48] = b'\x0bFLOPPSY HFS'
+    be32(mdb + 130, 1024)
+    be16(mdb + 136, 2)
+    be32(mdb + 146, 1536)
+    be16(mdb + 150, 4)
+    be16(mdb + 152, 2 if catalog_overflow else 3)
+    tree_header(2048, 1, 1, 2)
+    tree_header(4096, 1, 2, 3)
+    root_key, root_body = catalog(1, b'FLOPPSY HFS', 1, 2)
+    dir_key, dir_body = catalog(2, b'DOCS', 1, 16)
+    node(4608, 255, [root_key + root_body, dir_key + dir_body], forward=2)
+    key, body = catalog(16, b'HELLO.TXT', 2, 17)
+    blocks = (len(payload) + 511) // 512
+    body[26:30] = len(payload).to_bytes(4, 'big')
+    body[30:34] = (blocks * 512).to_bytes(4, 'big')
+    body[36:40] = (19).to_bytes(4, 'big')
+    body[40:44] = (512).to_bytes(4, 'big')
+    body[86:90] = (500).to_bytes(2, 'big') + (1).to_bytes(2, 'big')
+    extents = [(20, 2), (25, 1), (30, 2), (40, blocks - 5)]
+    for i, (start, count) in enumerate(extents[:3]):
+        body[74 + i * 4:78 + i * 4] = start.to_bytes(2, 'big') + count.to_bytes(2, 'big')
+    node(7168 if catalog_overflow else 5120, 255, [key + body], backward=1)
+    overflow = bytes([7, 0]) + (17).to_bytes(4, 'big') + (5).to_bytes(2, 'big')
+    overflow += (40).to_bytes(2, 'big') + (blocks - 5).to_bytes(2, 'big') + bytes(8)
+    records = [overflow]
+    if catalog_overflow:
+        catalog_extent = bytes([7, 0]) + (4).to_bytes(4, 'big') + (2).to_bytes(2, 'big')
+        catalog_extent += (10).to_bytes(2, 'big') + (1).to_bytes(2, 'big') + bytes(8)
+        records.insert(0, catalog_extent)
+    node(2560, 255, records)
+    offset = 0
+    for start, count in extents:
+        chunk = payload[offset:offset + count * 512]
+        at = 2048 + start * 512
+        image[at:at + len(chunk)] = chunk
+        offset += len(chunk)
+    image[2048 + 500 * 512:2048 + 500 * 512 + 19] = b'RESOURCE FORK ONLY!!'
+    return image, payload
 
 
 def run(executable, folder):
@@ -195,6 +284,37 @@ def run(executable, folder):
     check('C1581-error-table.d81', with_errors, '/HELLO')
     broken = bytearray(with_errors); broken[819200 + 3000] = 5
     check('C1581-recorded-error.d81', broken, '/HELLO', valid=False)
+
+    image, payload = hfs_file()
+    for offset in (0, 511, 1023, 1535, 2559, 2560, 4090, len(payload) - 31, len(payload)):
+        check('HFS.img', image, '/DOCS/HELLO.TXT', offset, payload=payload)
+    check('HFS-past-eof.img', image, '/DOCS/HELLO.TXT', len(payload) + 1,
+          valid=False, payload=payload)
+    resource_only = bytearray(image)
+    body = 5120 + 14 + 16
+    resource_only[body + 26:body + 34] = bytes(8)
+    resource_only[body + 74:body + 86] = bytes(12)
+    check('HFS-empty-data-fork.img', resource_only, '/DOCS/HELLO.TXT', payload=b'')
+    # Reject broken tree links, record bounds, and both initial/overflow
+    # extents. These bytes are generated here, not copied from a personal disk.
+    for name, at, value in (
+            ('bad-node', 4608 + 8, b'\x00'),
+            ('bad-backlink', 5120 + 4, (2).to_bytes(4, 'big')),
+            ('bad-record', 5120 + 510, (500).to_bytes(2, 'big')),
+            ('bad-initial', 5120 + 14 + 16 + 74, (3000).to_bytes(2, 'big')),
+            ('bad-overflow', 2560 + 14 + 8, (3000).to_bytes(2, 'big')),
+            ('missing-overflow', 2560 + 14 + 6, (6).to_bytes(2, 'big')),
+            ('zero-allocation', 1024 + 20, bytes(4)),
+            ('node-size', 4096 + 32, (1024).to_bytes(2, 'big'))):
+        broken = bytearray(image)
+        broken[at:at + len(value)] = value
+        check(f'HFS-{name}.img', broken, '/DOCS/HELLO.TXT', valid=False)
+    broken = bytearray(image)
+    broken[5120:5124] = (1).to_bytes(4, 'big')
+    check('HFS-cycle.img', broken, '/MISSING', valid=False)
+    check('HFS-truncated.img', image[:6000], '/DOCS/HELLO.TXT', valid=False)
+    fragmented_catalog, payload = hfs_file(catalog_overflow=True)
+    check('HFS-catalog-overflow.img', fragmented_catalog, '/DOCS/HELLO.TXT', payload=payload)
     print(f'PASS: {checks} file-content / corruption cases', end='\n\r')
 
 

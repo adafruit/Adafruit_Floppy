@@ -16,6 +16,7 @@ uint32_t be32(const uint8_t *p) {
   return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
          ((uint32_t)p[2] << 8) | p[3];
 }
+uint16_t be16(const uint8_t *p) { return ((uint16_t)p[0] << 8) | p[1]; }
 bool amigaSum(const uint8_t *p) {
   uint32_t sum = 0;
   for (size_t i = 0; i < 512; i += 4) {
@@ -106,13 +107,267 @@ bool Adafruit_FloppyImage::identify() {
     return fail("Image too small or no reader");
   }
   if (identifyFAT() || identifyAmiga() || identifyCBM() || identifyDOS33() ||
-      identifyProDOS()) {
+      identifyProDOS() || identifyHFS()) {
     _error = "";
     return true;
   }
   _format = UNKNOWN;
   _volume[0] = 0;
   return fail("Unknown or unsupported filesystem");
+}
+
+// Classic HFS layouts: Apple's hfs_format.h (HFSMasterDirectoryBlock,
+// HFSPlus's shared BTNodeDescriptor/BTHeaderRec, HFSCatalogKey/File/Folder).
+// https://github.com/apple-oss-distributions/hfs/blob/main/core/hfs_format.h
+// HFS uses big-endian fields and 512-byte B-tree nodes. This reader accepts a
+// raw volume, not a Disk Copy container, partition map, MFS or HFS+ volume.
+bool Adafruit_FloppyImage::identifyHFS() {
+  if (!readAt(1024) || be16(_buffer) != 0x4244 || !_buffer[36] ||
+      _buffer[36] > 27 || be16(_buffer + 124) == 0x482b ||
+      be16(_buffer + 124) == 0x4858)
+    return false;
+  _blocks = be16(_buffer + 18);
+  _hfsBlockSize = be32(_buffer + 20);
+  _hfsStart = (uint32_t)be16(_buffer + 28) * 512;
+  if (!_blocks || !_hfsBlockSize || _hfsBlockSize % 512 || _hfsStart < 1536 ||
+      _hfsStart > _size || _blocks > (_size - _hfsStart) / _hfsBlockSize)
+    return false;
+  for (uint8_t i = 0; i < _buffer[36]; i++) {
+    uint8_t c = _buffer[37 + i];
+    _volume[i] = c >= 32 && c < 127 ? c : '?';
+  }
+  _volume[_buffer[36]] = 0;
+  _hfsExtentsSize = be32(_buffer + 130);
+  _hfsCatalogSize = be32(_buffer + 146);
+  for (uint8_t i = 0; i < 6; i++) {
+    _hfsExtents[i] = be16(_buffer + 134 + i * 2);
+    _hfsCatalog[i] = be16(_buffer + 150 + i * 2);
+  }
+  for (uint8_t tree = 0; tree < 2; tree++) {
+    uint32_t bytes = tree ? _hfsCatalogSize : _hfsExtentsSize;
+    if (bytes < 512 || bytes > _size || bytes % 512 || !hfsNode(tree, 0) ||
+        _buffer[8] != 1 || be16(_buffer + 10) != 3)
+      return false;
+    uint16_t start, end;
+    if (!hfsRecord(0, start, end) || start != 14 || end - start < 106 ||
+        be16(_buffer + start + 18) != 512 || !be32(_buffer + start + 22) ||
+        be32(_buffer + start + 22) > bytes / 512 ||
+        be32(_buffer + start + 10) >= bytes / 512 ||
+        be32(_buffer + start + 14) >= bytes / 512)
+      return false;
+    if (tree && (!be32(_buffer + start + 10) || !be32(_buffer + start + 14)))
+      return false;
+  }
+  _format = MAC_HFS;
+  return true;
+}
+
+// Map a fork's first three extents. Overflow-tree storage itself must fit in
+// these extents; ordinary catalog/file overflow is resolved separately below.
+bool Adafruit_FloppyImage::hfsRead(const uint16_t *extents, uint32_t offset,
+                                   uint8_t *data, size_t length) {
+  for (uint8_t i = 0; i < 6 && length; i += 2) {
+    uint32_t start = extents[i], count = extents[i + 1];
+    if (!count || start >= _blocks || count > _blocks - start)
+      return fail("Invalid HFS extent");
+    uint32_t bytes = count * _hfsBlockSize;
+    if (offset >= bytes) {
+      offset -= bytes;
+      continue;
+    }
+    size_t n = length < bytes - offset ? length : bytes - offset;
+    uint32_t physical = _hfsStart + start * _hfsBlockSize + offset;
+    if (!_reader(_context, physical, data, n))
+      return fail("HFS extent read failed");
+    data += n;
+    length -= n;
+    offset = 0;
+  }
+  return !length || fail("HFS overflow-tree storage unsupported");
+}
+
+bool Adafruit_FloppyImage::hfsFork(uint32_t fileID, const uint16_t *initial,
+                                   uint32_t offset, uint8_t *data,
+                                   size_t length) {
+  uint16_t extents[6];
+  memcpy(extents, initial, sizeof(extents));
+  uint32_t first = 0;
+  while (length) {
+    uint32_t count = 0;
+    bool ended = false;
+    for (uint8_t i = 0; i < 6; i += 2) {
+      if (!extents[i + 1]) {
+        ended = true;
+        continue;
+      }
+      if (ended || extents[i] >= _blocks ||
+          extents[i + 1] > _blocks - extents[i])
+        return fail("Invalid HFS fork extent");
+      count += extents[i + 1];
+    }
+    if (!count || count > _blocks - first)
+      return fail("Invalid HFS fork allocation");
+    uint32_t bytes = count * _hfsBlockSize;
+    if (offset < bytes) {
+      size_t n = length < bytes - offset ? length : bytes - offset;
+      if (!hfsRead(extents, offset, data, n))
+        return false;
+      data += n;
+      length -= n;
+      offset = 0;
+    } else
+      offset -= bytes;
+    first += count;
+    if (length && !hfsOverflow(fileID, first, extents))
+      return false;
+  }
+  return true;
+}
+
+bool Adafruit_FloppyImage::hfsNode(bool catalog, uint32_t node) {
+  uint32_t bytes = catalog ? _hfsCatalogSize : _hfsExtentsSize;
+  if (node >= bytes / 512)
+    return fail("HFS node outside tree");
+  if (catalog)
+    return hfsFork(4, _hfsCatalog, node * 512, _buffer, 512);
+  return hfsRead(_hfsExtents, node * 512, _buffer, 512);
+}
+
+bool Adafruit_FloppyImage::hfsRecord(uint16_t index, uint16_t &start,
+                                     uint16_t &end) {
+  uint16_t records = be16(_buffer + 10);
+  if (records > 248 || index >= records)
+    return fail("Invalid HFS record count");
+  start = be16(_buffer + 510 - index * 2);
+  end = be16(_buffer + 508 - index * 2);
+  if (start < 14 || start % 2 || end <= start || end > 510 - records * 2)
+    return fail("Invalid HFS record bounds");
+  return true;
+}
+
+bool Adafruit_FloppyImage::hfsOverflow(uint32_t fileID, uint16_t firstBlock,
+                                       uint16_t *extents) {
+  if (!hfsNode(false, 0))
+    return false;
+  uint32_t node = be32(_buffer + 24), previous = 0;
+  uint32_t limit = _hfsExtentsSize / 512;
+  for (uint32_t step = 0; node && step < limit; step++) {
+    if (!hfsNode(false, node) || _buffer[8] != 255 || _buffer[9] != 1 ||
+        be32(_buffer + 4) != previous)
+      return fail("Invalid HFS overflow chain");
+    uint32_t next = be32(_buffer);
+    uint16_t records = be16(_buffer + 10);
+    for (uint16_t i = 0; i < records; i++) {
+      uint16_t start, end;
+      if (!hfsRecord(i, start, end) || end - start < 20 || _buffer[start] != 7)
+        return fail("Invalid HFS overflow record");
+      // Fork type zero denotes a data fork (catalog is file ID 4).
+      const uint8_t *p = _buffer + start;
+      if (p[1] == 0 && be32(p + 2) == fileID && be16(p + 6) == firstBlock) {
+        for (uint8_t j = 0; j < 6; j++)
+          extents[j] = be16(p + 8 + j * 2);
+        return true;
+      }
+    }
+    previous = node;
+    node = next;
+  }
+  return fail("Missing HFS overflow extent");
+}
+
+// Entry IDs for files are record offsets in the catalog fork; directory IDs
+// are HFS CNIDs. Decode only bounded records from a validated leaf node.
+bool Adafruit_FloppyImage::hfsEntry(uint32_t id, uint16_t start, uint16_t end,
+                                    Entry &entry) {
+  const uint8_t *key = _buffer + start;
+  // Some writers include the key's even-alignment padding in keyLength.
+  if (end - start < 8 || key[6] > 31 || key[0] < 6 + key[6] ||
+      key[0] > 7 + key[6])
+    return fail("Invalid HFS catalog key");
+  uint16_t body = start + (key[0] + 2) / 2 * 2;
+  if (body + 2 > end)
+    return fail("Short HFS catalog record");
+  const uint8_t *p = _buffer + body;
+  uint16_t kind = be16(p);
+  entry = {};
+  if ((kind != 0x0100 && kind != 0x0200) ||
+      end - body < (kind == 0x0100 ? 70 : 102) || !key[6])
+    return fail("Unsupported HFS catalog record");
+  entry.directory = kind == 0x0100;
+  entry.id = entry.directory ? be32(p + 6) : id;
+  for (uint8_t i = 0; i < key[6]; i++) {
+    uint8_t c = key[7 + i];
+    entry.name[i] = c >= 32 && c < 127 ? c : '?';
+  }
+  strcpy(entry.kind, entry.directory ? "DIR" : "DATA");
+  if (!entry.directory) {
+    entry.bytes = be32(p + 26);
+    uint32_t allocated = be32(p + 30);
+    if (entry.bytes > allocated || allocated > _size ||
+        allocated % _hfsBlockSize)
+      return fail("Invalid HFS data fork size");
+    entry.blocks = allocated / _hfsBlockSize;
+    entry.exactBytes = true;
+    entry.locked = (p[2] & 1) != 0;
+  }
+  return true;
+}
+
+bool Adafruit_FloppyImage::hfsFile(uint32_t id, Entry &entry, uint32_t &fileID,
+                                   uint16_t *extents) {
+  if (!hfsNode(true, id / 512) || _buffer[8] != 255 || _buffer[9] != 1)
+    return fail("Invalid HFS file node");
+  uint16_t records = be16(_buffer + 10);
+  for (uint16_t i = 0; i < records; i++) {
+    uint16_t start, end;
+    if (!hfsRecord(i, start, end))
+      return false;
+    if (start != id % 512)
+      continue;
+    if (!hfsEntry(id, start, end, entry) || entry.directory)
+      return fail("Invalid HFS file entry");
+    const uint8_t *p = _buffer + start + (_buffer[start] + 2) / 2 * 2;
+    fileID = be32(p + 20);
+    if (fileID < 16)
+      return fail("Invalid HFS file ID");
+    for (uint8_t j = 0; j < 6; j++)
+      extents[j] = be16(p + 74 + j * 2);
+    return true;
+  }
+  return fail("Missing HFS file record");
+}
+
+bool Adafruit_FloppyImage::listHFS(uint32_t directory, Visit visitor,
+                                   void *context) {
+  if (!hfsNode(true, 0))
+    return false;
+  uint32_t node = be32(_buffer + 24), last = be32(_buffer + 28), previous = 0;
+  uint32_t limit = _hfsCatalogSize / 512;
+  for (uint32_t step = 0; node && step < limit; step++) {
+    if (!hfsNode(true, node) || _buffer[8] != 255 || _buffer[9] != 1 ||
+        be32(_buffer + 4) != previous)
+      return fail("Invalid HFS catalog chain");
+    uint32_t next = be32(_buffer);
+    uint16_t records = be16(_buffer + 10);
+    for (uint16_t i = 0; i < records; i++) {
+      uint16_t start, end;
+      if (!hfsRecord(i, start, end) || end - start < 8)
+        return fail("Invalid HFS catalog record");
+      if (be32(_buffer + start + 2) != directory)
+        continue;
+      // Empty keys are file/directory thread records, not visible entries.
+      if (!_buffer[start + 6])
+        continue;
+      Entry entry;
+      if (!hfsEntry(node * 512 + start, start, end, entry))
+        return false;
+      if (!visitor(context, entry))
+        return true;
+    }
+    previous = node;
+    node = next;
+  }
+  return (!node && previous == last) || fail("Loop or truncated HFS catalog");
 }
 
 bool Adafruit_FloppyImage::identifyFAT() {
@@ -270,18 +525,19 @@ bool Adafruit_FloppyImage::listRoot(Visit visitor, void *context) {
 }
 
 /** @brief List a directory in an identified image.
-    @param directory Zero for root, or an Amiga directory Entry::id.
+    @param directory Zero for root, or an Amiga/HFS directory Entry::id.
     @param visitor Callback for each live entry.
     @param context Caller-owned visitor context.
     @return True on completion or visitor stop; false on I/O or invalid data.
-    @note Subdirectories are currently supported for Amiga OFS/FFS only. */
+    @note Subdirectories are supported for Amiga OFS/FFS and classic HFS. */
 bool Adafruit_FloppyImage::listDirectory(uint32_t directory, Visit visitor,
                                          void *context) {
   _error = "";
   if (!visitor) {
     return fail("No directory visitor");
   }
-  if (directory && _format != AMIGA_OFS && _format != AMIGA_FFS) {
+  if (directory && _format != AMIGA_OFS && _format != AMIGA_FFS &&
+      _format != MAC_HFS) {
     return fail("Subdirectories unsupported for this format");
   }
   switch (_format) {
@@ -297,6 +553,8 @@ bool Adafruit_FloppyImage::listDirectory(uint32_t directory, Visit visitor,
     return listDOS33(visitor, context);
   case APPLE_PRODOS:
     return listProDOS(visitor, context);
+  case MAC_HFS:
+    return listHFS(directory ? directory : 2, visitor, context);
   default:
     return fail("Identify the image first");
   }
@@ -442,18 +700,24 @@ bool Adafruit_FloppyImage::readCBMBlock(uint32_t block) {
   return readAt(block * 256, 256);
 }
 
-/** @brief Open an Amiga, D64 or D81 file without modifying the image.
+/** @brief Open an Amiga, Commodore or classic HFS file without changing it.
     @param id Identifier returned in a directory Entry.
     @param entry Receives validated metadata and exact byte length.
     @return True for a readable regular file; false for links, directories,
     unsupported files, or corrupt data. Commodore PRG load-address bytes are
    retained.
     @note Commodore REL data is exposed as its linear byte stream, not records.
+    HFS exposes the data fork; resource forks remain in the whole image.
  */
 bool Adafruit_FloppyImage::openFile(uint32_t id, Entry &entry) {
   _error = "";
   entry = {};
   entry.id = id;
+  if (_format == MAC_HFS) {
+    uint32_t fileID;
+    uint16_t extents[6];
+    return hfsFile(id, entry, fileID, extents);
+  }
   if (_format == AMIGA_OFS || _format == AMIGA_FFS) {
     if (id < 2 || id >= _blocks || !readAt(id * 512) || !amigaSum(_buffer) ||
         be32(_buffer) != 2 || be32(_buffer + 4) != id ||
@@ -496,7 +760,7 @@ bool Adafruit_FloppyImage::openFile(uint32_t id, Entry &entry) {
     @param data Destination for up to length bytes.
     @param length Capacity of data; reads stop at end of file.
     @return Bytes read, zero at EOF, or -1 on failure. Discard data on failure.
-    @note File access is supported for Amiga OFS/FFS, D64 and D81. */
+    @note Supports Amiga OFS/FFS, D64/D81 and classic HFS data forks. */
 int32_t Adafruit_FloppyImage::readFile(const Entry &entry, uint32_t offset,
                                        uint8_t *data, size_t length) {
   _error = "";
@@ -509,7 +773,14 @@ int32_t Adafruit_FloppyImage::readFile(const Entry &entry, uint32_t offset,
     length = entry.bytes - offset;
   }
   bool valid = false;
-  if (_format == AMIGA_OFS || _format == AMIGA_FFS) {
+  if (_format == MAC_HFS) {
+    Entry checked;
+    uint32_t fileID;
+    uint16_t extents[6];
+    valid = hfsFile(entry.id, checked, fileID, extents) &&
+            checked.bytes == entry.bytes &&
+            hfsFork(fileID, extents, offset, data, length);
+  } else if (_format == AMIGA_OFS || _format == AMIGA_FFS) {
     valid = readAmiga(entry, offset, data, length);
   } else if (_format == CBM_DOS || _format == CBM_1581) {
     Entry checked = entry;
@@ -745,6 +1016,8 @@ const char *Adafruit_FloppyImage::formatName() const {
     return "Commodore 1541 DOS";
   case CBM_1581:
     return "Commodore 1581 DOS";
+  case MAC_HFS:
+    return "Macintosh HFS";
   case APPLE_DOS33:
     return "Apple II DOS 3.3";
   case APPLE_PRODOS:

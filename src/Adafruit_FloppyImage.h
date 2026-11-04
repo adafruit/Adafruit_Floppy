@@ -19,7 +19,8 @@ public:
     CBM_DOS,      ///< Commodore 1541 DOS on a D64 sector image.
     APPLE_DOS33,  ///< Apple II DOS 3.3 in DOS-ordered sector image form.
     APPLE_PRODOS, ///< Apple ProDOS in block-ordered image form.
-    CBM_1581      ///< Commodore 1581 DOS on a D81 sector image.
+    CBM_1581,     ///< Commodore 1581 DOS on a D81 sector image.
+    MAC_HFS       ///< Classic Macintosh HFS in a raw sector image.
   };
   /** @brief One root-directory entry; valid only during the visitor call. */
   struct Entry {
@@ -51,19 +52,25 @@ public:
   const char *error() const;
 
 private:
-  Read _reader;               ///< Caller-owned reader.
-  void *_context;             ///< Reader context.
-  uint32_t _size;             ///< Image length in bytes.
-  Format _format = UNKNOWN;   ///< Last identified filesystem.
-  char _volume[32] = {};      ///< Printable volume label.
-  const char *_error = "";    ///< Static failure description.
-  uint32_t _root = 0;         ///< Root byte offset or first directory block.
-  uint16_t _entries = 0;      ///< FAT root-entry limit.
-  uint16_t _blocks = 0;       ///< Logical volume block count.
-  uint8_t _tracks = 0;        ///< DOS 3.3 / Commodore logical track count.
-  uint8_t _catalogTrack = 0;  ///< DOS 3.3 / Commodore first catalog track.
-  uint8_t _catalogSector = 0; ///< DOS 3.3 / Commodore first catalog sector.
-  uint8_t _buffer[512];       ///< One sector/block of scratch space.
+  Read _reader;                 ///< Caller-owned reader.
+  void *_context;               ///< Reader context.
+  uint32_t _size;               ///< Image length in bytes.
+  Format _format = UNKNOWN;     ///< Last identified filesystem.
+  char _volume[32] = {};        ///< Printable volume label.
+  const char *_error = "";      ///< Static failure description.
+  uint32_t _root = 0;           ///< Root byte offset or first directory block.
+  uint16_t _entries = 0;        ///< FAT root-entry limit.
+  uint16_t _blocks = 0;         ///< Logical volume block count.
+  uint8_t _tracks = 0;          ///< DOS 3.3 / Commodore logical track count.
+  uint8_t _catalogTrack = 0;    ///< DOS 3.3 / Commodore first catalog track.
+  uint8_t _catalogSector = 0;   ///< DOS 3.3 / Commodore first catalog sector.
+  uint8_t _buffer[512];         ///< One sector/block of scratch space.
+  uint32_t _hfsBlockSize = 0;   ///< HFS allocation-block bytes.
+  uint32_t _hfsStart = 0;       ///< HFS allocation area byte offset.
+  uint32_t _hfsCatalogSize = 0; ///< HFS catalog fork bytes.
+  uint32_t _hfsExtentsSize = 0; ///< HFS overflow tree bytes.
+  uint16_t _hfsCatalog[6] = {}; ///< Three catalog start/count extent pairs.
+  uint16_t _hfsExtents[6] = {}; ///< Three overflow-tree start/count pairs.
 
   bool readAt(uint32_t offset, size_t length = 512);
   bool fail(const char *message);
@@ -72,6 +79,17 @@ private:
   bool identifyCBM();
   bool identifyDOS33();
   bool identifyProDOS();
+  bool identifyHFS();
+  bool hfsRead(const uint16_t *extents, uint32_t offset, uint8_t *data,
+               size_t length);
+  bool hfsFork(uint32_t fileID, const uint16_t *extents, uint32_t offset,
+               uint8_t *data, size_t length);
+  bool hfsOverflow(uint32_t fileID, uint16_t firstBlock, uint16_t *extents);
+  bool hfsNode(bool catalog, uint32_t node);
+  bool hfsRecord(uint16_t index, uint16_t &start, uint16_t &end);
+  bool hfsEntry(uint32_t id, uint16_t start, uint16_t end, Entry &entry);
+  bool hfsFile(uint32_t id, Entry &entry, uint32_t &fileID, uint16_t *extents);
+  bool listHFS(uint32_t directory, Visit visitor, void *context);
   bool listFAT(Visit visitor, void *context);
   bool listAmiga(uint32_t directory, Visit visitor, void *context);
   bool listCBM(Visit visitor, void *context);

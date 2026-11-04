@@ -58,8 +58,9 @@ Greaseweazle adapter has not gained this timed PSRAM capture path.
 
 `Adafruit_FloppyImage` identifies a filesystem and lists its root directory from
 a caller-supplied byte reader. It accepts FAT12 (PC and Atari ST), Amiga OFS/FFS
-ADF, Commodore 1541 D64 and 1581 D81, Apple DOS 3.3 DOS-ordered images, and ProDOS block-ordered
-images. The `floppy_image_catalog` example opens an image on microSD, using SDIO
+ADF, Commodore 1541 D64 and 1581 D81, Apple DOS 3.3 DOS-ordered images, ProDOS
+block-ordered images, and raw classic Macintosh HFS volumes.
+The `floppy_image_catalog` example opens an image on microSD, using SDIO
 on Floppsy RP2350 or SPI on other boards.
 
 Names, file types, sizes or allocated-block counts, and protection flags are
@@ -74,6 +75,14 @@ Other formats retain root catalog support. Apple sector ordering must
 match the forms above; NIB, WOZ, SCP, and other bitstream/flux containers must
 first be decoded to sectors. Special copy protection and nonstandard
 filesystems may remain unidentified.
+
+Classic HFS supports folders and data-fork reads, including file/catalog
+overflow extents. The extents-overflow tree itself must fit its first three
+extents. File sizes and previews refer to the data fork; resource forks and
+Finder metadata remain preserved in the whole sector image, but have no separate
+file-access API here. Non-ASCII MacRoman name characters display as `?`.
+Disk Copy containers, partition maps, MFS and HFS+ are not supported. Identifying
+an HFS filesystem does not imply drive support for Mac 400/800 KB GCR media.
 
 `Adafruit_FloppySCPReader` validates an immutable SCP source before converting a
 track's first revolution to the packed 24 MHz stream accepted by `write_track()`.
