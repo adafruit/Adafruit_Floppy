@@ -54,8 +54,9 @@ sector IDs. The result describes one track's encoding and layout. It does not
 infer total disk geometry, identify a filesystem, or manufacture INDEX pulses.
 Its reported bit period is a successful PLL setting, not an RPM measurement.
 Use the separate image/catalog API after assembling sectors in the correct
-image order. Custom copy protection, Apple 13-sector GCR, Macintosh GCR, and
-native encoders for Amiga/C64/Apple are outside this decoder's scope.
+image order. `encodeAmiga()` separately generates standard DD/HD tracks from
+sector data; it does not reproduce custom protection or nonzero sector labels.
+Apple 13-sector GCR, Macintosh GCR, and C64/Apple encoders remain unsupported.
 
 Format references:
 
