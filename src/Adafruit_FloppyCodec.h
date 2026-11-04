@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** @brief Decode standard floppy sectors and encode standard Amiga tracks.
+/** @brief Decode standard floppy sectors and encode Amiga/Macintosh tracks.
  * Decoders consume recovered MSB-first bit cells.
  * Callbacks receive only sectors with valid header and data checksums. Multiple
  * revolutions can repeat sectors; the caller decides how to merge them. These
@@ -18,7 +18,8 @@ public:
     IBM_FM,        ///< IBM-style FM, 128/256/512/1024-byte sectors.
     AMIGA_MFM,     ///< AmigaDOS odd/even MFM, 512-byte sectors.
     COMMODORE_GCR, ///< Commodore 1541 GCR, 256-byte sectors.
-    APPLE_6_AND_2  ///< Apple II 16-sector 6-and-2 GCR, 256-byte sectors.
+    APPLE_6_AND_2, ///< Apple II 16-sector 6-and-2 GCR, 256-byte sectors.
+    MAC_GCR        ///< Macintosh 400K/800K GCR, 512-byte sectors plus tags.
   };
   /** @brief A checksum-verified sector, valid only during the callback. */
   struct Sector {
@@ -26,9 +27,10 @@ public:
     uint8_t head;     ///< Head number; zero for the single-sided GCR formats.
     uint8_t number;   ///< On-disk sector ID (IBM normally 1-based; others 0).
     uint16_t size;    ///< Payload size in bytes.
-    uint16_t volume;  ///< Apple volume or C64 disk ID; zero for IBM/Amiga.
+    uint16_t volume;  ///< Apple volume, C64 disk ID, or Mac format byte.
     bool deleted;     ///< IBM deleted-data address mark.
     const uint8_t *data; ///< Payload, owned by the decoder during the callback.
+    const uint8_t *tags; ///< Mac's 12 tag bytes; null for other encodings.
   };
   /** @brief Results include repeats from overlapping revolutions. */
   struct Result {
@@ -63,4 +65,10 @@ public:
                             uint8_t cylinder, uint8_t head, uint8_t *pulses,
                             size_t capacity,
                             uint32_t revolutionMicroseconds = 200000);
+  static float macBitCellMicroseconds(uint8_t cylinder);
+  static size_t encodeMac(const uint8_t *sectors, uint8_t cylinder,
+                          uint8_t head, uint8_t heads, uint8_t *pulses,
+                          size_t capacity,
+                          uint32_t revolutionMicroseconds = 200000,
+                          const uint8_t *tags = nullptr);
 };

@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     return 2;
   }
   int encoding = atoi(argv[1]);
-  if (encoding < -1 || encoding > 4) {
+  if (encoding < -1 || encoding > 5) {
     return 2;
   }
   FILE *input = fopen(argv[3], "rb");
@@ -74,9 +74,9 @@ int main(int argc, char **argv) {
              encoding, detection.uniqueSectors, detection.bitCellMicroseconds);
     } else if (!strcmp(argv[2], "filtered")) {
       float clock = atof(argv[5]);
-      float cutoff = encoding >= 3   ? 2.5f
-                     : encoding == 1 ? clock * 0.5f
-                                     : clock;
+      float cutoff = encoding == 3 || encoding == 4   ? 2.5f
+                     : encoding == 1 || encoding == 5 ? clock * 0.5f
+                                                      : clock;
       count = Adafruit_FloppyBitstream::recover(
           intervals.data(), intervals.size(), strtoul(argv[4], nullptr, 10),
           clock, recovered.data(), recovered.size(), cutoff);

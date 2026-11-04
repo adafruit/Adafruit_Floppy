@@ -27,7 +27,12 @@ const Candidate candidates[] = {{Codec::IBM_MFM, 1},
                                 {Codec::COMMODORE_GCR, 3.75f},
                                 {Codec::COMMODORE_GCR, 4},
                                 {Codec::APPLE_6_AND_2, 3.92f},
-                                {Codec::APPLE_6_AND_2, 4}};
+                                {Codec::APPLE_6_AND_2, 4},
+                                {Codec::MAC_GCR, 2.63f},
+                                {Codec::MAC_GCR, 2.89f},
+                                {Codec::MAC_GCR, 3.20f},
+                                {Codec::MAC_GCR, 3.57f},
+                                {Codec::MAC_GCR, 3.98f}};
 
 struct CountSectors {
   Codec::Detection detection;
@@ -65,7 +70,8 @@ float lowpass(Codec::Encoding encoding, float clock) {
     return 2.5f;
   }
   // MFM's shortest normal transition is two cells; FM permits one cell.
-  return encoding == Codec::IBM_FM ? clock * 0.5f : clock;
+  return encoding == Codec::IBM_FM || encoding == Codec::MAC_GCR ? clock * 0.5f
+                                                                 : clock;
 }
 } // namespace
 

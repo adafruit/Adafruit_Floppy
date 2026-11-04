@@ -56,10 +56,35 @@ Its reported bit period is a successful PLL setting, not an RPM measurement.
 Use the separate image/catalog API after assembling sectors in the correct
 image order. `encodeAmiga()` separately generates standard DD/HD tracks from
 sector data; it does not reproduce custom protection or nonzero sector labels.
-Apple 13-sector GCR, Macintosh GCR, and C64/Apple encoders remain unsupported.
+`encodeMac()` generates 400K (one head) or 800K (two heads) Macintosh GCR.
+It scales five zoned bit rates to the measured rotation period of a conventional
+300 RPM drive, with 12/11/10/9/8 sectors per track. Output uses Greaseweazle
+packing, including long inner-zone intervals; call `write_track()` with packing
+**enabled**. The callback exposes 512 payload bytes and a separate 12-byte
+`tags` pointer. Raw IMG/DSK images omit tags; the encoder accepts optional tags
+and otherwise writes zeros. SCP is preferable for preserving original tags,
+gaps and nonstandard formatting. Filesystem browsing remains a separate API.
+Apple 13-sector GCR and C64/Apple II encoders remain unsupported.
+
+`make check-mac-encode` requires Greaseweazle including its compiled Mac
+extension. Its 270 oracle cases cover both boundaries of all five zones,
+400K/800K header formats, both heads, three rotation periods, nonzero tags,
+checksum/coding errors, truncation, and automatic identification of rotated
+INDEX-less captures. Every generated flux interval is compared with the
+independent encoder. Buffer/argument rejection and callback tags are checked
+in the C++ harness; run with sanitizers as above.
+
+A 2026-11-04 blue covered-hole HD disk passed patterned C0/C16/C32 tracks on
+Floppsy. C48 and C64 had missing sectors, independently confirmed using
+Greaseweazle on the captured flux. An all-zero C64 control returned all sectors.
+This does not qualify arbitrary-data writing or native Macintosh compatibility.
+Prefer genuine DD media for qualification; [Greaseweazle issue 459](https://github.com/keirf/greaseweazle/issues/459)
+describes similar inner-zone failures with covered-hole HD media.
 
 Format references:
 
+- [Macintosh GCR layout](https://github.com/keirf/greaseweazle/blob/master/src/greaseweazle/codec/macintosh/mac_gcr.py)
+- [Macintosh on conventional drives](https://github.com/davidgiven/fluxengine/blob/master/doc/disk-mac.md)
 - [Amiga disk format](https://adflib.github.io/FAQ/adf_info.html)
 - [Commodore 1541 manual](https://project64.c64.org/Hardware/Peripherals/vic1541.pdf)
 - [Apple DOS notes](https://ciderpress2.com/formatdoc/DOS-notes.html)
