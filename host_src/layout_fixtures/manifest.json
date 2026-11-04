@@ -22,5 +22,13 @@
     "head": 0,
     "sectors": 26,
     "sector_bytes": 128
+  },
+  "1581.bits": {
+    "sha256": "a7c17d02dea114026ed02a294ee5b06888504b1ded34481666ee2382b848faac",
+    "bytes": 12500,
+    "cylinder": 43,
+    "head": 0,
+    "sectors": 10,
+    "sector_bytes": 512
   }
 }

@@ -38,7 +38,22 @@ void text(char *dst, const uint8_t *src, size_t count, bool petscii = false) {
   }
   dst[count] = 0;
 }
-uint8_t cbmSectors(uint8_t track) {
+bool seen(uint8_t *visited, uint16_t block) {
+  uint8_t mask = 1u << (block % 8);
+  if (visited[block / 8] & mask) {
+    return true;
+  }
+  visited[block / 8] |= mask;
+  return false;
+}
+} // namespace
+
+uint8_t Adafruit_FloppyImage::cbmSectors(uint8_t track) const {
+  // D81 has 80 logical tracks, each containing both physical heads as
+  // forty 256-byte blocks. D64 retains its original four density zones.
+  if (_tracks == 80) {
+    return 40;
+  }
   if (track <= 17) {
     return 21;
   }
@@ -50,22 +65,13 @@ uint8_t cbmSectors(uint8_t track) {
   }
   return 17;
 }
-uint32_t cbmBlock(uint8_t track, uint8_t sector) {
+uint32_t Adafruit_FloppyImage::cbmBlock(uint8_t track, uint8_t sector) const {
   uint32_t block = sector;
   for (uint8_t t = 1; t < track; t++) {
     block += cbmSectors(t);
   }
   return block;
 }
-bool seen(uint8_t *visited, uint16_t block) {
-  uint8_t mask = 1u << (block % 8);
-  if (visited[block / 8] & mask) {
-    return true;
-  }
-  visited[block / 8] |= mask;
-  return false;
-}
-} // namespace
 
 /** @brief Bind a reader without reading or modifying its image.
     @param reader Callback for exact byte reads.
@@ -182,6 +188,21 @@ bool Adafruit_FloppyImage::identifyAmiga() {
 }
 
 bool Adafruit_FloppyImage::identifyCBM() {
+  if (_size == 819200 || _size == 822400) {
+    _tracks = 80;
+    // Standard 1581 root header: logical track 40, block 0. Its directory
+    // starts after the header and two BAM blocks. Partitions are not followed.
+    if (!readAt(cbmBlock(40, 0) * 256, 256) || _buffer[0] != 40 ||
+        _buffer[1] < 3 || _buffer[1] >= 40 || _buffer[2] != 'D' ||
+        _buffer[3] != 0 || _buffer[25] != '3' || _buffer[26] != 'D') {
+      return false;
+    }
+    _catalogTrack = 40;
+    _catalogSector = _buffer[1];
+    text(_volume, _buffer + 4, 16, true);
+    _format = CBM_1581;
+    return true;
+  }
   if (_size == 174848 || _size == 175531) {
     _tracks = 35;
   } else if (_size == 196608 || _size == 197376) {
@@ -197,6 +218,8 @@ bool Adafruit_FloppyImage::identifyCBM() {
     return false;
   }
   _root = _buffer[1];
+  _catalogTrack = 18;
+  _catalogSector = _buffer[1];
   text(_volume, _buffer + 0x90, 16, true);
   _format = CBM_DOS;
   return true;
@@ -268,6 +291,7 @@ bool Adafruit_FloppyImage::listDirectory(uint32_t directory, Visit visitor,
   case AMIGA_FFS:
     return listAmiga(directory ? directory : _root, visitor, context);
   case CBM_DOS:
+  case CBM_1581:
     return listCBM(visitor, context);
   case APPLE_DOS33:
     return listDOS33(visitor, context);
@@ -364,7 +388,7 @@ bool Adafruit_FloppyImage::listAmiga(uint32_t directory, Visit visitor,
 }
 
 bool Adafruit_FloppyImage::listCBM(Visit visitor, void *context) {
-  uint8_t visited[101] = {}, track = 18, sector = _root;
+  uint8_t visited[400] = {}, track = _catalogTrack, sector = _catalogSector;
   const char *types[] = {"DEL", "SEQ", "PRG",     "USR",
                          "REL", "CBM", "UNKNOWN", "UNKNOWN"};
   while (track) {
@@ -404,8 +428,9 @@ bool Adafruit_FloppyImage::readCBMBlock(uint32_t block) {
   if (block >= blocks) {
     return fail("CBM sector outside image");
   }
-  // Some D64 images append one drive-error byte per sector. Do not silently
-  // turn a sector explicitly marked unreadable into successful file contents.
+  // Some D64/D81 images append one drive-error byte per logical block. Do not
+  // silently turn a sector explicitly marked unreadable into successful file
+  // contents.
   if (_size == blocks * 257) {
     if (!readAt(blocks * 256 + block, 1)) {
       return false;
@@ -417,12 +442,14 @@ bool Adafruit_FloppyImage::readCBMBlock(uint32_t block) {
   return readAt(block * 256, 256);
 }
 
-/** @brief Open an Amiga or D64 file without modifying the image.
+/** @brief Open an Amiga, D64 or D81 file without modifying the image.
     @param id Identifier returned in a directory Entry.
     @param entry Receives validated metadata and exact byte length.
     @return True for a readable regular file; false for links, directories,
-    unsupported files, or corrupt data. D64 PRG load-address bytes are retained.
-    @note D64 REL data is exposed as its linear byte stream, not records. */
+    unsupported files, or corrupt data. Commodore PRG load-address bytes are
+   retained.
+    @note Commodore REL data is exposed as its linear byte stream, not records.
+ */
 bool Adafruit_FloppyImage::openFile(uint32_t id, Entry &entry) {
   _error = "";
   entry = {};
@@ -440,7 +467,7 @@ bool Adafruit_FloppyImage::openFile(uint32_t id, Entry &entry) {
     if (entry.bytes > _size) {
       return fail("Amiga file exceeds image");
     }
-  } else if (_format == CBM_DOS) {
+  } else if (_format == CBM_DOS || _format == CBM_1581) {
     if (id % 32 != 2 || !readCBMBlock(id / 256)) {
       return fail("Invalid CBM file entry");
     }
@@ -469,7 +496,7 @@ bool Adafruit_FloppyImage::openFile(uint32_t id, Entry &entry) {
     @param data Destination for up to length bytes.
     @param length Capacity of data; reads stop at end of file.
     @return Bytes read, zero at EOF, or -1 on failure. Discard data on failure.
-    @note File access is supported for Amiga OFS/FFS and D64 only. */
+    @note File access is supported for Amiga OFS/FFS, D64 and D81. */
 int32_t Adafruit_FloppyImage::readFile(const Entry &entry, uint32_t offset,
                                        uint8_t *data, size_t length) {
   _error = "";
@@ -484,7 +511,7 @@ int32_t Adafruit_FloppyImage::readFile(const Entry &entry, uint32_t offset,
   bool valid = false;
   if (_format == AMIGA_OFS || _format == AMIGA_FFS) {
     valid = readAmiga(entry, offset, data, length);
-  } else if (_format == CBM_DOS) {
+  } else if (_format == CBM_DOS || _format == CBM_1581) {
     Entry checked = entry;
     valid =
         readCBM(checked, offset, data, length) && checked.bytes == entry.bytes;
@@ -504,7 +531,7 @@ bool Adafruit_FloppyImage::readCBM(Entry &entry, uint32_t offset, uint8_t *data,
   }
   uint8_t track = _buffer[entry.id % 256 + 1];
   uint8_t sector = _buffer[entry.id % 256 + 2];
-  uint8_t visited[101] = {};
+  uint8_t visited[400] = {};
   uint32_t position = 0;
   while (track) {
     if (track > _tracks || sector >= cbmSectors(track)) {
@@ -716,6 +743,8 @@ const char *Adafruit_FloppyImage::formatName() const {
     return "Amiga FFS";
   case CBM_DOS:
     return "Commodore 1541 DOS";
+  case CBM_1581:
+    return "Commodore 1581 DOS";
   case APPLE_DOS33:
     return "Apple II DOS 3.3";
   case APPLE_PRODOS:

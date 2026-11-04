@@ -73,6 +73,28 @@ def cbm_file():
     return image
 
 
+def d81_file():
+    image = bytearray(819200)
+    header = 39 * 40 * 256
+    image[header:header + 4] = bytes([40, 3, ord('D'), 0])
+    image[header + 4:header + 20] = b'FLOPPSY D81'.ljust(16, b'\xa0')
+    image[header + 25:header + 27] = b'3D'
+    directory = header + 3 * 256
+    image[directory:directory + 5] = bytes([0, 255, 0x82, 76, 0])
+    image[directory + 5:directory + 21] = b'HELLO'.ljust(16, b'\xa0')
+    chunks = [PAYLOAD[i:i + 254] for i in range(0, len(PAYLOAD), 254)]
+    put16(image, directory + 30, len(chunks))
+    # Put data near the far end of the image: this catches D64-sized visited
+    # maps, 0/1-based track mistakes, and crossing both logical head halves.
+    for n, chunk in enumerate(chunks):
+        block = 3000 + n
+        track, sector = divmod(block + 1, 40)
+        link = bytes([track + 1, sector]) if n + 1 < len(chunks) else bytes([0, len(chunk) + 1])
+        image[block * 256:block * 256 + 2] = link
+        image[block * 256 + 2:block * 256 + 2 + len(chunk)] = chunk
+    return image
+
+
 def run(executable, folder):
     checks = 0
 
@@ -151,6 +173,28 @@ def run(executable, folder):
     check('C64-error-table.d64', with_errors, '/HELLO')
     broken = bytearray(with_errors); broken[174848] = 5
     check('C64-recorded-error.d64', broken, '/HELLO', valid=False)
+
+    image = d81_file()
+    for offset in (0, 253, 254, 4090, 5080, 10160, len(PAYLOAD) - 31, len(PAYLOAD)):
+        check('C1581.d81', image, '/HELLO', offset)
+    check('C1581-past-eof.d81', image, '/HELLO', len(PAYLOAD) + 1, valid=False)
+    check('C1581-truncated.d81', image[:-1], '/HELLO', valid=False)
+    directory = (39 * 40 + 3) * 256
+    for label, at, value in (
+            ('loop', 3000 * 256, bytes([76, 0])),
+            ('outside', 3000 * 256, bytes([81, 0])),
+            ('bad-sector', 3000 * 256, bytes([80, 40])),
+            ('bad-tail', 3000 * 256, bytes([0, 0])),
+            ('bad-header', 39 * 40 * 256 + 2, b'A'),
+            ('bad-directory', 39 * 40 * 256 + 1, bytes([40])),
+            ('unclosed', directory + 2, bytes([2]))):
+        broken = bytearray(image)
+        broken[at:at + len(value)] = value
+        check(f'C1581-{label}.d81', broken, '/HELLO', valid=False)
+    with_errors = image + bytes([1]) * 3200
+    check('C1581-error-table.d81', with_errors, '/HELLO')
+    broken = bytearray(with_errors); broken[819200 + 3000] = 5
+    check('C1581-recorded-error.d81', broken, '/HELLO', valid=False)
     print(f'PASS: {checks} file-content / corruption cases', end='\n\r')
 
 

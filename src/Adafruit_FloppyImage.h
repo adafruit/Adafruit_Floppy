@@ -12,13 +12,14 @@ class Adafruit_FloppyImage {
 public:
   /** @brief Filesystems identified by their structures, not file extensions. */
   enum Format {
-    UNKNOWN,     ///< Unknown, unsupported, or invalid filesystem.
-    FAT12,       ///< FAT12, shared by PC DOS and many Atari ST disks.
-    AMIGA_OFS,   ///< Amiga original filesystem, including international mode.
-    AMIGA_FFS,   ///< Amiga fast filesystem, including international mode.
-    CBM_DOS,     ///< Commodore 1541 DOS on a D64 sector image.
-    APPLE_DOS33, ///< Apple II DOS 3.3 in DOS-ordered sector image form.
-    APPLE_PRODOS ///< Apple ProDOS in block-ordered image form.
+    UNKNOWN,      ///< Unknown, unsupported, or invalid filesystem.
+    FAT12,        ///< FAT12, shared by PC DOS and many Atari ST disks.
+    AMIGA_OFS,    ///< Amiga original filesystem, including international mode.
+    AMIGA_FFS,    ///< Amiga fast filesystem, including international mode.
+    CBM_DOS,      ///< Commodore 1541 DOS on a D64 sector image.
+    APPLE_DOS33,  ///< Apple II DOS 3.3 in DOS-ordered sector image form.
+    APPLE_PRODOS, ///< Apple ProDOS in block-ordered image form.
+    CBM_1581      ///< Commodore 1581 DOS on a D81 sector image.
   };
   /** @brief One root-directory entry; valid only during the visitor call. */
   struct Entry {
@@ -59,9 +60,9 @@ private:
   uint32_t _root = 0;         ///< Root byte offset or first directory block.
   uint16_t _entries = 0;      ///< FAT root-entry limit.
   uint16_t _blocks = 0;       ///< Logical volume block count.
-  uint8_t _tracks = 0;        ///< DOS 3.3 / D64 track count.
-  uint8_t _catalogTrack = 0;  ///< DOS 3.3 first catalog track.
-  uint8_t _catalogSector = 0; ///< DOS 3.3 first catalog sector.
+  uint8_t _tracks = 0;        ///< DOS 3.3 / Commodore logical track count.
+  uint8_t _catalogTrack = 0;  ///< DOS 3.3 / Commodore first catalog track.
+  uint8_t _catalogSector = 0; ///< DOS 3.3 / Commodore first catalog sector.
   uint8_t _buffer[512];       ///< One sector/block of scratch space.
 
   bool readAt(uint32_t offset, size_t length = 512);
@@ -78,6 +79,8 @@ private:
                  size_t length);
   bool readCBM(Entry &entry, uint32_t offset, uint8_t *data, size_t length);
   bool readCBMBlock(uint32_t block);
+  uint8_t cbmSectors(uint8_t track) const;
+  uint32_t cbmBlock(uint8_t track, uint8_t sector) const;
   bool listDOS33(Visit visitor, void *context);
   bool listProDOS(Visit visitor, void *context);
 };

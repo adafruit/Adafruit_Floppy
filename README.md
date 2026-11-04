@@ -58,14 +58,16 @@ Greaseweazle adapter has not gained this timed PSRAM capture path.
 
 `Adafruit_FloppyImage` identifies a filesystem and lists its root directory from
 a caller-supplied byte reader. It accepts FAT12 (PC and Atari ST), Amiga OFS/FFS
-ADF, Commodore 1541 D64, Apple DOS 3.3 DOS-ordered images, and ProDOS block-ordered
+ADF, Commodore 1541 D64 and 1581 D81, Apple DOS 3.3 DOS-ordered images, and ProDOS block-ordered
 images. The `floppy_image_catalog` example opens an image on microSD, using SDIO
 on Floppsy RP2350 or SPI on other boards.
 
 Names, file types, sizes or allocated-block counts, and protection flags are
 reported without modifying the image. FAT12 alone does not identify which
 computer created a disk. Amiga OFS/FFS supports subdirectory traversal and file
-reads; D64 supports file reads with exact lengths determined from sector chains.
+reads; D64/D81 supports file reads with exact lengths determined from sector chains.
+Commodore PRG load-address bytes are preserved; REL files expose linear bytes,
+not record access. D81 partition entries are listed but not followed.
 `listDirectory()`, `openFile()` and `readFile()` use the opaque IDs in catalog
 entries. Broken chains, out-of-bounds blocks and bad Amiga checksums are rejected.
 Other formats retain root catalog support. Apple sector ordering must
