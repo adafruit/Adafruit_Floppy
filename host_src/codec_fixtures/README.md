@@ -34,6 +34,13 @@ ones and patterned sectors, three disk IDs and 180/200/220 ms rotations.
 Its C++ adapter checks invalid arguments and short output buffers. It requires
 Greaseweazle; no downloaded disk images or hardware are needed.
 
+`make check-apple-encode` compares every packed flux edge with Greaseweazle's
+Apple II encoder, including 10-cell sync bytes, four-and-four addresses,
+six-and-two payloads, checksums and gaps. Its 27 cases cover C0/17/34,
+zero/ones/patterned data, three volume numbers and 180/200/220 ms rotations.
+The input is explicitly converted from DOS image order to physical sector-ID
+order. Invalid arguments and short buffers are checked under sanitizers.
+
 To retain the generated good and bad files for replay/debugging:
 
 ```sh
@@ -67,6 +74,12 @@ preserving the supplied disk ID and using 21/19/18/17 sectors across four zones.
 It emits two revolutions of packed 24 MHz intervals for INDEX-bounded writing.
 Use packing **enabled**. It does not reproduce D64 error tables, extended tracks
 or custom protection; the caller supplies the correct zone's payload length.
+`encodeApple()` generates standard 35-track, 16-sector Apple II tracks from
+4096 bytes in **physical sector-ID order**. Reorder `.DO`/`.PO` data at the call
+site; neither filename ordering nor a filesystem is part of the codec API.
+The caller supplies the volume number. It emits two packed 24 MHz revolutions
+for an INDEX-bounded Shugart write, with packing **enabled**. It does not
+operate a native Disk II mechanism or reproduce 13-sector/protected layouts.
 `encodeMac()` generates 400K (one head) or 800K (two heads) Macintosh GCR.
 It scales five zoned bit rates to the measured rotation period of a conventional
 300 RPM drive, with 12/11/10/9/8 sectors per track. Output uses Greaseweazle

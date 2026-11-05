@@ -592,6 +592,106 @@ Codec::Result decodeMac(const Bits &bits, Codec::Visit visitor, void *context) {
 }
 } // namespace
 
+/** @brief Encode a standard Apple II 16-sector track as packed 24 MHz flux.
+    @param sectors Exactly 4096 bytes in physical sector-ID order, 0 through 15.
+           Callers must reorder DOS/ProDOS sector images before encoding.
+    @param cylinder Zero-based cylinder, 0 through 34.
+    @param volume Address-field volume number; 254 is the conventional default.
+    @param pulses Caller-owned Greaseweazle-packed transition intervals.
+    @param capacity Output capacity in bytes; 210000 accommodates a track.
+    @param revolutionMicroseconds Measured rotation period, 180000 to 220000.
+    @return Bytes produced, or zero on failure; discard partial output.
+    Emits two revolutions for an INDEX-bounded Shugart write, packing enabled.
+    Uses standard six-and-two data and four-and-four addresses, with 10-cell
+    sync bytes. Layout follows Greaseweazle apple2_gcr.py (Keir Fraser, public
+    domain). No allocation or drive access; no 13-sector or protected formats.
+ */
+size_t Adafruit_FloppyCodec::encodeApple(const uint8_t *sectors,
+                                         uint8_t cylinder, uint8_t volume,
+                                         uint8_t *pulses, size_t capacity,
+                                         uint32_t revolutionMicroseconds) {
+  if (!sectors || !pulses || cylinder >= 35 ||
+      revolutionMicroseconds < 180000 || revolutionMicroseconds > 220000)
+    return 0;
+
+  const uint32_t trackBits =
+      20000000 / 392; // Nominal 3.92 us cells at 300 RPM.
+  uint32_t periodTicks = revolutionMicroseconds * 24;
+  uint32_t cells = 0, previousEdge = 0;
+  uint8_t *next = pulses;
+  // Bit-level construction preserves the two zero cells after each sync byte.
+  // Round absolute edge times so fractional ticks cannot accumulate drift.
+  auto bits = [&](uint32_t value, unsigned width) {
+    for (int bit = width - 1; bit >= 0; bit--) {
+      cells++;
+      if (!(value & (1u << bit)))
+        continue;
+      uint32_t edge =
+          ((uint64_t)cells * periodTicks + trackBits / 2) / trackBits;
+      unsigned interval = edge - previousEdge;
+      size_t needed = interval < 250 ? 1 : interval < 1525 ? 2 : 6;
+      if (interval < 20 || interval > 65555 ||
+          needed > capacity - (next - pulses))
+        return false;
+      next = greasepack(next, pulses + capacity, interval);
+      previousEdge = edge;
+    }
+    return true;
+  };
+  auto sync = [&](unsigned count) {
+    for (unsigned i = 0; i < count; i++)
+      if (!bits(0x3fc, 10)) // Eight ones followed by two zeros.
+        return false;
+    return true;
+  };
+
+  for (unsigned revolution = 0; revolution < 2; revolution++) {
+    for (unsigned i = 0; i < 300; i++)
+      if (!bits(1, 1))
+        return 0;
+    for (uint8_t id = 0; id < 16; id++) {
+      uint8_t header[] = {volume, cylinder, id,
+                          (uint8_t)(volume ^ cylinder ^ id)};
+      if (!sync(18) || !bits(0xff, 8) || !bits(0xd5aa96, 24))
+        return 0;
+      for (uint8_t value : header)
+        if (!bits((value >> 1) | 0xaa, 8) || !bits(value | 0xaa, 8))
+          return 0;
+      if (!bits(0xdeaaeb, 24) || !sync(6) || !bits(0xd5aaad, 24))
+        return 0;
+
+      const uint8_t *data = sectors + id * 256;
+      uint8_t previous = 0;
+      for (unsigned i = 0; i < 342; i++) {
+        uint8_t value = 0;
+        if (i < 86) {
+          // Pack the low two bits of up to three payload bytes, reversing
+          // each pair. The last two auxiliary bytes have only two pairs.
+          for (unsigned group = 0; group < 3; group++) {
+            unsigned index = i + group * 86;
+            if (index < 256) {
+              uint8_t pair =
+                  ((data[index] & 1) << 1) | ((data[index] & 2) >> 1);
+              value |= pair << (group * 2);
+            }
+          }
+        } else {
+          value = data[i - 86] >> 2;
+        }
+        if (!bits(appleCode(value ^ previous), 8))
+          return 0;
+        previous = value;
+      }
+      if (!bits(appleCode(previous), 8) || !bits(0xdeaaeb, 24))
+        return 0;
+    }
+    while (cells < (revolution + 1) * trackBits)
+      if (!bits(1, 1))
+        return 0;
+  }
+  return next - pulses;
+}
+
 /** @brief Encode a standard 35-track C64/1541 track as packed 24 MHz flux.
     @param sectors Payloads in sector-ID order, 256 bytes each. Cylinders 0-16
            have 21 sectors, 17-23 have 19, 24-29 have 18, and 30-34 have 17.

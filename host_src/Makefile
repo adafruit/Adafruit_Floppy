@@ -65,3 +65,10 @@ test_c64_encode: test_c64_encode.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
 .PHONY: check-c64-encode
 check-c64-encode: test_c64_encode
 	$(PYTHON3) test_c64_encode.py ./test_c64_encode
+
+test_apple_encode: test_apple_encode.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
+	$(CXX) -std=c++11 -Wall -Wextra -Werror $(CODEC_FLAGS) -I../src $< $(CODEC_SOURCES) -o $@
+
+.PHONY: check-apple-encode
+check-apple-encode: test_apple_encode
+	$(PYTHON3) test_apple_encode.py ./test_apple_encode

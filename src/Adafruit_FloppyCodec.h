@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** @brief Decode standard floppy sectors and encode Amiga/Macintosh/C64 tracks.
+/** @brief Decode and encode standard floppy sectors and tracks.
  * Decoders consume recovered MSB-first bit cells.
  * Callbacks receive only sectors with valid header and data checksums. Multiple
  * revolutions can repeat sectors; the caller decides how to merge them. These
@@ -61,6 +61,9 @@ public:
                           uint32_t sampleFrequency, uint8_t *workBuffer,
                           size_t workCapacity);
   static const char *name(Encoding encoding);
+  static size_t encodeApple(const uint8_t *sectors, uint8_t cylinder,
+                            uint8_t volume, uint8_t *pulses, size_t capacity,
+                            uint32_t revolutionMicroseconds = 200000);
   static size_t encodeC64(const uint8_t *sectors, uint8_t cylinder,
                           uint16_t diskID, uint8_t *pulses, size_t capacity,
                           uint32_t revolutionMicroseconds = 200000);
