@@ -58,3 +58,10 @@ test_mac_encode: test_mac_encode.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
 .PHONY: check-mac-encode
 check-mac-encode: test_mac_encode track_codec
 	$(PYTHON3) test_mac_encode.py ./test_mac_encode ./track_codec
+
+test_c64_encode: test_c64_encode.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
+	$(CXX) -std=c++11 -Wall -Wextra -Werror $(CODEC_FLAGS) -I../src $< $(CODEC_SOURCES) -o $@
+
+.PHONY: check-c64-encode
+check-c64-encode: test_c64_encode
+	$(PYTHON3) test_c64_encode.py ./test_c64_encode

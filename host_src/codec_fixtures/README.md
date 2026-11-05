@@ -28,6 +28,12 @@ interval with Greaseweazle for DD/HD, both heads, cylinders 0/39/79, zero/ones/
 patterned sectors and 180/200/220 ms rotations (54 cases). The C++ adapter also
 checks invalid arguments and output-capacity rejection under sanitizers.
 
+`make check-c64-encode` similarly compares every packed flux interval with
+Greaseweazle for both ends of all four 1541 zones: 72 cases covering zero,
+ones and patterned sectors, three disk IDs and 180/200/220 ms rotations.
+Its C++ adapter checks invalid arguments and short output buffers. It requires
+Greaseweazle; no downloaded disk images or hardware are needed.
+
 To retain the generated good and bad files for replay/debugging:
 
 ```sh
@@ -56,6 +62,11 @@ Its reported bit period is a successful PLL setting, not an RPM measurement.
 Use the separate image/catalog API after assembling sectors in the correct
 image order. `encodeAmiga()` separately generates standard DD/HD tracks from
 sector data; it does not reproduce custom protection or nonzero sector labels.
+`encodeC64()` produces standard 35-track 1541 GCR from 256-byte sectors,
+preserving the supplied disk ID and using 21/19/18/17 sectors across four zones.
+It emits two revolutions of packed 24 MHz intervals for INDEX-bounded writing.
+Use packing **enabled**. It does not reproduce D64 error tables, extended tracks
+or custom protection; the caller supplies the correct zone's payload length.
 `encodeMac()` generates 400K (one head) or 800K (two heads) Macintosh GCR.
 It scales five zoned bit rates to the measured rotation period of a conventional
 300 RPM drive, with 12/11/10/9/8 sectors per track. Output uses Greaseweazle

@@ -592,6 +592,107 @@ Codec::Result decodeMac(const Bits &bits, Codec::Visit visitor, void *context) {
 }
 } // namespace
 
+/** @brief Encode a standard 35-track C64/1541 track as packed 24 MHz flux.
+    @param sectors Payloads in sector-ID order, 256 bytes each. Cylinders 0-16
+           have 21 sectors, 17-23 have 19, 24-29 have 18, and 30-34 have 17.
+    @param cylinder Zero-based cylinder, 0 through 34.
+    @param diskID Disk ID in sector-header byte order (BAM bytes 163 then 162).
+    @param pulses Caller-owned Greaseweazle-packed transition intervals.
+    @param capacity Output capacity in bytes; 210000 accommodates every zone.
+    @param revolutionMicroseconds Measured rotation period, 180000 to 220000.
+    @return Bytes produced, or zero on failure; discard partial output.
+    Emits two revolutions for an INDEX-bounded write with packing enabled.
+    No allocation or drive access. The standard sync/gap layout follows
+    Greaseweazle c64_gcr.py (Keir Fraser, public domain). Custom protection,
+    half-tracks and D64 error tables are not reproduced. */
+size_t Adafruit_FloppyCodec::encodeC64(const uint8_t *sectors, uint8_t cylinder,
+                                       uint16_t diskID, uint8_t *pulses,
+                                       size_t capacity,
+                                       uint32_t revolutionMicroseconds) {
+  if (!sectors || !pulses || cylinder >= 35 ||
+      revolutionMicroseconds < 180000 || revolutionMicroseconds > 220000)
+    return 0;
+
+  unsigned zone = cylinder < 17 ? 0 : cylinder < 24 ? 1 : cylinder < 30 ? 2 : 3;
+  const unsigned clocks[] = {325, 350, 375,
+                             400}; // Hundredths of a microsecond.
+  const uint8_t sectorCounts[] = {21, 19, 18, 17};
+  uint32_t trackBits = (20000000 / clocks[zone]) & ~31u;
+  uint32_t periodTicks = revolutionMicroseconds * 24;
+  uint32_t cells = 0, previousEdge = 0;
+  uint8_t *next = pulses;
+
+  // Emit physical cells, rounding absolute edge times to prevent accumulated
+  // drift. GCR's 4-to-5 code and sync fields require bit-level construction.
+  auto bits = [&](uint16_t value, unsigned width) {
+    for (int bit = width - 1; bit >= 0; bit--) {
+      cells++;
+      if (!(value & (1u << bit)))
+        continue;
+      uint32_t edge =
+          ((uint64_t)cells * periodTicks + trackBits / 2) / trackBits;
+      unsigned interval = edge - previousEdge;
+      size_t needed = interval < 250 ? 1 : interval < 1525 ? 2 : 6;
+      if (interval < 20 || interval > 65555 ||
+          needed > capacity - (next - pulses))
+        return false;
+      next = greasepack(next, pulses + capacity, interval);
+      previousEdge = edge;
+    }
+    return true;
+  };
+  auto gcr = [&](uint8_t value) {
+    static const uint8_t code[] = {0x0a, 0x0b, 0x12, 0x13, 0x0e, 0x0f,
+                                   0x16, 0x17, 0x09, 0x19, 0x1a, 0x1b,
+                                   0x0d, 0x1d, 0x1e, 0x15};
+    return bits(code[value >> 4], 5) && bits(code[value & 15], 5);
+  };
+  auto repeat = [&](uint8_t value, unsigned count) {
+    for (unsigned i = 0; i < count; i++)
+      if (!bits(value, 8))
+        return false;
+    return true;
+  };
+
+  for (unsigned revolution = 0; revolution < 2; revolution++) {
+    if (!repeat(0x55, 10))
+      return 0;
+    for (uint8_t id = 0; id < sectorCounts[zone]; id++) {
+      uint8_t header[] = {8,
+                          0,
+                          id,
+                          (uint8_t)(cylinder + 1),
+                          (uint8_t)(diskID >> 8),
+                          (uint8_t)diskID,
+                          15,
+                          15};
+      for (unsigned i = 2; i <= 5; i++)
+        header[1] ^= header[i];
+      if (!repeat(0xff, 5))
+        return 0;
+      for (uint8_t value : header)
+        if (!gcr(value))
+          return 0;
+      if (!repeat(0x55, 9) || !repeat(0xff, 5) || !gcr(7))
+        return 0;
+
+      uint8_t checksum = 0;
+      for (unsigned i = 0; i < 256; i++) {
+        uint8_t value = sectors[id * 256 + i];
+        checksum ^= value;
+        if (!gcr(value))
+          return 0;
+      }
+      if (!gcr(checksum) || !gcr(15) || !gcr(15) || !repeat(0x55, 9))
+        return 0;
+    }
+    while (cells < (revolution + 1) * trackBits)
+      if (!bits(0x55, 8))
+        return 0;
+  }
+  return next - pulses;
+}
+
 /** @brief Nominal Mac GCR cell period adapted to a 300 RPM drive.
     @param cylinder Cylinder 0 through 79.
     @return Microseconds per cell; zero for an invalid cylinder. */
