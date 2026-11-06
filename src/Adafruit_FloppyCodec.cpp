@@ -62,13 +62,18 @@ uint16_t crcByte(uint16_t crc, uint8_t value) {
 }
 
 bool deliver(Codec::Result &result, Codec::Visit visitor, void *context,
-             const Codec::Sector &sector) {
+             const Codec::Sector &sector, bool checksumValid,
+             Codec::Visit badChecksumVisitor) {
+  if (!checksumValid) {
+    result.badData++;
+    return !badChecksumVisitor || badChecksumVisitor(context, sector);
+  }
   result.sectors++;
   return !visitor || visitor(context, sector);
 }
 
 Codec::Result decodeIBM(const Bits &bits, bool fm, Codec::Visit visitor,
-                        void *context) {
+                        void *context, Codec::Visit badChecksumVisitor) {
   Codec::Result result;
   Codec::Sector sector = {};
   uint8_t payload[1024];
@@ -142,15 +147,18 @@ Codec::Result decodeIBM(const Bits &bits, bool fm, Codec::Visit visitor,
           payload[i] = value;
         }
       }
-      if (!complete || crc) {
+      if (!complete) {
         result.badData++;
         continue;
       }
       sector.deleted = mark == 0xf8;
       sector.data = payload;
-      if (!deliver(result, visitor, context, sector)) {
+      if (!deliver(result, visitor, context, sector, crc == 0,
+                   badChecksumVisitor)) {
         break;
       }
+      if (crc)
+        continue;
       offset = field + (sector.size + 2) * 16 - 1;
       shift = 0;
     }
@@ -188,8 +196,8 @@ uint32_t amigaChecksum(const uint8_t *data, size_t size) {
   return (sum ^ (sum >> 1)) & 0x55555555;
 }
 
-Codec::Result decodeAmiga(const Bits &bits, Codec::Visit visitor,
-                          void *context) {
+Codec::Result decodeAmiga(const Bits &bits, Codec::Visit visitor, void *context,
+                          Codec::Visit badChecksumVisitor) {
   Codec::Result result;
   uint8_t payload[512], header[20], headerCRC[4], dataCRC[4];
   uint32_t shift = 0;
@@ -210,8 +218,7 @@ Codec::Result decodeAmiga(const Bits &bits, Codec::Visit visitor,
       continue;
     }
     if (!amigaField(bits, field + 384, dataCRC, 4) ||
-        !amigaField(bits, field + 448, payload, sizeof(payload)) ||
-        bigEndian(dataCRC) != amigaChecksum(payload, sizeof(payload))) {
+        !amigaField(bits, field + 448, payload, sizeof(payload))) {
       result.badData++;
       continue;
     }
@@ -221,9 +228,14 @@ Codec::Result decodeAmiga(const Bits &bits, Codec::Visit visitor,
     sector.number = header[2];
     sector.size = sizeof(payload);
     sector.data = payload;
-    if (!deliver(result, visitor, context, sector)) {
+    bool checksumValid =
+        bigEndian(dataCRC) == amigaChecksum(payload, sizeof(payload));
+    if (!deliver(result, visitor, context, sector, checksumValid,
+                 badChecksumVisitor)) {
       break;
     }
+    if (!checksumValid)
+      continue;
     offset = field + 448 + sizeof(payload) * 16 - 1;
     shift = 0;
   }
@@ -260,7 +272,8 @@ bool cbmBytes(const Bits &bits, size_t offset, uint8_t *output, size_t size) {
   return true;
 }
 
-Codec::Result decodeCBM(const Bits &bits, Codec::Visit visitor, void *context) {
+Codec::Result decodeCBM(const Bits &bits, Codec::Visit visitor, void *context,
+                        Codec::Visit badChecksumVisitor) {
   Codec::Result result;
   Codec::Sector sector = {};
   uint8_t payload[260];
@@ -313,15 +326,14 @@ Codec::Result decodeCBM(const Bits &bits, Codec::Visit visitor, void *context) {
       for (uint16_t i = 1; i <= 257; i++) {
         sum ^= payload[i];
       }
-      if (sum) {
-        result.badData++;
-        continue;
-      }
       sector.size = 256;
       sector.data = payload + 1;
-      if (!deliver(result, visitor, context, sector)) {
+      if (!deliver(result, visitor, context, sector, sum == 0,
+                   badChecksumVisitor)) {
         break;
       }
+      if (sum)
+        continue;
       offset += sizeof(payload) * 10 - 1;
     }
   }
@@ -362,8 +374,8 @@ bool appleByte(const Bits &bits, size_t &offset, size_t end, uint8_t &value) {
   return false;
 }
 
-Codec::Result decodeApple(const Bits &bits, Codec::Visit visitor,
-                          void *context) {
+Codec::Result decodeApple(const Bits &bits, Codec::Visit visitor, void *context,
+                          Codec::Visit badChecksumVisitor) {
   Codec::Result result;
   Codec::Sector sector = {};
   uint8_t payload[256];
@@ -411,6 +423,7 @@ Codec::Result decodeApple(const Bits &bits, Codec::Visit visitor,
       }
       uint8_t checksum = 0;
       bool complete = true;
+      bool checksumValid = false;
       memset(payload, 0, sizeof(payload));
       for (uint16_t i = 0; i < 343; i++) {
         uint8_t encoded;
@@ -424,7 +437,7 @@ Codec::Result decodeApple(const Bits &bits, Codec::Visit visitor,
           break;
         }
         if (i == 342) {
-          complete = checksum == value;
+          checksumValid = checksum == value;
           break;
         }
         checksum ^= value;
@@ -448,9 +461,12 @@ Codec::Result decodeApple(const Bits &bits, Codec::Visit visitor,
       }
       sector.size = sizeof(payload);
       sector.data = payload;
-      if (!deliver(result, visitor, context, sector)) {
+      if (!deliver(result, visitor, context, sector, checksumValid,
+                   badChecksumVisitor)) {
         break;
       }
+      if (!checksumValid)
+        continue;
       offset = position - 1;
       shift = 0;
     }
@@ -557,7 +573,8 @@ bool macBytes(const Bits &bits, size_t &offset, uint8_t *data, size_t size) {
   return true;
 }
 
-Codec::Result decodeMac(const Bits &bits, Codec::Visit visitor, void *context) {
+Codec::Result decodeMac(const Bits &bits, Codec::Visit visitor, void *context,
+                        Codec::Visit badChecksumVisitor) {
   Codec::Result result;
   Codec::Sector sector = {};
   uint8_t payload[524], encoded[703];
@@ -605,15 +622,19 @@ Codec::Result decodeMac(const Bits &bits, Codec::Visit visitor, void *context) {
       uint8_t number;
       if (!macBytes(bits, next, &number, 1) || number != sector.number ||
           !macBytes(bits, next, encoded, sizeof(encoded)) ||
-          !macPayload(payload, encoded, false) || !macEpilogue(bits, next)) {
+          !macEpilogue(bits, next)) {
         result.badData++;
         continue;
       }
+      bool checksumValid = macPayload(payload, encoded, false);
       sector.size = 512;
       sector.data = payload + 12;
       sector.tags = payload;
-      if (!deliver(result, visitor, context, sector))
+      if (!deliver(result, visitor, context, sector, checksumValid,
+                   badChecksumVisitor))
         break;
+      if (!checksumValid)
+        continue;
       offset = next - 1;
       shift = 0;
     }
@@ -1050,27 +1071,34 @@ size_t Adafruit_FloppyCodec::encodeAmiga(const uint8_t *sectors,
     @param bitCount Exact number of accessible bits.
     @param visitor Optional sector callback; false stops decoding early.
     @param context Opaque caller-owned visitor context.
+    @param badChecksumVisitor Optional separate callback for complete payloads
+           with valid headers/coding but bad data checksums. These bytes are
+           unverified and are counted only in badData, never sectors. Missing,
+           truncated or structurally invalid fields are not delivered. Shares
+           context with visitor; false stops decoding. Null preserves strict
+           decoding. Neither callback identifies intentional copy protection.
     @return Counts of good sectors and rejected recognized fields. */
 Adafruit_FloppyCodec::Result
 Adafruit_FloppyCodec::decode(Encoding encoding, const uint8_t *bits,
-                             size_t bitCount, Visit visitor, void *context) {
+                             size_t bitCount, Visit visitor, void *context,
+                             Visit badChecksumVisitor) {
   if (!bits || !bitCount) {
     return {};
   }
   Bits source = {bits, bitCount};
   switch (encoding) {
   case IBM_MFM:
-    return decodeIBM(source, false, visitor, context);
+    return decodeIBM(source, false, visitor, context, badChecksumVisitor);
   case IBM_FM:
-    return decodeIBM(source, true, visitor, context);
+    return decodeIBM(source, true, visitor, context, badChecksumVisitor);
   case AMIGA_MFM:
-    return decodeAmiga(source, visitor, context);
+    return decodeAmiga(source, visitor, context, badChecksumVisitor);
   case COMMODORE_GCR:
-    return decodeCBM(source, visitor, context);
+    return decodeCBM(source, visitor, context, badChecksumVisitor);
   case APPLE_6_AND_2:
-    return decodeApple(source, visitor, context);
+    return decodeApple(source, visitor, context, badChecksumVisitor);
   case MAC_GCR:
-    return decodeMac(source, visitor, context);
+    return decodeMac(source, visitor, context, badChecksumVisitor);
   }
   return {};
 }

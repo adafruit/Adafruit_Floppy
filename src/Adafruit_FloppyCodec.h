@@ -6,7 +6,8 @@
 
 /** @brief Decode and encode standard floppy sectors and tracks.
  * Decoders consume recovered MSB-first bit cells.
- * Callbacks receive only sectors with valid header and data checksums. Multiple
+ * The normal callback receives only checksum-valid sectors. An optional
+ * separate callback exposes complete payloads with bad data checksums. Multiple
  * revolutions can repeat sectors; the caller decides how to merge them. These
  * formats do not cover custom copy protection or identify a filesystem.
  */
@@ -21,7 +22,7 @@ public:
     APPLE_6_AND_2, ///< Apple II 16-sector 6-and-2 GCR, 256-byte sectors.
     MAC_GCR        ///< Macintosh 400K/800K GCR, 512-byte sectors plus tags.
   };
-  /** @brief A checksum-verified sector, valid only during the callback. */
+  /** @brief A decoded sector, valid only during its callback. */
   struct Sector {
     uint8_t cylinder; ///< Zero-based cylinder (C64 track number minus one).
     uint8_t head;     ///< Head number; zero for the single-sided GCR formats.
@@ -56,7 +57,8 @@ public:
   };
 
   static Result decode(Encoding encoding, const uint8_t *bits, size_t bitCount,
-                       Visit visitor = nullptr, void *context = nullptr);
+                       Visit visitor = nullptr, void *context = nullptr,
+                       Visit badChecksumVisitor = nullptr);
   static Detection detect(const uint32_t *intervals, size_t count,
                           uint32_t sampleFrequency, uint8_t *workBuffer,
                           size_t workCapacity);

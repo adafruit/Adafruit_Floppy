@@ -115,6 +115,19 @@ with tempfile.TemporaryDirectory() as directory:
                     assert len(actual) == (0 if kind == "truncated" else (track.nsec - 1) * 520), (kind, result.stdout)
                     assert all(actual[i:i + 520] in expected_records
                                for i in range(0, len(actual), 520)), kind
+                # Best-effort exports may retain only complete checksum failures.
+                # Header/sector-ID/framing errors still cannot place a payload.
+                bad_output = root / 'bad-checksum'
+                result = subprocess.run([decoder, "5", "bits", str(bitsfile),
+                                         str(len(padded)), str(clock), str(decoded), str(bad_output)],
+                                        capture_output=True)
+                assert decoded.read_bytes() == actual, kind
+                bad = bad_output.read_bytes()
+                if kind == 'checksum':
+                    assert len(bad) == 520 and bad in expected_records, (kind, result.stdout)
+                    assert int(result.stdout.split()[1]) == track.nsec - 1
+                else:
+                    assert not bad, (kind, 'structural damage exported as checksum failure')
                 cases += 1
 
             for period in (198000, 200000, 202000):

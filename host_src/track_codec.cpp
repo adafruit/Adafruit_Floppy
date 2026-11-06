@@ -22,10 +22,24 @@ static bool saveSector(void *context, const Adafruit_FloppyCodec::Sector &s) {
          fwrite(s.data, 1, s.size, file) == s.size;
 }
 
+struct Outputs {
+  FILE *good;
+  FILE *bad;
+};
+
+static bool saveGood(void *context,
+                     const Adafruit_FloppyCodec::Sector &sector) {
+  return saveSector(((Outputs *)context)->good, sector);
+}
+
+static bool saveBad(void *context, const Adafruit_FloppyCodec::Sector &sector) {
+  return saveSector(((Outputs *)context)->bad, sector);
+}
+
 int main(int argc, char **argv) {
-  if (argc != 7) {
+  if (argc != 7 && argc != 8) {
     fprintf(stderr, "Usage: track_codec encoding bits|flux input bit-count|Hz "
-                    "cell-us output\n\r");
+                    "cell-us output [bad-checksum-output]\n\r");
     return 2;
   }
   int encoding = atoi(argv[1]);
@@ -102,10 +116,20 @@ int main(int argc, char **argv) {
   if (!output) {
     return 2;
   }
-  auto result =
-      Adafruit_FloppyCodec::decode((Adafruit_FloppyCodec::Encoding)encoding,
-                                   bits, count, saveSector, output);
+  FILE *bad = argc == 8 ? fopen(argv[7], "wb") : nullptr;
+  if (argc == 8 && !bad) {
+    fclose(output);
+    return 2;
+  }
+  Outputs outputs = {output, bad};
+  auto result = Adafruit_FloppyCodec::decode(
+      (Adafruit_FloppyCodec::Encoding)encoding, bits, count, saveGood, &outputs,
+      bad ? saveBad : nullptr);
   bool failed = ferror(output) != 0;
+  if (bad) {
+    failed |= ferror(bad) != 0;
+    fclose(bad);
+  }
   fclose(output);
   printf("SECTORS %zu BADHEAD %zu BADDATA %zu BITS %zu\n\r", result.sectors,
          result.badHeaders, result.badData, count);

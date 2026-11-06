@@ -134,6 +134,49 @@ def run_tests(executable, folder):
         run(name + '-bad-data.bits', meta, 'bits', pack_bits(''.join(damaged)), count,
             expected_full=False, require_missing=True)
 
+        # Deliberately wrong checksums with unchanged, completely decoded data.
+        # The optional output must never alter the ordinary good-sector stream.
+        checksum_bad = list(bit_string)
+        for position in positions[::meta['sectors']]:
+            field = position + len(marker)
+            encoding = meta['encoding']
+            if encoding in (0, 1, 2):
+                target = field + (384 + 7 if encoding == 2 else meta['sector_bytes'] * 16 + 15)
+                checksum_bad[target] = '0' if checksum_bad[target] == '1' else '1'
+            elif encoding == 3:
+                target = field + 256 * 10 + 5
+                codes = (10, 11, 18, 19, 14, 15, 22, 23, 9, 25, 26, 27, 13, 29, 30, 21)
+                value = codes.index(int(''.join(checksum_bad[target:target + 5]), 2))
+                checksum_bad[target:target + 5] = f'{codes[value ^ 1]:05b}'
+            else:
+                target = field + 342 * 8
+                value = int(''.join(checksum_bad[target:target + 8]), 2)
+                checksum_bad[target:target + 8] = f'{0x97 if value == 0x96 else 0x96:08b}'
+        test_name = name + '-bad-checksum.bits'
+        run(test_name, meta, 'bits', pack_bits(''.join(checksum_bad)), count,
+            expected_full=False, require_missing=True)
+        strict = (folder / (test_name + '.sectors')).read_bytes()
+        good_output, bad_output = folder / 'good-output', folder / 'bad-output'
+        args = [executable, str(meta['encoding']), 'bits', str(folder / test_name),
+                str(count), str(meta['clock_us']), str(good_output), str(bad_output)]
+        result = subprocess.run(args, capture_output=True, text=True, check=True)
+        assert good_output.read_bytes() == strict, (name, 'bad bytes entered good stream')
+        assert int(result.stdout.split()[1]) == len(list(records(good_output)))
+        candidates = list(records(bad_output))
+        assert candidates, (name, 'no unverified payload')
+        originals = list(records(folder / (name + '-good.bits.sectors')))
+        assert all(candidate in originals for candidate in candidates), (name, 'candidate bytes changed')
+        bad_ids = {candidate[2] for candidate in candidates}
+        assert len(bad_ids) == 1
+        assert not bad_ids.intersection(record[2] for record in records(good_output))
+
+        # A complete payload is required; no padded or uninitialized tail bytes.
+        cutoff = positions[0] + len(marker) + 100
+        args[4] = str(cutoff)
+        result = subprocess.run(args, capture_output=True, text=True)
+        assert result.returncode == 1 and not good_output.read_bytes() and not bad_output.read_bytes()
+        checks += 2
+
         # A missing-transition burst combines eight adjacent flux intervals.
         # A single missing clock edge need not change data, so damage enough
         # transitions to affect payload bits. Damage both revolutions.
