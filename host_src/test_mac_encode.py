@@ -14,6 +14,7 @@ import tempfile
 
 from greaseweazle.codec.macintosh.mac_gcr import MacGCRDef
 from greaseweazle import optimised
+from bitarray import bitarray
 
 
 def unpack(data):
@@ -58,6 +59,7 @@ with tempfile.TemporaryDirectory() as directory:
                                      str(len(bits)), str(clock), str(decoded)],
                                     capture_output=True, check=True)
             records = decoded.read_bytes()
+            expected_records = records
             found = {}
             while records:
                 c, h, number, size, volume, deleted = struct.unpack("<BBBHHB", records[:8])
@@ -65,6 +67,55 @@ with tempfile.TemporaryDirectory() as directory:
                 found[number] = records[8:520]
                 records = records[520:]
             assert b"".join(found[i] for i in range(track.nsec)) == data
+
+            # Model the IWM byte latch: inter-byte zero cells do not belong to
+            # the next GCR byte. Exercise marks, header, sector ID, payload,
+            # checksum and epilogue, including consecutive padded FF bytes.
+            original = bits.tobytes()
+            address = original.find(b"\xd5\xaa\x96")
+            mark = original.find(b"\xd5\xaa\xad")
+            boundaries = [address + i for i in (1, 2, 3, 5, 8, 9)]
+            boundaries += [mark + i for i in (1, 2, 3, 4, 380, 412, 413,
+                                             643, 703, 704, 707, 708)]
+            boundaries += [i + 1 for i in range(mark + 4, mark + 703)
+                           if original[i] == 0xff][:3]
+            for kind in ("good", "checksum", "header", "sector-id",
+                         "epilogue", "long-zero-run", "truncated"):
+                changed = bytearray(original)
+                if kind in ("checksum", "header", "sector-id"):
+                    index = {"checksum": mark + 706, "header": address + 7,
+                             "sector-id": mark + 3}[kind]
+                    value = optimised.decode_mac_gcr(bytes([changed[index]]))[0] ^ 1
+                    changed[index] = optimised.encode_mac_gcr(bytes([value]))[0]
+                elif kind == "epilogue":
+                    changed[mark + 708] = 0xab
+                padded = bitarray(endian='big')
+                padded.frombytes(changed)
+                padded = padded[:len(bits)]
+                for index in sorted(set(boundaries), reverse=True):
+                    # Do not create more than two consecutive zero cells.
+                    padding = 2 if changed[index - 1] & 1 else 1 if changed[index - 1] & 2 else 0
+                    padded[index * 8:index * 8] = bitarray('0' * padding)
+                if kind in ("long-zero-run", "truncated"):
+                    # Begin inside the data, after the last possible header.
+                    position = mark * 8 + 1000
+                    if kind == "long-zero-run":
+                        padded[position:position] = bitarray('0' * 32)
+                    else:
+                        padded = padded[:position]
+                bitsfile.write_bytes(padded.tobytes())
+                result = subprocess.run([decoder, "5", "bits", str(bitsfile),
+                                         str(len(padded)), str(clock), str(decoded)],
+                                        capture_output=True)
+                assert result.returncode == (1 if kind == "truncated" else 0), result.stderr
+                actual = decoded.read_bytes()
+                if kind == "good":
+                    assert actual == expected_records, (cylinder, head, kind)
+                else:
+                    assert len(actual) == (0 if kind == "truncated" else (track.nsec - 1) * 520), (kind, result.stdout)
+                    assert all(actual[i:i + 520] in expected_records
+                               for i in range(0, len(actual), 520)), kind
+                cases += 1
 
             for period in (198000, 200000, 202000):
                 subprocess.run([encoder, str(source), str(output), str(cylinder),

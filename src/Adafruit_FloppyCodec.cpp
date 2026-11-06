@@ -521,10 +521,33 @@ bool macPayload(uint8_t *payload, uint8_t *encoded, bool encode) {
   return memcmp(encoded + out, checksum, sizeof(checksum)) == 0;
 }
 
-bool macBytes(const Bits &bits, size_t offset, uint8_t *data, size_t size) {
+// The IWM assembles a byte starting with its first 1, ignoring leading zero
+// cells between bytes. Treating the record as fixed eight-cell groups loses
+// alignment on disks containing these extra cells. Bound the skip to the GCR
+// limit of two consecutive zeros; never search for a checksum-matching edit.
+bool macByte(const Bits &bits, size_t &offset, uint8_t &byte) {
+  unsigned zeros = 0;
+  while (offset < bits.count && !bits.bit(offset)) {
+    offset++;
+    if (++zeros > 2)
+      return false;
+  }
+  if (!bits.byte(offset, byte))
+    return false;
+  offset += 8;
+  return true;
+}
+
+bool macEpilogue(const Bits &bits, size_t &offset) {
+  uint8_t first, second;
+  return macByte(bits, offset, first) && first == 0xde &&
+         macByte(bits, offset, second) && second == 0xaa;
+}
+
+bool macBytes(const Bits &bits, size_t &offset, uint8_t *data, size_t size) {
   for (size_t i = 0; i < size; i++) {
     uint8_t byte;
-    if (!bits.byte(offset + i * 8, byte))
+    if (!macByte(bits, offset, byte))
       return false;
     int value = appleValue(byte);
     if (value < 0)
@@ -538,20 +561,27 @@ Codec::Result decodeMac(const Bits &bits, Codec::Visit visitor, void *context) {
   Codec::Result result;
   Codec::Sector sector = {};
   uint8_t payload[524], encoded[703];
-  uint32_t shift = 0, epilogue;
+  uint8_t shift = 0;
   bool haveHeader = false;
   size_t headerEnd = 0;
   for (size_t offset = 0; offset < bits.count; offset++) {
-    shift = ((shift << 1) | bits.bit(offset)) & 0xffffff;
-    if (offset < 23)
+    shift = (shift << 1) | bits.bit(offset);
+    if (offset < 7 || shift != 0xd5)
       continue;
-    if (shift == 0xd5aa96) {
+    // Keep bitwise acquisition of D5 so a capture may start anywhere. The
+    // remaining mark bytes use the same IWM framing as header/data bytes.
+    size_t next = offset + 1;
+    uint8_t second, mark;
+    if (!macByte(bits, next, second) || second != 0xaa ||
+        !macByte(bits, next, mark))
+      continue;
+    if (mark == 0x96) {
       haveHeader = false;
       uint8_t header[5];
-      if (!macBytes(bits, offset + 1, header, sizeof(header)) ||
+      if (!macBytes(bits, next, header, sizeof(header)) ||
           (header[0] ^ header[1] ^ header[2] ^ header[3]) != header[4] ||
           (header[2] & ~0x21) || (header[3] != 0x02 && header[3] != 0x22) ||
-          !bits.word(offset + 41, 16, epilogue) || epilogue != 0xdeaa) {
+          !macEpilogue(bits, next)) {
         result.badHeaders++;
         continue;
       }
@@ -564,18 +594,18 @@ Codec::Result decodeMac(const Bits &bits, Codec::Visit visitor, void *context) {
         result.badHeaders++;
         continue;
       }
-      headerEnd = offset + 41;
+      headerEnd = next;
       haveHeader = true;
-    } else if (shift == 0xd5aaad && haveHeader) {
+      offset = next - 1;
+      shift = 0;
+    } else if (mark == 0xad && haveHeader) {
       haveHeader = false;
       if (offset - headerEnd > 800)
         continue;
       uint8_t number;
-      if (!macBytes(bits, offset + 1, &number, 1) || number != sector.number ||
-          !macBytes(bits, offset + 9, encoded, sizeof(encoded)) ||
-          !macPayload(payload, encoded, false) ||
-          !bits.word(offset + 9 + sizeof(encoded) * 8, 16, epilogue) ||
-          epilogue != 0xdeaa) {
+      if (!macBytes(bits, next, &number, 1) || number != sector.number ||
+          !macBytes(bits, next, encoded, sizeof(encoded)) ||
+          !macPayload(payload, encoded, false) || !macEpilogue(bits, next)) {
         result.badData++;
         continue;
       }
@@ -584,7 +614,7 @@ Codec::Result decodeMac(const Bits &bits, Codec::Visit visitor, void *context) {
       sector.tags = payload;
       if (!deliver(result, visitor, context, sector))
         break;
-      offset += 8 + sizeof(encoded) * 8 + 16;
+      offset = next - 1;
       shift = 0;
     }
   }
