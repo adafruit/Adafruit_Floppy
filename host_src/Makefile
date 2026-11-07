@@ -72,3 +72,11 @@ test_apple_encode: test_apple_encode.cpp $(CODEC_SOURCES) $(CODEC_HEADERS)
 .PHONY: check-apple-encode
 check-apple-encode: test_apple_encode
 	$(PYTHON3) test_apple_encode.py ./test_apple_encode
+
+# Synthetic INDEX jitter, raw-flux containers and conservative track sharing.
+test_apple_archive: test_apple_archive.cpp ../src/Adafruit_FloppyArchive.cpp ../src/Adafruit_FloppyArchive.h ../src/Adafruit_FloppyBitstream.cpp ../src/Adafruit_FloppyBitstream.h
+	$(CXX) -std=c++11 -Wall -Wextra -Werror $(CODEC_FLAGS) -I../src $< ../src/Adafruit_FloppyArchive.cpp ../src/Adafruit_FloppyBitstream.cpp -o $@
+
+.PHONY: check-apple-archive
+check-apple-archive: test_apple_archive
+	./test_apple_archive
