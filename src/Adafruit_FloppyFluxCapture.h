@@ -28,9 +28,13 @@ private:
                        uint32_t durationTicks);
   void *allocation = nullptr;
   PIO pio = nullptr;
+  PIO indexPIO = nullptr;
   int fluxSM = -1, indexSM = -1;
   int fluxDMA = -1, indexDMA = -1;
   uint offset = 0;
+  uint indexOffset = 0;
+  uint indexBase = 0;
   bool programLoaded = false;
+  bool indexProgramLoaded = false;
 };
 #endif

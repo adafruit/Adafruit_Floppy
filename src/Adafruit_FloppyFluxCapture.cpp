@@ -22,10 +22,12 @@ static void maintainCache(uintptr_t offset, size_t bytes, uint8_t operation) {
 /** @brief Allocate PSRAM and two synchronized input-only PIO state machines.
     Requires a 120 or 240 MHz CPU clock for exact 25 ns timestamp steps.
     @param readPin READ DATA GPIO, in GPIOs 0-31.
-    @param indexPin INDEX GPIO, in GPIOs 0-31.
+    @param indexPin Falling-edge INDEX GPIO, in GPIOs 0-47. Pins 32-47
+           require a free PIO1 (release SDIO before begin). PIO1 and PIO2
+           counters start on the same hardware clock edge.
     @return True on success. Call end() before calling begin() again. */
 bool Adafruit_FloppyFluxCapture::begin(uint16_t readPin, uint16_t indexPin) {
-  if (allocation || readPin > 31 || indexPin > 31 || readPin == indexPin ||
+  if (allocation || readPin > 31 || indexPin > 47 || readPin == indexPin ||
       (clock_get_hz(clk_sys) != 120000000 &&
        clock_get_hz(clk_sys) != 240000000)) {
     error = "Invalid capture configuration";
@@ -53,6 +55,7 @@ bool Adafruit_FloppyFluxCapture::begin(uint16_t readPin, uint16_t indexPin) {
   samples = (uint32_t *)(((uintptr_t)allocation + 31) & ~(uintptr_t)31);
   // Keep flux on GPIO-base-0 PIO2, separate from SDIO's GPIO-base-16 PIO.
   pio = pio2;
+  indexPIO = indexPin > 31 ? pio1 : pio;
   if (pio_get_gpio_base(pio) != 0 ||
       !pio_can_add_program(pio, &flux_capture_program)) {
     error = "PIO2 unavailable";
@@ -60,7 +63,27 @@ bool Adafruit_FloppyFluxCapture::begin(uint16_t readPin, uint16_t indexPin) {
     return false;
   }
   fluxSM = pio_claim_unused_sm(pio, false);
-  indexSM = pio_claim_unused_sm(pio, false);
+  if (indexPIO != pio) {
+    // Changing a PIO GPIO window affects every SM in that block. Require it
+    // to be entirely free; SDIO must not be mounted during this capture.
+    for (uint sm = 0; sm < NUM_PIO_STATE_MACHINES; sm++) {
+      if (pio_sm_is_claimed(indexPIO, sm)) {
+        error = "Release SDIO before external INDEX capture";
+        end();
+        return false;
+      }
+    }
+    indexBase = pio_get_gpio_base(indexPIO);
+    if (!pio_can_add_program(indexPIO, &flux_capture_program) ||
+        pio_set_gpio_base(indexPIO, 16) != PICO_OK) {
+      error = "INDEX PIO unavailable";
+      end();
+      return false;
+    }
+    indexOffset = pio_add_program(indexPIO, &flux_capture_program);
+    indexProgramLoaded = true;
+  }
+  indexSM = pio_claim_unused_sm(indexPIO, false);
   fluxDMA = dma_claim_unused_channel(false);
   indexDMA = dma_claim_unused_channel(false);
   if (fluxSM < 0 || indexSM < 0 || fluxDMA < 0 || indexDMA < 0) {
@@ -70,16 +93,20 @@ bool Adafruit_FloppyFluxCapture::begin(uint16_t readPin, uint16_t indexPin) {
   }
   offset = pio_add_program(pio, &flux_capture_program);
   programLoaded = true;
+  if (indexPIO == pio)
+    indexOffset = offset;
   for (uint8_t channel = 0; channel < 2; channel++) {
+    PIO inputPIO = channel == 0 ? pio : indexPIO;
+    uint inputOffset = channel == 0 ? offset : indexOffset;
     uint sm = channel == 0 ? fluxSM : indexSM;
     uint pin = channel == 0 ? readPin : indexPin;
     pinMode(pin, INPUT);
-    pio_sm_config config = flux_capture_program_get_default_config(offset);
+    pio_sm_config config = flux_capture_program_get_default_config(inputOffset);
     sm_config_set_jmp_pin(&config, pin);
     sm_config_set_fifo_join(&config, PIO_FIFO_JOIN_RX);
     sm_config_set_in_shift(&config, false, true, 32);
     sm_config_set_clkdiv(&config, clock_get_hz(clk_sys) / 120000000.0f);
-    if (pio_sm_init(pio, sm, offset, &config) != PICO_OK) {
+    if (pio_sm_init(inputPIO, sm, inputOffset, &config) != PICO_OK) {
       error = "Capture PIO setup failed";
       end();
       return false;
@@ -136,28 +163,36 @@ bool Adafruit_FloppyFluxCapture::captureInternal(bool (*cancelled)(),
   memset(index, 0, sizeof(index));
   start = UINT32_MAX;
   for (uint8_t channel = 0; channel < (timed ? 1 : 2); channel++) {
+    PIO inputPIO = channel == 0 ? pio : indexPIO;
+    uint inputOffset = channel == 0 ? offset : indexOffset;
     uint sm = channel == 0 ? fluxSM : indexSM;
     uint dma = channel == 0 ? fluxDMA : indexDMA;
-    pio_sm_set_enabled(pio, sm, false);
-    pio_sm_clear_fifos(pio, sm);
-    pio_sm_restart(pio, sm);
-    pio_sm_exec(pio, sm, pio_encode_mov_not(pio_x, pio_null));
-    pio_sm_exec(pio, sm, pio_encode_jmp(offset));
+    pio_sm_set_enabled(inputPIO, sm, false);
+    pio_sm_clear_fifos(inputPIO, sm);
+    pio_sm_restart(inputPIO, sm);
+    pio_sm_exec(inputPIO, sm, pio_encode_mov_not(pio_x, pio_null));
+    pio_sm_exec(inputPIO, sm, pio_encode_jmp(inputOffset));
     dma_channel_config config = dma_channel_get_default_config(dma);
     channel_config_set_transfer_data_size(&config, DMA_SIZE_32);
     channel_config_set_read_increment(&config, false);
     channel_config_set_write_increment(&config, true);
-    channel_config_set_dreq(&config, pio_get_dreq(pio, sm, false));
+    channel_config_set_dreq(&config, pio_get_dreq(inputPIO, sm, false));
     dma_channel_configure(dma, &config, channel == 0 ? dmaSamples : index,
-                          &pio->rxf[sm],
+                          &inputPIO->rxf[sm],
                           channel == 0 ? CAPACITY : revolutions + 1, false);
   }
   // Hardware masks are required by the SDK for synchronized PIO/DMA starts.
-  uint32_t smMask = (1u << fluxSM) | (timed ? 0 : (1u << indexSM));
+  uint32_t indexMask = timed ? 0 : (1u << indexSM);
+  uint32_t smMask = (1u << fluxSM) | (indexPIO == pio ? indexMask : 0);
   uint32_t stallMask = smMask << PIO_FDEBUG_RXSTALL_LSB;
+  uint32_t indexStallMask = indexMask << PIO_FDEBUG_RXSTALL_LSB;
   pio->fdebug = stallMask;
+  indexPIO->fdebug = indexStallMask;
   dma_start_channel_mask((1u << fluxDMA) | (timed ? 0 : (1u << indexDMA)));
-  pio_enable_sm_mask_in_sync(pio, smMask);
+  if (indexPIO == pio)
+    pio_enable_sm_mask_in_sync(pio, smMask);
+  else
+    pio_enable_sm_multi_mask_in_sync(pio, indexMask, smMask, 0);
   uint32_t started = micros();
   while (timed ? micros() - started < (durationTicks + 39) / 40
                : dma_channel_is_busy(indexDMA)) {
@@ -176,6 +211,8 @@ bool Adafruit_FloppyFluxCapture::captureInternal(bool (*cancelled)(),
     delay(1); // USB and buttons stay responsive; DMA owns every sample.
   }
   pio_set_sm_mask_enabled(pio, smMask, false);
+  if (indexPIO != pio)
+    pio_set_sm_mask_enabled(indexPIO, indexMask, false);
   // Let DMA drain any final FIFO words, then stop both channels.
   delayMicroseconds(10);
   // RP2350 abort clears the remaining transfer count: snapshot it first.
@@ -185,7 +222,7 @@ bool Adafruit_FloppyFluxCapture::captureInternal(bool (*cancelled)(),
   bool allIndexes = dma_hw->ch[indexDMA].transfer_count == 0;
   dma_channel_abort(fluxDMA);
   dma_channel_abort(indexDMA);
-  if (pio->fdebug & stallMask)
+  if ((pio->fdebug & stallMask) || (indexPIO->fdebug & indexStallMask))
     error = "Capture FIFO overrun";
   if (!timed && !allIndexes && !error[0])
     error = "Missing index";
@@ -206,7 +243,7 @@ void Adafruit_FloppyFluxCapture::end() {
     if (fluxSM >= 0)
       pio_sm_set_enabled(pio, fluxSM, false);
     if (indexSM >= 0)
-      pio_sm_set_enabled(pio, indexSM, false);
+      pio_sm_set_enabled(indexPIO, indexSM, false);
   }
   if (fluxDMA >= 0) {
     dma_channel_abort(fluxDMA);
@@ -219,14 +256,20 @@ void Adafruit_FloppyFluxCapture::end() {
   if (fluxSM >= 0)
     pio_sm_unclaim(pio, fluxSM);
   if (indexSM >= 0)
-    pio_sm_unclaim(pio, indexSM);
+    pio_sm_unclaim(indexPIO, indexSM);
   if (programLoaded)
     pio_remove_program(pio, &flux_capture_program, offset);
+  if (indexProgramLoaded) {
+    pio_remove_program(indexPIO, &flux_capture_program, indexOffset);
+    pio_set_gpio_base(indexPIO, indexBase);
+  }
   free(allocation);
   allocation = nullptr;
   samples = nullptr;
   pio = nullptr;
+  indexPIO = nullptr;
   fluxSM = indexSM = fluxDMA = indexDMA = -1;
   programLoaded = false;
+  indexProgramLoaded = false;
 }
 #endif
