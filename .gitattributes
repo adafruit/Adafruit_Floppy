@@ -1,0 +1,2 @@
+# Packed magnetic bits are binary even when a fixture happens to contain no NUL.
+host_src/codec_fixtures/*.bits binary
