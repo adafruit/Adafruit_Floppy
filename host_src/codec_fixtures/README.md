@@ -54,6 +54,34 @@ fixture generator does not use our decoder or encoder to create expectations.
 
 ## API boundaries
 
+### External WOZ compatibility checks
+
+`make check-woz-write CODEC_FLAGS='-O1 -g -fsanitize=address,undefined'`
+runs synthetic bounds, CRC, timing and cyclic-seam tests without downloaded
+images. To also exercise local images from the
+[official Applesauce WOZ test set](https://applesaucefdc.com/woz/), run:
+
+```sh
+find '/path/to/woz test images' -name '*.woz' -print0 | xargs -0 ./test_woz_write
+```
+
+The optional fixture pass checks every mapped position at four rotation periods
+(180, 200, 202.325 and 220 ms), compares memory and file-callback conversion,
+checks packed intervals and total duration, and checks that source bytes remain
+unchanged. `REJECT` and `TRACK REJECT` report unsupported input; these are a
+compatibility inventory, not assertion failures. An assertion or sanitizer
+failure still fails the run. Parsing/conversion does not establish that a
+protected disk can be physically reproduced or booted.
+
+The v1.4 test set (2021-06-16), checked on 2026-11-08, contains 47 files:
+22 WOZ2 5.25-inch images converted every mapped position; Sammy Lightfoot parsed
+but rejected 124 positions for transition gaps beyond the 16-bit writer range.
+The 21 WOZ1 files, two 3.5-inch files and one WOZ2.1 FLUX file were rejected.
+All synthetic tests and accepted conversions passed ASan/UBSan. External
+commercial images are not included in this repository.
+
+### Sector codecs
+
 `Adafruit_FloppyBitstream` converts positive timestamp intervals into packed,
 MSB-first bits. Its optional short-pulse filter and PLL update rule follow
 [Greaseweazle](https://github.com/keirf/greaseweazle)'s public-domain algorithms.

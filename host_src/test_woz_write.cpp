@@ -6,6 +6,8 @@
 #include "Adafruit_FloppyWOZ.h"
 #include "greasepack.h"
 #include <assert.h>
+#include <fstream>
+#include <iterator>
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -17,7 +19,67 @@ static void put32(uint8_t *p, uint32_t value) {
   }
 }
 
-int main() {
+// Optional external fixtures stay outside Git. This checks the actual parser
+// and encoder, not emulator behavior or magnetic protection reproduction.
+static void checkFile(const char *path) {
+  std::ifstream file(path, std::ios::binary);
+  assert(file.good());
+  std::vector<uint8_t> image((std::istreambuf_iterator<char>(file)), {});
+  uint32_t original = Adafruit_FloppyArchive::crc32(image.data(), image.size());
+  Adafruit_FloppyWOZ reader, streamed;
+  if (!reader.begin(image.data(), image.size())) {
+    printf("REJECT %s: %s\n\r", path, reader.error());
+    return;
+  }
+  auto read = [](void *context, uint32_t offset, uint8_t *data, size_t bytes) {
+    auto &image = *(std::vector<uint8_t> *)context;
+    if (offset > image.size() || bytes > image.size() - offset)
+      return false;
+    memcpy(data, image.data() + offset, bytes);
+    return true;
+  };
+  assert(streamed.begin(read, &image, image.size()));
+  std::vector<uint8_t> output(210000), fromFile(210000), scratch(8192);
+  unsigned converted = 0, rejected = 0;
+  for (unsigned q = 0; q < 160; q++) {
+    if (!reader.hasTrack(q))
+      continue;
+    for (uint32_t period : {180000u, 200000u, 202325u, 220000u}) {
+      size_t bytes = reader.flux(q, period, output.data(), output.size());
+      size_t other = streamed.flux(q, period, fromFile.data(), fromFile.size(),
+                                   scratch.data(), scratch.size());
+      assert(bytes == other);
+      if (!bytes) {
+        printf("TRACK REJECT %s Q%u: %s\n\r", path, q, reader.error());
+        rejected++;
+        break;
+      }
+      assert(!memcmp(output.data(), fromFile.data(), bytes));
+      // A valid packet stream must consume exactly the output and never emit
+      // an interval outside the hardware writer's supported delay range.
+      uint8_t *next = output.data(), *end = next + bytes;
+      uint32_t elapsed = 0;
+      while (next < end) {
+        uint32_t ticks = greaseunpack(&next, end, true);
+        assert(ticks > 20 && ticks <= 65535);
+        elapsed += ticks;
+      }
+      assert(next == end && elapsed <= period * 48);
+      assert(elapsed > period * 48 - 65535);
+      converted++;
+    }
+  }
+  assert(original == Adafruit_FloppyArchive::crc32(image.data(), image.size()));
+  printf("CONVERT %s: %u position/period cases, %u rejected positions\n\r",
+         path, converted, rejected);
+}
+
+int main(int argc, char **argv) {
+  if (argc > 1) {
+    for (int i = 1; i < argc; i++)
+      checkFile(argv[i]);
+    return 0;
+  }
   std::vector<uint8_t> image(1536 + 6656), output(210002, 0x5a);
   const uint32_t bits = 50003;
   Adafruit_FloppyArchive::wozHeader(image.data(), false);
