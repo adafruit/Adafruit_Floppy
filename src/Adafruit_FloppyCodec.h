@@ -66,6 +66,7 @@ public:
   static size_t encodeApple(const uint8_t *sectors, uint8_t cylinder,
                             uint8_t volume, uint8_t *pulses, size_t capacity,
                             uint32_t revolutionMicroseconds = 200000);
+  static size_t findAppleWriteSplice(const uint8_t *data, size_t bitCount);
   static size_t encodeC64(const uint8_t *sectors, uint8_t cylinder,
                           uint16_t diskID, uint8_t *pulses, size_t capacity,
                           uint32_t revolutionMicroseconds = 200000);

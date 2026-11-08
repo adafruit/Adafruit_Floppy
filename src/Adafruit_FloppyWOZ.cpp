@@ -139,6 +139,16 @@ bool Adafruit_FloppyWOZ::hasTrack(uint8_t quarterTrack) const {
   return _valid && quarterTrack < 160 && _map[quarterTrack] != 255;
 }
 
+/** @brief Return the exact length of a mapped cyclic track.
+ * @param quarterTrack Physical position 0..159.
+ * @return Channel-bit count, or zero for an unmapped/invalid track.
+ */
+uint32_t Adafruit_FloppyWOZ::bitCount(uint8_t quarterTrack) const {
+  if (!hasTrack(quarterTrack))
+    return 0;
+  return wozRead32(_tracks + 8 * _map[quarterTrack] + 4);
+}
+
 /** @brief Convert two cyclic revolutions to packed 24 MHz transition intervals.
  * Scale the complete bitstream to the measured rotation period. The second
  * revolution keeps the writer fed until hardware INDEX stops it. Long zero
@@ -150,13 +160,17 @@ bool Adafruit_FloppyWOZ::hasTrack(uint8_t quarterTrack) const {
  * @param trackBuffer SRAM scratch space for callback-based reads; ignored for
  * an in-memory image. @param trackCapacity Scratch capacity, 8192 is
  * sufficient.
+ * @param startBit First channel bit in the cyclic output. When writing with
+ * INDEX, delay both write boundaries by startBit / bitCount revolutions to
+ * preserve the track's original angular alignment.
  * @return Packed byte count, or zero on unsupported timing/capacity. On failure
  * discard the partial output. Intervals fit the RP2 writer's 16-bit delay.
  */
 size_t Adafruit_FloppyWOZ::flux(uint8_t quarterTrack,
                                 uint32_t revolutionMicroseconds,
                                 uint8_t *output, size_t capacity,
-                                uint8_t *trackBuffer, size_t trackCapacity) {
+                                uint8_t *trackBuffer, size_t trackCapacity,
+                                uint32_t startBit) {
   _error = "Missing WOZ track / invalid rotation period";
   if (!hasTrack(quarterTrack) || !output || !capacity ||
       revolutionMicroseconds < 180000 || revolutionMicroseconds > 220000)
@@ -165,7 +179,7 @@ size_t Adafruit_FloppyWOZ::flux(uint8_t quarterTrack,
   uint32_t offset = (entry[0] + 256u * entry[1]) * 512u;
   uint32_t bits = wozRead32(entry + 4);
   _error = "Unsupported WOZ bit timing";
-  if (bits < 32000 || bits > 65536)
+  if (bits < 32000 || bits > 65536 || startBit >= bits)
     return 0;
   const uint8_t *data = _image ? _image + offset : trackBuffer;
   if (!_image) {
@@ -178,7 +192,7 @@ size_t Adafruit_FloppyWOZ::flux(uint8_t quarterTrack,
   uint32_t previous = 0;
   uint32_t period = revolutionMicroseconds * 24;
   for (uint32_t i = 0; i < bits * 2; i++) {
-    uint32_t bit = i % bits;
+    uint32_t bit = (i + startBit) % bits;
     // WOZ channel bits are MSB-first; a one is a physical transition.
     if (!(data[bit / 8] & (0x80 >> (bit % 8))))
       continue;

@@ -820,6 +820,9 @@ size_t Adafruit_FloppyBase::capture_track(
     @param  store_greaseweazle If true, long pulses are 'packed' in gw format
     @param  use_index If true, write starts at the index pulse. On RP2, it also
    stops at the following index pulse.
+    @param index_delay_us RP2 only: delay both INDEX boundaries by this many
+   microseconds, at most 250000 and less than one revolution. The caller must
+   rotate the waveform by the same angular offset. Requires use_index=true.
     @returns False if the data could not be written, indexpin=-1, or startup
    found no INDEX pulse. INDEX-less writes are not supported. SAMD51 cannot
    write Apple flux format. RP2 also rejects a missing start index, FIFO
@@ -827,16 +830,20 @@ size_t Adafruit_FloppyBase::capture_track(
 */
 /**************************************************************************/
 bool Adafruit_FloppyBase::write_track(uint8_t *pulses, size_t n_pulses,
-                                      bool store_greaseweazle, bool use_index) {
+                                      bool store_greaseweazle, bool use_index,
+                                      uint32_t index_delay_us) {
+  if (index_delay_us > 250000 || (index_delay_us && !use_index)) {
+    return false;
+  }
   if (!has_index() || is_index_missing) {
     return false; // INDEX-less writes are not implemented by these backends.
   }
 #if defined(ARDUINO_ARCH_RP2040)
   return rp2040_flux_write(_indexpin, _wrgatepin, _wrdatapin, pulses,
                            pulses + n_pulses, store_greaseweazle, _is_apple2,
-                           use_index);
+                           use_index, index_delay_us);
 #elif defined(__SAMD51__)
-  if (_is_apple2) {
+  if (_is_apple2 || index_delay_us) {
     return false;
   }
   pinMode(_wrdatapin, OUTPUT);

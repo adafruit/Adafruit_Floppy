@@ -17,9 +17,10 @@ public:
   bool begin(const uint8_t *image, size_t bytes);
   bool begin(Read reader, void *context, uint32_t bytes);
   bool hasTrack(uint8_t quarterTrack) const;
+  uint32_t bitCount(uint8_t quarterTrack) const;
   size_t flux(uint8_t quarterTrack, uint32_t revolutionMicroseconds,
               uint8_t *output, size_t capacity, uint8_t *trackBuffer = nullptr,
-              size_t trackCapacity = 0);
+              size_t trackCapacity = 0, uint32_t startBit = 0);
   const char *error() const;
 
 private:

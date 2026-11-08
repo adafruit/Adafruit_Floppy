@@ -3,6 +3,7 @@
 // Synthetic channel bits: no commercial disk data. Independently check timing,
 // the non-byte-aligned revolution seam and rejection before hardware access.
 #include "Adafruit_FloppyArchive.h"
+#include "Adafruit_FloppyCodec.h"
 #include "Adafruit_FloppyWOZ.h"
 #include "greasepack.h"
 #include <assert.h>
@@ -40,7 +41,7 @@ static void checkFile(const char *path) {
   };
   assert(streamed.begin(read, &image, image.size()));
   std::vector<uint8_t> output(210000), fromFile(210000), scratch(8192);
-  unsigned converted = 0, rejected = 0;
+  unsigned converted = 0, rejected = 0, splices = 0, wholeTracks = 0;
   for (unsigned q = 0; q < 160; q++) {
     if (!reader.hasTrack(q))
       continue;
@@ -55,6 +56,12 @@ static void checkFile(const char *path) {
         break;
       }
       assert(!memcmp(output.data(), fromFile.data(), bytes));
+      if (period == 180000 && q % 4 == 0) {
+        wholeTracks++;
+        if (Adafruit_FloppyCodec::findAppleWriteSplice(scratch.data(),
+                                                       reader.bitCount(q)))
+          splices++;
+      }
       // A valid packet stream must consume exactly the output and never emit
       // an interval outside the hardware writer's supported delay range.
       uint8_t *next = output.data(), *end = next + bytes;
@@ -72,6 +79,8 @@ static void checkFile(const char *path) {
   assert(original == Adafruit_FloppyArchive::crc32(image.data(), image.size()));
   printf("CONVERT %s: %u position/period cases, %u rejected positions\n\r",
          path, converted, rejected);
+  printf("SPLICE %s: %u/%u whole tracks have a verified sector gap\n\r", path,
+         splices, wholeTracks);
 }
 
 int main(int argc, char **argv) {
@@ -80,6 +89,31 @@ int main(int argc, char **argv) {
       checkFile(argv[i]);
     return 0;
   }
+  // Independent minimal field: 6-and-2 zero maps to $96, including checksum.
+  // A valid following four-and-four address encloses a 256-bit inter-sector
+  // gap. Bad checksums and weak data must not be treated as safe space.
+  std::vector<uint8_t> field(512, 0xff);
+  const uint8_t dataMark[] = {0xd5, 0xaa, 0xad};
+  memcpy(field.data() + 40, dataMark, 3);
+  memset(field.data() + 43, 0x96, 343);
+  const uint8_t epilogue[] = {0xde, 0xaa, 0xeb};
+  memcpy(field.data() + 386, epilogue, 3);
+  const uint8_t address[] = {0xd5, 0xaa, 0x96, 0xaa, 0xaa, 0xaa,
+                             0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
+  memcpy(field.data() + 421, address, sizeof(address));
+  assert(Adafruit_FloppyCodec::findAppleWriteSplice(field.data(), 4096) ==
+         405 * 8);
+  field[385] = 0x97;
+  assert(!Adafruit_FloppyCodec::findAppleWriteSplice(field.data(), 4096));
+  field[385] = 0x96;
+  field[431] = 0xab;
+  assert(!Adafruit_FloppyCodec::findAppleWriteSplice(field.data(), 4096));
+  field[431] = 0xaa;
+  assert(!Adafruit_FloppyCodec::findAppleWriteSplice(field.data(), 425 * 8));
+  assert(!Adafruit_FloppyCodec::findAppleWriteSplice(nullptr, 4096));
+  assert(!Adafruit_FloppyCodec::findAppleWriteSplice(field.data(), 65537));
+  memset(field.data(), 0, field.size());
+  assert(!Adafruit_FloppyCodec::findAppleWriteSplice(field.data(), 4096));
   std::vector<uint8_t> image(1536 + 6656), output(210002, 0x5a);
   const uint32_t bits = 50003;
   Adafruit_FloppyArchive::wozHeader(image.data(), false);
@@ -93,6 +127,7 @@ int main(int argc, char **argv) {
   assert(!reader.begin(nullptr, image.size()));
   assert(reader.begin(image.data(), image.size()));
   assert(reader.hasTrack(0) && !reader.hasTrack(1) && !reader.hasTrack(160));
+  assert(reader.bitCount(0) == bits && reader.bitCount(1) == 0);
   Adafruit_FloppyWOZ streamed;
   auto read = [](void *context, uint32_t offset, uint8_t *data, size_t bytes) {
     auto &file = *(std::vector<uint8_t> *)context;
@@ -132,6 +167,27 @@ int main(int argc, char **argv) {
   assert(!streamed.flux(0, 200000, output.data(), output.size()));
   assert(!streamed.flux(0, 200000, output.data(), output.size(), scratch.data(),
                         1));
+  for (uint32_t first : {1u, 723u, bits - 1}) {
+    size_t bytes =
+        reader.flux(0, 200000, output.data(), output.size(), nullptr, 0, first);
+    assert(bytes &&
+           bytes == streamed.flux(0, 200000, streamedOutput.data(),
+                                  streamedOutput.size(), scratch.data(),
+                                  scratch.size(), first));
+    assert(!memcmp(output.data(), streamedOutput.data(), bytes));
+    uint8_t *next = output.data(), *end = next + bytes;
+    uint32_t elapsed = 0;
+    for (uint32_t i = 0; i < bits * 2; i++) {
+      uint32_t bit = (i + first) % bits;
+      if (bit % 7 != 1 && bit % 7 != 4 && bit % 7 != 6)
+        continue;
+      elapsed += greaseunpack(&next, end, true);
+      assert(elapsed == ((uint64_t)(i + 1) * 4800000 + bits / 2) / bits);
+    }
+    assert(next == end);
+  }
+  assert(
+      !reader.flux(0, 200000, output.data(), output.size(), nullptr, 0, bits));
   auto shortFile = image;
   assert(streamed.begin(read, &shortFile, shortFile.size()));
   shortFile.resize(1536);

@@ -1065,6 +1065,85 @@ size_t Adafruit_FloppyCodec::encodeAmiga(const uint8_t *sectors,
   return count;
 }
 
+/** @brief Find a splice between a valid Apple data field and its next address.
+ * @param data Packed MSB-first channel bits for one revolution.
+ * @param bitCount Exact channel-bit count, at most 65536.
+ * @return Midpoint of the longest recognized gap in bits, or zero if none.
+ * Requires a checksum-valid 6-and-2 field, DE AA epilogue, and a valid
+ * following four-and-four address. Only gaps of 128..1024 bits are considered.
+ * This protects standard sector payloads; it does not prove that protection
+ * code ignores the gap. Fields crossing the input boundary are not candidates.
+ */
+size_t Adafruit_FloppyCodec::findAppleWriteSplice(const uint8_t *data,
+                                                  size_t bitCount) {
+  if (!data || bitCount < 3000 || bitCount > 65536)
+    return 0;
+  Bits bits = {data, bitCount};
+  uint32_t shift = 0;
+  size_t best = 0, bestGap = 0;
+  for (size_t offset = 0; offset < bitCount; offset++) {
+    shift = ((shift << 1) | bits.bit(offset)) & 0xffffff;
+    if (offset < 23 || shift != 0xd5aaad)
+      continue;
+    size_t position = offset + 1;
+    size_t end = position + 3200;
+    if (end > bitCount)
+      end = bitCount;
+    uint8_t checksum = 0;
+    bool valid = true;
+    for (uint16_t i = 0; i < 343; i++) {
+      uint8_t encoded;
+      if (!appleByte(bits, position, end, encoded)) {
+        valid = false;
+        break;
+      }
+      int value = appleValue(encoded);
+      if (value < 0 || (i == 342 && checksum != value)) {
+        valid = false;
+        break;
+      }
+      checksum ^= value;
+    }
+    uint8_t first, second, third;
+    if (!valid || !appleByte(bits, position, bitCount, first) ||
+        !appleByte(bits, position, bitCount, second) ||
+        !appleByte(bits, position, bitCount, third) || first != 0xde ||
+        second != 0xaa)
+      continue;
+    // A standard address must follow before choosing a gap. Do not mistake a
+    // repeated data payload, an erased region, or a weak field for safe space.
+    for (size_t next = position; next - position <= 1024; next++) {
+      uint32_t mark;
+      if (!bits.word(next, 24, mark))
+        break;
+      if (mark != 0xd5aa96)
+        continue;
+      uint8_t header[4];
+      bool address = true;
+      for (uint8_t i = 0; i < 4; i++) {
+        uint8_t odd, even;
+        if (!bits.byte(next + 24 + i * 16, odd) ||
+            !bits.byte(next + 32 + i * 16, even) || (odd & 0xaa) != 0xaa ||
+            (even & 0xaa) != 0xaa) {
+          address = false;
+          break;
+        }
+        header[i] = ((odd << 1) | 1) & even;
+      }
+      size_t gap = next - position;
+      if (address && (header[0] ^ header[1] ^ header[2]) == header[3] &&
+          header[1] < 40 && header[2] < 16 && gap >= 128 && gap > bestGap) {
+        bestGap = gap;
+        best = position + gap / 2;
+      }
+      break;
+    }
+    offset = position - 1;
+    shift = 0;
+  }
+  return best;
+}
+
 /** @brief Decode checksum-verified sectors from a bounded packed bitstream.
     @param encoding Standard sector layout to attempt.
     @param bits Packed bytes, with the earliest bit in bit 7 of byte 0.
