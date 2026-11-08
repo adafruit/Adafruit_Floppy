@@ -153,6 +153,11 @@ void stop_drive();
 #include "floppsy_rp2350.h"
 #endif
 
+// Last level requested via GW_CMD_SETPIN for IDC pin 2 (DENSEL).
+// Kept here so it survives SETBUSTYPE, which calls begin() -> soft_reset()
+// and would otherwise force the pin back LOW on every gw command.
+static bool density_level = false;
+
 bool setbustype(int bustype) {
 #if defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
   if (bustype != -1 && bustype != GW_CMD_SETBUSTYPE_IBM &&
@@ -192,6 +197,11 @@ bool setbustype(int bustype) {
   }
   floppy->debug_serial = &Serial1;
   auto result = floppy->begin();
+#ifdef READ_PIN
+  if (result && floppy == &pcfloppy) {
+    floppy->set_density(density_level);
+  }
+#endif
   Serial1.printf("setbustype() floppy = %p result=%d\n", floppy, result);
   return result;
 #endif
@@ -903,6 +913,11 @@ void loop() {
         reply_buffer[i++] = GW_ACK_OK;
         reply_buffer[i++] = digitalRead(FLOPPY_READY);
         break;
+#else
+      case GW_CMD_SETPIN_DENSITY:
+        reply_buffer[i++] = GW_ACK_OK;
+        reply_buffer[i++] = density_level;
+        break;
 #endif
       case GW_CMD_GETPIN_TRACK0:
         reply_buffer[i++] = GW_ACK_OK;
@@ -930,6 +945,9 @@ void loop() {
     switch (pin) {
       case GW_CMD_SETPIN_DENSITY:
         if (floppy->set_density(value)) {
+#if !defined(ARDUINO_ADAFRUIT_FLOPPSY_RP2350)
+          density_level = value;
+#endif
           reply_buffer[i++] = GW_ACK_OK;
         } else {
           reply_buffer[i++] = GW_ACK_BADCMD;
