@@ -80,3 +80,10 @@ test_apple_archive: test_apple_archive.cpp ../src/Adafruit_FloppyArchive.cpp ../
 .PHONY: check-apple-archive
 check-apple-archive: test_apple_archive
 	./test_apple_archive
+
+.PHONY: check-woz-write
+check-woz-write: test_woz_write
+	./test_woz_write
+
+test_woz_write: test_woz_write.cpp ../src/Adafruit_FloppyWOZ.cpp ../src/Adafruit_FloppyWOZ.h ../src/Adafruit_FloppyArchive.cpp ../src/Adafruit_FloppyArchive.h ../src/Adafruit_FloppyBitstream.cpp ../src/greasepack.h
+	$(CXX) -std=c++11 -Wall -Wextra -Werror $(CODEC_FLAGS) -I../src $< ../src/Adafruit_FloppyWOZ.cpp ../src/Adafruit_FloppyArchive.cpp ../src/Adafruit_FloppyBitstream.cpp -o $@
