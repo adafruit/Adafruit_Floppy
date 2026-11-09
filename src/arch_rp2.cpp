@@ -361,28 +361,11 @@ static void disable_write() {
 
 static bool write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
                              uint8_t *pulse_end, bool store_greaseweazle,
-                             bool use_index) {
-
-  if (use_index) {
-    uint32_t started = micros();
-    // don't start during an index pulse
-    while (!gpio_get(index_pin)) { /* NOTHING */
-      if (micros() - started >= 1000000) {
-        return false;
-      }
-    }
-
-    // wait for falling edge of index pin
-    while (gpio_get(index_pin)) { /* NOTHING */
-      if (micros() - started >= 1000000) {
-        return false;
-      }
-    }
-  }
+                             bool use_index, uint32_t index_delay_us) {
+  // Prepare the waveform while WRITE GATE is inactive. Doing this after INDEX
+  // erases the start of a track and shifts its final bits past the next INDEX.
+  digitalWrite(wrgate_pin, HIGH);
   pinMode(wrgate_pin, OUTPUT);
-  digitalWrite(wrgate_pin, LOW);
-
-  uint32_t irq_state = save_and_disable_interrupts();
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, false);
   pio_sm_clear_fifos(g_writer.pio, g_writer.sm);
   pio_sm_exec(g_writer.pio, g_writer.sm, g_writer.offset);
@@ -395,10 +378,39 @@ static bool write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
   // FDEBUG is write-one-to-clear; clear this SM's sticky TX-stall flag.
   uint32_t stalled = 1u << (PIO_FDEBUG_TXSTALL_LSB + g_writer.sm);
   g_writer.pio->fdebug = stalled;
+
+  // Keep interrupt latency out of the measured INDEX-to-first-flux phase.
+  // The timeout uses the hardware timer and also works with IRQs disabled.
+  uint32_t irq_state = save_and_disable_interrupts();
+  if (use_index) {
+    uint32_t started = micros();
+    bool previous = gpio_get(index_pin);
+    bool found = false;
+    while (micros() - started < 1000000) {
+      bool current = gpio_get(index_pin);
+      if (previous && !current) {
+        found = true;
+        break;
+      }
+      previous = current;
+    }
+    if (!found) {
+      pinMode(wrgate_pin, INPUT_PULLUP);
+      restore_interrupts(irq_state);
+      return false;
+    }
+    uint32_t edge = micros();
+    while (micros() - edge < index_delay_us) {
+      // Keep the splice at the caller's chosen angular position after INDEX.
+    }
+  }
+  gpio_put(wrgate_pin, false);
   pio_sm_set_enabled(g_writer.pio, g_writer.sm, true);
 
   bool old_index_state = false;
   bool success = true;
+  bool ending = false;
+  uint32_t last_index = 0;
   uint32_t started = micros();
   while (true) {
     // A stopped drive or missing index must not leave WRITE GATE asserted.
@@ -411,8 +423,11 @@ static bool write_foreground(int index_pin, int wrgate_pin, uint8_t *pulses,
       break;
     }
     bool index_state = gpio_get(index_pin);
-    if (use_index && old_index_state && !index_state) {
-      // falling edge of index pin
+    if (use_index && !ending && old_index_state && !index_state) {
+      last_index = micros();
+      ending = true;
+    }
+    if (ending && micros() - last_index >= index_delay_us) {
       break;
     }
     while (pulses != pulse_end &&
@@ -497,14 +512,14 @@ uint16_t mfm_io_sample_flux(bool *index) {
 
 bool rp2040_flux_write(int index_pin, int wrgate_pin, int wrdata_pin,
                        uint8_t *pulses, uint8_t *pulse_end,
-                       bool store_greaseweazle, bool is_apple2,
-                       bool use_index) {
+                       bool store_greaseweazle, bool is_apple2, bool use_index,
+                       uint32_t index_delay_us) {
   if (!init_write(wrdata_pin, is_apple2)) {
     return false;
   }
-  bool success =
-      write_foreground(index_pin, wrgate_pin, (uint8_t *)pulses,
-                       (uint8_t *)pulse_end, store_greaseweazle, use_index);
+  bool success = write_foreground(index_pin, wrgate_pin, (uint8_t *)pulses,
+                                  (uint8_t *)pulse_end, store_greaseweazle,
+                                  use_index, index_delay_us);
   free_write();
   gpio_put(wrdata_pin, true);
   gpio_set_function(wrdata_pin, GPIO_FUNC_SIO);
