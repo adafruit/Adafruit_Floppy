@@ -73,7 +73,12 @@ bool Adafruit_FloppyFluxCapture::begin(uint16_t readPin, uint16_t indexPin) {
   for (uint8_t channel = 0; channel < 2; channel++) {
     uint sm = channel == 0 ? fluxSM : indexSM;
     uint pin = channel == 0 ? readPin : indexPin;
-    pinMode(pin, INPUT);
+    // INDEX may come directly from an open-collector Hall switch.
+    if (channel == 1) {
+      pinMode(pin, INPUT_PULLUP);
+    } else {
+      pinMode(pin, INPUT);
+    }
     pio_sm_config config = flux_capture_program_get_default_config(offset);
     sm_config_set_jmp_pin(&config, pin);
     sm_config_set_fifo_join(&config, PIO_FIFO_JOIN_RX);
